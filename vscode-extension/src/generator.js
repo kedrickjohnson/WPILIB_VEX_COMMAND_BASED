@@ -4,8 +4,8 @@
  *
  * A generated project looks like:
  *   MyRobot/
- *     settings.gradle.kts, build.gradle.kts   robot build (Hydrozoa plugin), includes :vexlib
- *     vexlib/                                 the library's source, with its own build file
+ *     settings.gradle.kts, build.gradle.kts   robot build (Hydrozoa plugin + vendor libraries)
+ *     vendordeps/VexLib.json                  the library, as an FRC-style vendor library
  *     src/main/java/<your/package>/...        robot code, package renamed
  *     src/sim/java/<your/package>/SimMain.java
  *     gradlew, gradle/wrapper/, hydrozoa.bin
@@ -14,6 +14,7 @@
 'use strict';
 const fs = require('fs');
 const path = require('path');
+const vendordeps = require('./vendordeps');
 
 const JAVA_KEYWORDS = new Set(('abstract assert boolean break byte case catch char class const continue default do double ' +
   'else enum extends final finally float for goto if implements import instanceof int interface long native new ' +
@@ -63,9 +64,46 @@ function settingsGradle(name) {
 }
 
 rootProject.name = "${name}"
-
-include("vexlib")   // the command-based library, as source
 `;
+}
+
+const VENDORDEP_BLOCK = `// ---- Vendor libraries -------------------------------------------------------------------
+// Like FRC: every vendordeps/*.json adds its Maven repositories and Java dependencies.
+// Manage them with "VEX: Manage Vendor Libraries" in VS Code, or edit the folder by hand.
+@Suppress("UNCHECKED_CAST")
+val vendordeps: List<Map<String, Any?>> = fileTree("vendordeps") { include("*.json") }
+    .files.sortedBy { it.name }
+    .map { groovy.json.JsonSlurper().parse(it) as Map<String, Any?> }
+
+repositories {
+    // Offline copies installed by the VS Code extension, checked first.
+    maven { url = uri(File(System.getProperty("user.home"), ".vex-command/maven")) }
+    mavenCentral()
+    vendordeps.flatMap { (it["mavenUrls"] as? List<*>).orEmpty() }.distinct().forEach { u ->
+        maven { url = uri(u.toString()) }
+    }
+}
+
+dependencies {
+    vendordeps.forEach { vendordep ->
+        (vendordep["javaDependencies"] as? List<*>).orEmpty().forEach {
+            val d = it as Map<*, *>
+            implementation("\${d["groupId"]}:\${d["artifactId"]}:\${d["version"]}")
+        }
+    }
+}
+
+`;
+
+/**
+ * Adds vendor library support to an existing robot build file: the block above, before its
+ * hydrozoa { } block (or at the end). Returns the new text, or null if it's already there.
+ */
+function addVendordepSupport(buildText) {
+  if (/fileTree\("vendordeps"\)/.test(buildText)) return null;
+  const at = buildText.search(/^hydrozoa\s*\{/m);
+  if (at < 0) return buildText.replace(/\s*$/, '\n\n') + VENDORDEP_BLOCK;
+  return buildText.slice(0, at) + VENDORDEP_BLOCK + buildText.slice(at);
 }
 
 function robotBuildGradle(opts) {
@@ -76,21 +114,13 @@ plugins {
     id("dev.vexide.hydrozoa") version "0.1.0-alpha.1"
 }
 
-repositories {
-    mavenCentral()
-}
-
 java {
     toolchain {
         languageVersion.set(JavaLanguageVersion.of(21)) // same as Hydrozoa
     }
 }
 
-dependencies {
-    implementation(project(":vexlib"))
-}
-
-hydrozoa {
+${VENDORDEP_BLOCK}hydrozoa {
     entrypoint = "${opts.pkg}.Main"
     name = "${opts.programName}"   // shown on the brain's screen
     slot = ${opts.slot}               // program slot on the brain, 1-8
@@ -111,28 +141,6 @@ tasks.register<JavaExec>("simulate") {
     description = "Runs the robot code in a desktop simulator."
     classpath = sourceSets["sim"].runtimeClasspath
     mainClass.set("${opts.pkg}.SimMain")
-}
-`;
-}
-
-function vexlibBuildGradle() {
-  return `plugins {
-    \`java-library\`
-}
-
-repositories {
-    mavenCentral()
-}
-
-java {
-    toolchain {
-        languageVersion.set(JavaLanguageVersion.of(21))
-    }
-}
-
-dependencies {
-    // Only lib/hal/hydrozoa uses this directly; everything else is plain Java.
-    api("dev.vexide:hydrozoa:0.1.0-alpha.1")
 }
 `;
 }
@@ -162,7 +170,8 @@ In VS Code with the VEX Command-Based extension, use the Build, Simulate and Upl
 status bar, and right-click a folder under \`src/main/java\` for **VEX → New Subsystem / Command / Auto**.
 
 - Robot code: \`src/main/java/${opts.pkg.replace(/\./g, '/')}/\`
-- Library: \`vexlib/\` (version ${opts.libraryVersion})
+- Library: VexLib ${opts.libraryVersion}, a vendor library listed in \`vendordeps/\`
+  (update it with **VEX: Manage Vendor Libraries**)
 - Simulator: \`src/sim/java/\`
 `;
 }
@@ -218,16 +227,15 @@ function generateProject(opts) {
 
   const files = {};
   Object.assign(files, bundle.common);
-  for (const [rel, c] of Object.entries(bundle.vexlib)) files['vexlib/' + rel] = c;
   Object.assign(files, renameFiles(tpl.files, tpl.sourcePackage, pkg));
-  files['vexlib/build.gradle.kts'] = { text: vexlibBuildGradle() };
+  files[vendordeps.VENDORDEPS_DIR + '/' + bundle.vexlib.vendordep.fileName] = { text: JSON.stringify(bundle.vexlib.vendordep, null, 2) + '\n' };
   files['settings.gradle.kts'] = { text: settingsGradle(name) };
   files['build.gradle.kts'] = { text: robotBuildGradle({ pkg, programName: toDisplayName(name), slot, icon }) };
   files['.gitignore'] = { text: GITIGNORE };
-  files['README.md'] = { text: readme({ name, pkg, kind, libraryVersion: bundle.libraryVersion }) };
+  files['README.md'] = { text: readme({ name, pkg, kind, libraryVersion: bundle.vexlib.vendordep.version }) };
   files['vex-project.json'] = { text: JSON.stringify({
     type: 'vex-command-based', template: kind, name: name, package: pkg,
-    libraryVersion: bundle.libraryVersion, created: new Date().toISOString()
+    libraryVersion: bundle.vexlib.vendordep.version, created: new Date().toISOString()
   }, null, 2) + '\n' };
   files['.vscode/extensions.json'] = { text: JSON.stringify({
     recommendations: ['kedrickjohnson.vex-command-based', 'redhat.java', 'vscjava.vscode-gradle']
@@ -246,6 +254,7 @@ function generateProject(opts) {
 }
 
 module.exports = {
+  addVendordepSupport, VENDORDEP_BLOCK,
   validateProjectName, validatePackage, suggestPackage, renameFiles, generateProject,
   JAVA_KEYWORDS
 };

@@ -1,11 +1,11 @@
 #!/usr/bin/env node
 /*
- * Packs the library, the two robot templates and the Gradle wrapper into
+ * Packs the VexLib vendor library, the two robot templates and the Gradle wrapper into
  * resources/templates.json, which "VEX: Create a New Project" unpacks.
  *
  *   node scripts/bundle.js
  *
- * Run it after changing anything in vexlib/, template/ or examples/clawbot/.
+ * Run it after publishing a new VexLib, or changing template/ or examples/clawbot/.
  * One JSON file (binary files as base64) keeps the packaged extension simple.
  */
 'use strict';
@@ -42,10 +42,24 @@ function collect(rootDir, prefix) {
 }
 
 function main() {
-  const libVersion = JSON.parse(fs.readFileSync(path.join(EXT, 'package.json'), 'utf8')).version;
-
-  // The library: only its Java sources. The generator writes its own build file.
-  const vexlib = collect(path.join(REPO, 'vexlib', 'src'), 'src/');
+  // The library as a vendor library: its vendordep JSON and the published Maven files for this
+  // version (from docs/, written by tools/release_vexlib.py or ./gradlew :vexlib:publish).
+  // The extension copies the Maven files into ~/.vex-command/maven so builds work offline.
+  const vendordepFile = path.join(REPO, 'docs', 'vendordeps', 'VexLib.json');
+  if (!fs.existsSync(vendordepFile)) throw new Error('docs/vendordeps/VexLib.json is missing: publish VexLib first (tools/release_vexlib.py).');
+  const vendordep = JSON.parse(fs.readFileSync(vendordepFile, 'utf8'));
+  const dep = vendordep.javaDependencies[0];
+  const artifactDir = path.join(REPO, 'docs', 'maven', ...dep.groupId.split('.'), dep.artifactId);
+  const versionDir = path.join(artifactDir, dep.version);
+  if (!fs.existsSync(versionDir)) throw new Error('VexLib ' + dep.version + ' isn\'t published in docs/maven yet.');
+  const mavenPrefix = [...dep.groupId.split('.'), dep.artifactId].join('/') + '/';
+  const maven = {};
+  for (const f of fs.readdirSync(versionDir)) {
+    maven[mavenPrefix + dep.version + '/' + f] = { base64: fs.readFileSync(path.join(versionDir, f)).toString('base64') };
+  }
+  // The javadoc jar is large and only for IDE hovers; Gradle fetches it online when the IDE asks.
+  for (const k of Object.keys(maven)) if (/-javadoc\.jar/.test(k)) delete maven[k];
+  const vexlib = { vendordep: vendordep, maven: maven };
 
   // Robot templates: main + sim sources, plus the planner project for the template.
   const template = Object.assign(
@@ -64,7 +78,6 @@ function main() {
   };
 
   const bundle = {
-    libraryVersion: libVersion,
     bundled: new Date().toISOString(),
     vexlib: vexlib,
     common: common,
@@ -76,7 +89,7 @@ function main() {
   fs.mkdirSync(path.dirname(OUT), { recursive: true });
   fs.writeFileSync(OUT, JSON.stringify(bundle));
   const count = (o) => Object.keys(o).length;
-  console.log('bundled', count(vexlib), 'library files,', count(template), 'template files,',
+  console.log('bundled VexLib', vendordep.version, '(' + count(maven) + ' Maven files),', count(template), 'template files,',
     count(clawbot), 'clawbot files ->', path.relative(EXT, OUT),
     '(' + Math.round(fs.statSync(OUT).size / 1024) + ' KB)');
 }

@@ -4,6 +4,7 @@
  *   VEX: Create a New Project        template robot or Clawbot, with your name and package
  *   VEX: Build / Simulate / Upload   Gradle tasks for the selected robot (status bar buttons too)
  *   VEX: New Subsystem / Command / Auto   right-click a folder under src/main/java
+ *   VEX: Manage Vendor Libraries     install / update / remove vendordeps, like WPILib's
  */
 'use strict';
 const vscode = require('vscode');
@@ -13,6 +14,8 @@ const generator = require('./src/generator');
 const wizards = require('./src/wizards');
 const project = require('./src/project');
 const tasks = require('./src/tasks');
+const vendordeps = require('./src/vendordeps');
+const vendorUi = require('./src/vendorUi');
 
 let bundleCache = null;
 let statusItems = [];
@@ -193,7 +196,11 @@ async function newProject(context) {
   try {
     result = await vscode.window.withProgress(
       { location: vscode.ProgressLocation.Notification, title: 'Creating ' + name + '...' },
-      async () => generator.generateProject({ bundle: loadBundle(context), kind: kind.kind, name, pkg, parentDir }));
+      async () => {
+        const bundle = loadBundle(context);
+        installOfflineLibraries(context);
+        return generator.generateProject({ bundle, kind: kind.kind, name, pkg, parentDir });
+      });
   } catch (e) {
     vscode.window.showErrorMessage('Couldn\'t create the project: ' + e.message);
     return;
@@ -216,6 +223,21 @@ async function newProject(context) {
     vscode.workspace.updateWorkspaceFolders((vscode.workspace.workspaceFolders || []).length, 0, { uri });
     context.globalState.update('vexCommandBased.openOnStart', undefined);
     vscode.window.showTextDocument(vscode.Uri.file(result.mainFile));
+  }
+}
+
+// ---------------------------------------------------------------- vendor libraries
+
+/**
+ * Copies the bundled VexLib Maven files to ~/.vex-command/maven, so projects build without
+ * reaching the library's website (like WPILib's offline vendordep folder).
+ */
+function installOfflineLibraries(context) {
+  try {
+    const n = vendordeps.installOffline(loadBundle(context).vexlib.maven);
+    if (n) console.log('[vex] installed ' + n + ' offline library files to ' + vendordeps.offlineMavenDir());
+  } catch (e) {
+    console.warn('[vex] could not install offline libraries: ' + e.message);
   }
 }
 
@@ -363,6 +385,7 @@ const COMMANDS = {
   'vexCommandBased.newMotorSubsystem': (ctx, uri) => newMotorSubsystem(uri),
   'vexCommandBased.newCommand': (ctx, uri) => newCommand(uri),
   'vexCommandBased.newAuto': (ctx, uri) => newAuto(uri),
+  'vexCommandBased.manageVendorLibs': (ctx) => vendorUi.manage({ context: ctx, pickRobot, loadBundle, runAction }),
   'vexCommandBased.openDocs': () => vscode.env.openExternal(vscode.Uri.parse(
     vscode.workspace.getConfiguration('vexCommandBased').get('docsUrl', 'https://kedrickjohnson.github.io/vex-command-template/')))
 };
@@ -373,8 +396,11 @@ function activate(context) {
   }
   context.subscriptions.push(vscode.tasks.registerTaskProvider(tasks.TASK_TYPE, taskProvider()));
 
-  scanRobots();
+  const robots = scanRobots();
   createStatusBar(context);
+  if (robots.some((r) => fs.existsSync(path.join(r.dir, vendordeps.VENDORDEPS_DIR)))) {
+    setTimeout(() => installOfflineLibraries(context), 0);
+  }
 
   const watcher = vscode.workspace.createFileSystemWatcher('**/{build.gradle.kts,build.gradle,settings.gradle.kts,settings.gradle}');
   const rescan = () => { scanRobots(); updateStatusBar(context); };

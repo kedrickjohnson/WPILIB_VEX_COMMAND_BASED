@@ -3,7 +3,8 @@
 Write VEX V5 robots in Java the way FRC teams do: `Robot`, `RobotContainer`, subsystems,
 commands, triggers and odometry, running on the brain through
 [Hydrozoa](https://github.com/vexide/Hydrozoa-Java). This extension creates projects, builds,
-simulates and uploads them, and writes new subsystems, commands and autos for you.
+simulates and uploads them, manages vendor libraries the way WPILib does, and writes new
+subsystems, commands and autos for you.
 
 ## Create a project
 
@@ -14,8 +15,8 @@ simulates and uploads them, and writes new subsystems, commands and autos for yo
 3. A name (also the folder name and the name shown on the brain)
 4. Your Java package, such as `com.team1234.robot`
 
-You get a standalone Gradle project with the library included as source in `vexlib/`, the
-Gradle wrapper, and the Hydrozoa runtime. Nothing to download by hand except the tools below.
+You get a standalone Gradle project with the Gradle wrapper, the Hydrozoa runtime, and VexLib
+(the command-based library) installed as a vendor library in `vendordeps/VexLib.json`.
 
 ## Build, simulate, upload
 
@@ -38,6 +39,39 @@ They're also VS Code tasks (**Terminal → Run Task → VEX**), so you can put t
 multi-robot repository. Compile errors show in the Problems panel.
 
 Shortcuts: **Ctrl+Shift+U** (Cmd+Shift+U) uploads, **Ctrl+Shift+F5** simulates.
+
+## Vendor libraries
+
+Libraries work like FRC vendordeps. Each library is one JSON file in the project's `vendordeps/`
+folder that names its Maven repository and artifacts, and the build adds every file it finds
+there. **VEX: Manage Vendor Libraries** (also on right-click of `build.gradle.kts`) can:
+
+| Option | Does |
+| --- | --- |
+| Install VexLib | Installs the copy that comes with the extension (shown when it's missing or newer) |
+| Install new library (online) | Paste a vendordep JSON URL, such as `https://kedrickjohnson.github.io/vex-command-template/vendordeps/VexLib.json` |
+| Install new library (from file) | A vendordep `.json` on your computer |
+| Check for updates (online) | Downloads each library's `jsonUrl` and offers newer versions |
+| Remove installed libraries | Deletes their JSON files |
+
+The extension also copies its bundled VexLib into `~/.vex-command/maven`, which every project
+checks first, so new projects build without reaching the library's website (like WPILib's
+offline vendordep folder). Older build files that don't read `vendordeps/` get the support added
+when you first open the manager.
+
+Anyone can publish a library in the same format:
+
+```json
+{
+  "fileName": "MyLib.json",
+  "name": "MyLib",
+  "version": "1.0.0",
+  "uuid": "a-unique-id-that-never-changes",
+  "mavenUrls": ["https://example.com/maven"],
+  "jsonUrl": "https://example.com/vendordeps/MyLib.json",
+  "javaDependencies": [{ "groupId": "com.example", "artifactId": "mylib", "version": "1.0.0" }]
+}
+```
 
 ## New subsystems, commands and autos
 
@@ -82,9 +116,10 @@ physical brain yet.
 ## Building the extension
 
 ```
-node scripts/bundle.js          # pack vexlib/, template/, examples/clawbot/ into resources/
+node scripts/bundle.js          # pack the published VexLib, template/ and examples/clawbot/
 node test/run.js                # tests (set HYDROZOA_CLASSES to also compile + simulate)
 npx @vscode/vsce package        # makes vex-command-based-<version>.vsix
 ```
 
-Install a `.vsix` with **Extensions → … → Install from VSIX**.
+Run the bundle step after publishing a new VexLib version (see the repository README). Install a
+`.vsix` with **Extensions → … → Install from VSIX**.

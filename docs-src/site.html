@@ -401,6 +401,7 @@ public DriveSubsystem() {
       <ul>
         <li><a href="#start" data-nav>Getting started</a></li>
         <li><a href="#vscode" data-nav>VS Code extension</a></li>
+        <li><a href="#vendordeps" data-nav>Vendor libraries</a></li>
         <li><a href="#structure" data-nav>Robot structure &amp; commands</a></li>
       </ul>
     </div>
@@ -459,7 +460,7 @@ cd vex-command-template</code></pre>
   <div class="table-wrap"><table>
     <thead><tr><th>Folder</th><th>What it is</th></tr></thead>
     <tbody>
-      <tr><td><code>vexlib/</code></td><td>The shared library: commands, math, odometry, trajectories, hardware. You don't edit it.</td></tr>
+      <tr><td><code>vexlib/</code></td><td>The shared library, VexLib: commands, math, odometry, trajectories, hardware. You don't edit it. Your own projects get it as a <a href="#vendordeps">vendor library</a>.</td></tr>
       <tr><td><code>template/</code></td><td>The starting point for your robot: a 6-motor tank drive and an example intake.</td></tr>
       <tr><td><code>examples/clawbot/</code></td><td>A complete V5 Clawbot: drive, arm, claw and autos.</td></tr>
     </tbody>
@@ -514,7 +515,7 @@ cd vex-command-template</code></pre>
       <tr><td>Package</td><td><code>com.team1234.robot</code></td></tr>
     </tbody>
   </table></div>
-  <p>The result is a standalone Gradle project: your robot code in <code>src/main/java/</code> under your package, the simulator in <code>src/sim/java/</code>, and the library as source in <code>vexlib/</code>. The library keeps its <code>com.robojacks.lib</code> package, so imports and these guides still match.</p>
+  <p>The result is a standalone Gradle project: your robot code in <code>src/main/java/</code> under your package, the simulator in <code>src/sim/java/</code>, and VexLib installed as a <a href="#vendordeps">vendor library</a> in <code>vendordeps/VexLib.json</code>, the way an FRC project lists REV or CTRE. The library's classes are in the <code>com.robojacks.lib</code> package, so imports match these guides.</p>
 
   <h2>Build, simulate, upload</h2>
   <p>With a robot project open, the status bar shows four buttons:</p>
@@ -532,6 +533,9 @@ cd vex-command-template</code></pre>
 <pre class="code"><code class="lang-json">{ "type": "vex", "task": "upload", "robot": ":examples:clawbot" }</code></pre>
   <p>Leave out <code>robot</code> in a project the extension created; it has one robot.</p>
 
+  <h2>Vendor libraries</h2>
+  <p><strong>VEX: Manage Vendor Libraries</strong> installs, updates and removes libraries, like WPILib's vendor dependency manager. See <a href="#vendordeps">Vendor libraries</a>.</p>
+
   <h2>New subsystems, commands and autos</h2>
   <p>Right-click a folder under <code>src/main/java</code> and open the <strong>VEX</strong> menu:</p>
   <div class="table-wrap"><table>
@@ -547,12 +551,62 @@ cd vex-command-template</code></pre>
 
   <h2>Building the extension</h2>
 <pre class="code"><code class="lang-shell">cd vscode-extension
-node scripts/bundle.js        # packs vexlib/, template/ and examples/clawbot/
+node scripts/bundle.js        # packs the published VexLib, template/ and examples/clawbot/
 node test/run.js              # tests
 npx @vscode/vsce package      # makes the .vsix</code></pre>
-  <p>Run the bundle step after changing the library or templates, so new projects get the changes. Projects created earlier keep their own copy of <code>vexlib/</code>.</p>
+  <p>Run the bundle step after publishing a new VexLib or changing the templates. Existing projects pick up a new VexLib through <strong>Check for updates</strong>.</p>
 
-  <nav class="pager" aria-label="More pages"><a href="#start"><span>Previous</span>Getting started</a><a href="#structure"><span>Next</span>Robot structure &amp; commands</a></nav>
+  <nav class="pager" aria-label="More pages"><a href="#start"><span>Previous</span>Getting started</a><a href="#vendordeps"><span>Next</span>Vendor libraries</a></nav>
+</section>
+
+<!-- ----------------------------------------------------------------------- vendordeps -->
+<section class="view doc" id="vendordeps">
+  <p class="eyebrow">Start</p>
+  <h1>Vendor libraries</h1>
+  <p class="lede">VexLib is delivered the way FRC teams get REVLib or Phoenix: a JSON file in <code>vendordeps/</code> that points at a Maven repository.</p>
+
+  <h2>How it works</h2>
+  <p>Each library is one file in your project's <code>vendordeps/</code> folder. The build reads every <code>.json</code> there, adds its Maven repositories, and adds its Java artifacts as dependencies. Gradle downloads them on the next build, along with sources so VS Code can show the library's docs and jump into its code.</p>
+<pre class="code"><code class="lang-json">{
+  "fileName": "VexLib.json",
+  "name": "VexLib",
+  "version": "0.1.0",
+  "uuid": "d6eb81fc-0c7e-4aa7-8b70-7d890ccc2d6e",
+  "hydrozoaVersion": "0.1.0-alpha.1",
+  "mavenUrls": ["https://kedrickjohnson.github.io/vex-command-template/maven"],
+  "jsonUrl": "https://kedrickjohnson.github.io/vex-command-template/vendordeps/VexLib.json",
+  "javaDependencies": [
+    { "groupId": "io.github.kedrickjohnson", "artifactId": "vexlib", "version": "0.1.0" }
+  ]
+}</code></pre>
+  <p>The format is WPILib's, trimmed to what a Java-only VEX robot needs: no native libraries and no FRC year. <code>uuid</code> stays the same across versions so an update replaces the old file, and <code>jsonUrl</code> is where updates are checked.</p>
+
+  <h2>Installing</h2>
+  <div class="table-wrap"><table>
+    <thead><tr><th>How</th><th>Steps</th></tr></thead>
+    <tbody>
+      <tr><td>VS Code</td><td><strong>VEX: Manage Vendor Libraries</strong> → <strong>Install new library (online)</strong>, then paste the library's JSON URL. VexLib also comes with the extension and installs offline.</td></tr>
+      <tr><td>By hand</td><td>Download the JSON into <code>vendordeps/</code> and build.</td></tr>
+    </tbody>
+  </table></div>
+  <p>VexLib's URL: <code>https://kedrickjohnson.github.io/vex-command-template/vendordeps/VexLib.json</code></p>
+  <p>The extension copies its bundled VexLib into <code>~/.vex-command/maven</code>, a local repository every project checks first. That's what lets a new project build at a competition with no internet, the same idea as WPILib's offline vendordep folder.</p>
+
+  <h2>The build code</h2>
+  <p>Projects made by the extension already have this in <code>build.gradle.kts</code>. To add vendor libraries to an older project, paste it above the <code>hydrozoa { }</code> block, or let the manager add it.</p>
+<pre class="code"><code>{{SRC_BLOCK}}</code></pre>
+
+  <h2>Publishing a library</h2>
+  <p>A vendor library is a Maven repository plus the JSON. GitHub Pages can host both. For VexLib, the version lives in <code>gradle.properties</code>:</p>
+  <ol class="steps">
+    <li>Change <code>vexlibVersion</code> in <code>gradle.properties</code>.</li>
+    <li>Run <code>./gradlew :vexlib:publish</code>. It writes the jars and pom to <code>docs/maven/</code> and the JSON to <code>docs/vendordeps/VexLib.json</code>. (Without Gradle: <code>python3 tools/release_vexlib.py --classpath &lt;hydrozoa jar&gt;</code> does the same.)</li>
+    <li>Commit and push. GitHub Pages serves the new version, and teams see it under <strong>Check for updates</strong>.</li>
+    <li>Run <code>node scripts/bundle.js</code> in <code>vscode-extension/</code> and package the extension so new projects start on that version.</li>
+  </ol>
+  <p>Old versions stay in <code>docs/maven/</code>, so a team that hasn't updated keeps building.</p>
+
+  <nav class="pager" aria-label="More pages"><a href="#vscode"><span>Previous</span>VS Code extension</a><a href="#structure"><span>Next</span>Robot structure &amp; commands</a></nav>
 </section>
 
 <!-- ----------------------------------------------------------------------- structure -->
@@ -689,7 +743,7 @@ m_driverController.l1().and(m_driverController.l2()).onTrue(...);</code></pre>
   <h2>Telemetry</h2>
   <p>There's no SmartDashboard on VEX. <code>Telemetry.put("arm/deg", angle)</code> collects values, and <code>Telemetry.flush()</code> (called in <code>robotPeriodic</code>) prints them on one line over USB serial, four times a second.</p>
 
-  <nav class="pager" aria-label="More pages"><a href="#vscode"><span>Previous</span>VS Code extension</a><a href="#hardware"><span>Next</span>Motors, sensors &amp; configs</a></nav>
+  <nav class="pager" aria-label="More pages"><a href="#vendordeps"><span>Previous</span>Vendor libraries</a><a href="#hardware"><span>Next</span>Motors, sensors &amp; configs</a></nav>
 </section>
 
 <!-- ----------------------------------------------------------------------- hardware -->

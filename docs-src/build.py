@@ -36,7 +36,14 @@ def page_fragment():
     page = page.replace("{{SCRIPTS}}", scripts)
     # {{SRC:path}} embeds a source file from the repo, escaped, so code shown in the guides
     # is always the real, current code.
-    return re.sub(r"\{\{SRC:([^}]+)\}\}", lambda m: html.escape((ROOT / m.group(1)).read_text().rstrip()), page)
+    page = re.sub(r"\{\{SRC:([^}]+)\}\}", lambda m: html.escape((ROOT / m.group(1)).read_text().rstrip()), page)
+    # {{SRC_BLOCK}}: the vendor-library block new projects get, straight from the VS Code extension.
+    if "{{SRC_BLOCK}}" in page:
+        block = subprocess.run(
+            ["node", "-e", "process.stdout.write(require('./vscode-extension/src/generator').VENDORDEP_BLOCK)"],
+            cwd=ROOT, check=True, capture_output=True, text=True).stdout
+        page = page.replace("{{SRC_BLOCK}}", html.escape(block.rstrip()))
+    return page
 
 
 def full_page(fragment):

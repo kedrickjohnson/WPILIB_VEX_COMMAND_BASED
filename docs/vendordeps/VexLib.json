@@ -1,0 +1,18 @@
+{
+  "fileName": "VexLib.json",
+  "name": "VexLib",
+  "version": "0.1.0",
+  "uuid": "d6eb81fc-0c7e-4aa7-8b70-7d890ccc2d6e",
+  "hydrozoaVersion": "0.1.0-alpha.1",
+  "mavenUrls": [
+    "https://kedrickjohnson.github.io/vex-command-template/maven"
+  ],
+  "jsonUrl": "https://kedrickjohnson.github.io/vex-command-template/vendordeps/VexLib.json",
+  "javaDependencies": [
+    {
+      "groupId": "io.github.kedrickjohnson",
+      "artifactId": "vexlib",
+      "version": "0.1.0"
+    }
+  ]
+}

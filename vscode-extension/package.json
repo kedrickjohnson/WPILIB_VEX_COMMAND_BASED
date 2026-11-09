@@ -1,8 +1,8 @@
 {
   "name": "vex-command-based",
   "displayName": "VEX Command-Based (Java)",
-  "description": "Create, build, simulate and upload FRC-style command-based Java robots for VEX V5, with wizards for subsystems, commands and autos.",
-  "version": "0.1.0",
+  "description": "Create, build, simulate and upload FRC-style command-based Java robots for VEX V5, with vendor libraries and wizards for subsystems, commands and autos.",
+  "version": "0.2.0",
   "publisher": "kedrickjohnson",
   "license": "MIT",
   "icon": "images/icon.png",
@@ -19,6 +19,7 @@
   "activationEvents": [
     "workspaceContains:**/vex-project.json",
     "workspaceContains:**/hydrozoa.bin",
+    "workspaceContains:**/vendordeps/*.json",
     "onCommand:vexCommandBased.newProject"
   ],
   "contributes": {
@@ -34,6 +35,7 @@
       { "command": "vexCommandBased.newMotorSubsystem", "title": "New Subsystem with a Motor", "category": "VEX" },
       { "command": "vexCommandBased.newCommand", "title": "New Command", "category": "VEX" },
       { "command": "vexCommandBased.newAuto", "title": "New Auto", "category": "VEX" },
+      { "command": "vexCommandBased.manageVendorLibs", "title": "Manage Vendor Libraries", "category": "VEX", "icon": "$(library)" },
       { "command": "vexCommandBased.openDocs", "title": "Open Documentation", "category": "VEX" }
     ],
     "submenus": [
@@ -41,13 +43,15 @@
     ],
     "menus": {
       "explorer/context": [
+        { "command": "vexCommandBased.manageVendorLibs", "group": "navigation@10", "when": "vexCommandBased.isProject && (resourceFilename == build.gradle.kts || resourceFilename == vendordeps)" },
         { "submenu": "vexCommandBased.explorer", "group": "navigation@9", "when": "explorerResourceIsFolder && resourcePath =~ /[\\\\/]src[\\\\/][^\\\\/]+[\\\\/]java([\\\\/]|$)/" }
       ],
       "vexCommandBased.explorer": [
         { "command": "vexCommandBased.newSubsystem", "group": "1_class@1" },
         { "command": "vexCommandBased.newMotorSubsystem", "group": "1_class@2" },
         { "command": "vexCommandBased.newCommand", "group": "1_class@3" },
-        { "command": "vexCommandBased.newAuto", "group": "1_class@4" }
+        { "command": "vexCommandBased.newAuto", "group": "1_class@4" },
+        { "command": "vexCommandBased.manageVendorLibs", "group": "2_libs@1" }
       ],
       "editor/title": [
         { "command": "vexCommandBased.upload", "group": "navigation@1", "when": "vexCommandBased.isProject && resourceExtname == .java" }
@@ -61,7 +65,8 @@
         { "command": "vexCommandBased.newSubsystem", "when": "vexCommandBased.isProject" },
         { "command": "vexCommandBased.newMotorSubsystem", "when": "vexCommandBased.isProject" },
         { "command": "vexCommandBased.newCommand", "when": "vexCommandBased.isProject" },
-        { "command": "vexCommandBased.newAuto", "when": "vexCommandBased.isProject" }
+        { "command": "vexCommandBased.newAuto", "when": "vexCommandBased.isProject" },
+        { "command": "vexCommandBased.manageVendorLibs", "when": "vexCommandBased.isProject" }
       ]
     },
     "keybindings": [

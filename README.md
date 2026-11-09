@@ -7,10 +7,11 @@ motors, command factories, triggers, `Pose2d` and odometry.
 
 | Project | What it is |
 | --- | --- |
-| `vexlib/` | The shared library ("WPILib-lite"). Teams don't edit it. |
+| `vexlib/` | The shared library, VexLib ("WPILib-lite"), published as a vendor library. Teams don't edit it. |
 | `template/` | Starting point for your own robot: 6-motor tank drive + example intake. |
 | `examples/clawbot/` | A complete V5 Clawbot: drive, arm, claw, autos. |
 | `docs/` | The website: guides, the path planner, and the API reference. |
+| `tools/` | `release_vexlib.py`: publishes VexLib without Gradle. |
 | `vscode-extension/` | VS Code extension: new projects, Build / Simulate / Upload buttons, class wizards. |
 
 **Website:** guides, a PathPlanner-style path planner, and the full API reference live in `docs/`.
@@ -173,12 +174,32 @@ Set `kTuningMode = true` in `Constants.java`, upload, enable in driver control a
 Run **A first**: `kS` is the voltage needed to beat friction, and with too little, turns stall a
 few degrees short.
 
+## VexLib as a vendor library
+
+Teams use VexLib the way FRC teams use REVLib: a vendordep JSON in their project's `vendordeps/`
+folder, resolved from a Maven repository. This repository hosts both on GitHub Pages:
+
+- JSON: `https://kedrickjohnson.github.io/vex-command-template/vendordeps/VexLib.json`
+- Maven: `https://kedrickjohnson.github.io/vex-command-template/maven`
+  (`io.github.kedrickjohnson:vexlib:0.1.0`, with sources and javadoc jars)
+
+The robot build reads every `vendordeps/*.json` and adds its repositories and dependencies; the
+VS Code extension writes that build code into new projects and has a **Manage Vendor Libraries**
+command. The `template/` and `examples/clawbot/` projects in this repository still use the
+library from source (`project(":vexlib")`), so library changes can be tested before release.
+
+To release a version: bump `vexlibVersion` in `gradle.properties`, run `./gradlew :vexlib:publish`
+(writes `docs/maven/` and `docs/vendordeps/VexLib.json`; `python3 tools/release_vexlib.py
+--classpath <hydrozoa jar>` does the same without Gradle), commit, and push. Old versions stay in
+`docs/maven/` so teams that haven't updated keep building.
+
 ## VS Code extension
 
 `vscode-extension/` is a VS Code extension for teams using this library:
 
 - **VEX: Create a New Project**: a standalone project from the template or the Clawbot, with your
-  name and Java package
+  name and Java package, and VexLib as a vendordep
+- **VEX: Manage Vendor Libraries**: install (bundled, by URL, or from a file), check for updates, remove
 - **Build / Simulate / Upload** buttons in the status bar (also `vex` tasks for `tasks.json`)
 - Right-click a folder → **VEX → New Subsystem / Subsystem with a Motor / Command / Auto**
 
