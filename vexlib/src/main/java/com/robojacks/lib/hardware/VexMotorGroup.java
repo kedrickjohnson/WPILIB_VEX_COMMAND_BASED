@@ -1,11 +1,9 @@
 package com.robojacks.lib.hardware;
 
-import com.robojacks.lib.hal.Cartridge;
-import com.robojacks.lib.hal.MotorIO.NeutralMode;
-
 /**
- * Several motors that act as one, like one side of a drivetrain
- * (WPILib's MotorControllerGroup). Readings are averaged across the motors.
+ * Several motors that act as one (WPILib's MotorControllerGroup). Usually a leader with
+ * followers ({@link VexMotorConfig#follow}) is simpler; use a group when you want readings
+ * averaged across every motor.
  */
 public class VexMotorGroup {
     private final VexMotor[] motors;
@@ -15,17 +13,6 @@ public class VexMotorGroup {
             throw new IllegalArgumentException("VexMotorGroup needs at least one motor");
         }
         this.motors = motors.clone();
-    }
-
-    /** Builds a group from parallel arrays of ports and reversed flags. */
-    public VexMotorGroup(int[] ports, boolean[] reversed, Cartridge cartridge) {
-        if (ports.length != reversed.length) {
-            throw new IllegalArgumentException("ports and reversed flags must be the same length");
-        }
-        motors = new VexMotor[ports.length];
-        for (int i = 0; i < ports.length; i++) {
-            motors[i] = new VexMotor(ports[i], reversed[i], cartridge);
-        }
     }
 
     public void set(double speed) {
@@ -42,33 +29,34 @@ public class VexMotorGroup {
         setVoltage(0.0);
     }
 
-    public void setNeutralMode(NeutralMode mode) {
+    /** Configures every motor in the group with the same settings. */
+    public void configure(VexMotorConfig config) {
         for (VexMotor m : motors) {
-            m.setNeutralMode(mode);
+            m.configure(config);
         }
     }
 
-    /** Average rotations. */
+    /** Average encoder position across the motors, in their configured units. */
     public double getPosition() {
         double sum = 0.0;
         for (VexMotor m : motors) {
-            sum += m.getPosition();
+            sum += m.getEncoder().getPosition();
         }
         return sum / motors.length;
     }
 
-    /** Average RPM. */
+    /** Average encoder velocity across the motors, in their configured units. */
     public double getVelocity() {
         double sum = 0.0;
         for (VexMotor m : motors) {
-            sum += m.getVelocity();
+            sum += m.getEncoder().getVelocity();
         }
         return sum / motors.length;
     }
 
     public void resetPosition() {
         for (VexMotor m : motors) {
-            m.resetPosition();
+            m.getEncoder().setPosition(0.0);
         }
     }
 

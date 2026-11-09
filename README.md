@@ -17,26 +17,51 @@ motors, command factories, triggers, `Pose2d` and odometry.
 
 ## What robot code looks like
 
-Current WPILib command-based, laid out the way FRC tank-drive robots are written. The
-drive subsystem declares each motor, groups them, and drives through `DifferentialDrive`:
+Current WPILib command-based, with motors set up the way REV does it: create the motor,
+build a config, `configure()` it. The drive subsystem uses a leader and followers per side:
 
 ```java
 public class DriveSubsystem extends SubsystemBase implements TankDriveSubsystem {
-    // Left side motors
-    private final VexMotor m_leftFront = new VexMotor(kLeftFrontMotorPort, kLeftFrontMotorReversed, kCartridge);
-    private final VexMotor m_leftMiddle = new VexMotor(kLeftMiddleMotorPort, kLeftMiddleMotorReversed, kCartridge);
-    private final VexMotor m_leftRear = new VexMotor(kLeftRearMotorPort, kLeftRearMotorReversed, kCartridge);
+    // Left side: the front motor leads, the others follow it
+    private final VexMotor m_leftLeader = new VexMotor(kLeftFrontMotorPort, kCartridge);
+    private final VexMotor m_leftFollower1 = new VexMotor(kLeftMiddleMotorPort, kCartridge);
+    private final VexMotor m_leftFollower2 = new VexMotor(kLeftRearMotorPort, kCartridge);
     ...
-    private final VexMotorGroup m_leftMotors = new VexMotorGroup(m_leftFront, m_leftMiddle, m_leftRear);
-    private final VexMotorGroup m_rightMotors = new VexMotorGroup(m_rightFront, m_rightMiddle, m_rightRear);
-    private final DifferentialDrive m_drive = new DifferentialDrive(m_leftMotors, m_rightMotors);
+    private final VexEncoder m_leftEncoder = m_leftLeader.getEncoder();
+    private final DifferentialDrive m_drive = new DifferentialDrive(m_leftLeader, m_rightLeader);
     private final VexInertial m_gyro = new VexInertial(kImuPort);
+
+    public DriveSubsystem() {
+        VexMotorConfig globalConfig = new VexMotorConfig();
+        globalConfig
+                .idleMode(IdleMode.kBrake)
+                .smartCurrentLimit(kCurrentLimitAmps);
+        globalConfig.encoder
+                .positionConversionFactor(kMetersPerMotorRotation)
+                .velocityConversionFactor(kMetersPerMotorRotation / 60.0);
+
+        leftLeaderConfig.apply(globalConfig).inverted(kLeftFrontMotorReversed);
+        leftFollower1Config.apply(globalConfig).inverted(kLeftMiddleMotorReversed).follow(m_leftLeader);
+        ...
+        m_leftLeader.configure(leftLeaderConfig);
+        m_leftFollower1.configure(leftFollower1Config);
+        ...
+    }
 
     public void tankDrive(double leftSpeed, double rightSpeed) { m_drive.tankDrive(leftSpeed, rightSpeed); }
     public void arcadeDrive(double forward, double rotation) { m_drive.arcadeDrive(forward, rotation); }
-    ...
 }
 ```
+
+`VexMotorConfig` settings: `inverted`, `idleMode` (`kCoast` / `kBrake` / `kHold`),
+`smartCurrentLimit` (amps), `follow(leader)` / `follow(leader, invert)`,
+`encoder.positionConversionFactor` / `velocityConversionFactor`, and `apply(other)` to layer a
+shared config. Only settings you call are applied. With a conversion factor, the encoder and
+`setPositionTarget` work in your units: the Clawbot arm's encoder reads degrees.
+
+Differences from a SPARK MAX: there is no persist/reset mode (V5 motors don't store settings),
+and a follower's own `inverted` setting still applies, so set each motor's direction for how
+it's mounted.
 
 Driver control is a command class, set as the default command in `RobotContainer`:
 
@@ -53,8 +78,9 @@ defaults to tank, the Clawbot to arcade.
 | FRC / WPILib | Here |
 | --- | --- |
 | `TimedRobot` | `VexRobot` (10 ms loop) |
-| `CANSparkMax`, `TalonFX` | `VexMotor` (V5 Smart Motor) |
-| `MotorControllerGroup` | `VexMotorGroup` |
+| `SparkMax` / `SparkMaxConfig` | `VexMotor` / `VexMotorConfig` |
+| `RelativeEncoder` | `VexEncoder` (from `motor.getEncoder()`) |
+| `MotorControllerGroup` | `VexMotorGroup` (or leader + followers) |
 | `Pigeon2`, `AHRS` | `VexInertial` (`getAngle()` CW, `getRotation2d()` CCW) |
 | `DifferentialDrive`, `DifferentialDriveOdometry` | Same names |
 | `CommandXboxController` | `VexController` — **stick up is positive** (FRC is negative) |

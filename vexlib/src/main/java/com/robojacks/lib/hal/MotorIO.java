@@ -1,9 +1,8 @@
 package com.robojacks.lib.hal;
 
 /**
- * One V5 Smart Motor. Positions are rotations of the cartridge OUTPUT shaft,
- * which is what VEX reports, so only your external gearing needs converting.
- * Reversal is applied by the implementation, so callers always see "positive = forward".
+ * One V5 Smart Motor, at the lowest level. Robot code uses {@code VexMotor} instead.
+ * Positions are rotations of the cartridge OUTPUT shaft (what VEX reports).
  */
 public interface MotorIO {
     /** What the motor does when told 0 volts. */
@@ -21,6 +20,12 @@ public interface MotorIO {
 
     void setNeutralMode(NeutralMode mode);
 
+    /** Reverse the motor's direction (applies to output and to readings). */
+    void setInverted(boolean inverted);
+
+    /** Maximum current in amps (V5 11 W motor: up to 2.5 A). */
+    void setCurrentLimit(double amps);
+
     /**
      * Move to an absolute position using the motor's built-in PID.
      *
@@ -36,6 +41,14 @@ public interface MotorIO {
     double getVelocityRpm();
 
     void resetPosition();
+
+    default double getCurrentAmps() {
+        return 0.0;
+    }
+
+    default double getTemperatureCelsius() {
+        return 0.0;
+    }
 
     /** Smart port is plugged in and responding. */
     default boolean isConnected() {

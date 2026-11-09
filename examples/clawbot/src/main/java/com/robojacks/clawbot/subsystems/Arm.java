@@ -3,8 +3,10 @@ package com.robojacks.clawbot.subsystems;
 import com.robojacks.lib.command.Command;
 import com.robojacks.lib.command.Commands;
 import com.robojacks.lib.command.SubsystemBase;
-import com.robojacks.lib.hal.MotorIO.NeutralMode;
+import com.robojacks.lib.hardware.VexEncoder;
 import com.robojacks.lib.hardware.VexMotor;
+import com.robojacks.lib.hardware.VexMotorConfig;
+import com.robojacks.lib.hardware.VexMotorConfig.IdleMode;
 import com.robojacks.lib.telemetry.Telemetry;
 
 import static com.robojacks.clawbot.Constants.ArmConstants.*;
@@ -17,13 +19,22 @@ import static com.robojacks.clawbot.Constants.ArmConstants.*;
  * <p>Start the program with the arm all the way down: that position is 0 degrees.
  */
 public class Arm extends SubsystemBase {
-    private final VexMotor m_motor = new VexMotor(kMotorPort, kReversed, kCartridge);
+    private final VexMotor m_motor = new VexMotor(kMotorPort, kCartridge);
+    private final VexEncoder m_encoder = m_motor.getEncoder();
     private double m_targetDegrees = kDownDegrees;
 
     public Arm() {
         super("Arm");
-        m_motor.setNeutralMode(NeutralMode.HOLD);
-        m_motor.resetPosition();
+
+        VexMotorConfig config = new VexMotorConfig();
+        config.inverted(kReversed)
+              .idleMode(IdleMode.kHold)   // hold position when stopped so the arm doesn't sag
+              .smartCurrentLimit(kCurrentLimitAmps);
+        config.encoder
+              .positionConversionFactor(kDegreesPerMotorRotation); // encoder reads arm degrees
+        m_motor.configure(config);
+
+        m_encoder.setPosition(kDownDegrees); // arm starts all the way down
     }
 
     @Override
@@ -34,11 +45,7 @@ public class Arm extends SubsystemBase {
 
     /** Arm angle in degrees above the starting (down) position. */
     public double getAngleDegrees() {
-        return m_motor.getPosition() * kGearRatio * 360.0;
-    }
-
-    private static double degreesToMotorRotations(double degrees) {
-        return degrees / 360.0 / kGearRatio;
+        return m_encoder.getPosition();
     }
 
     /** Manual drive with soft limits: won't push past kMinDegrees or kMaxDegrees. */
@@ -53,13 +60,13 @@ public class Arm extends SubsystemBase {
     /** Stop and hold the current position. */
     public void hold() {
         m_targetDegrees = getAngleDegrees();
-        m_motor.stopMotor(); // neutral mode is HOLD
+        m_motor.stopMotor(); // idle mode is kHold
     }
 
     /** Start a move to an angle with the motor's built-in PID (keeps holding when it gets there). */
     public void moveTo(double degrees) {
         m_targetDegrees = Math.max(kMinDegrees, Math.min(kMaxDegrees, degrees));
-        m_motor.setPositionTarget(degreesToMotorRotations(m_targetDegrees), kPresetMaxRpm);
+        m_motor.setPositionTarget(m_targetDegrees, kPresetMaxRpm); // degrees, thanks to the conversion factor
     }
 
     public boolean atTarget() {

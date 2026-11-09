@@ -8,10 +8,11 @@ import com.robojacks.lib.drive.DriveGains;
 import com.robojacks.lib.drive.DriveToPoint;
 import com.robojacks.lib.drive.TankDriveSubsystem;
 import com.robojacks.lib.drive.TurnToHeading;
-import com.robojacks.lib.hal.MotorIO.NeutralMode;
+import com.robojacks.lib.hardware.VexEncoder;
 import com.robojacks.lib.hardware.VexInertial;
 import com.robojacks.lib.hardware.VexMotor;
-import com.robojacks.lib.hardware.VexMotorGroup;
+import com.robojacks.lib.hardware.VexMotorConfig;
+import com.robojacks.lib.hardware.VexMotorConfig.IdleMode;
 import com.robojacks.lib.kinematics.DifferentialDriveOdometry;
 import com.robojacks.lib.math.Pose2d;
 import com.robojacks.lib.math.Rotation2d;
@@ -22,28 +23,29 @@ import static com.robojacks.robot.Constants.DriveConstants.*;
 
 /**
  * Contains all methods for control of the drivetrain: a 6-motor tank drive with an
- * Inertial Sensor and odometry.
+ * Inertial Sensor and odometry. Motors are set up REV-style: one leader per side with two
+ * followers, configured through VexMotorConfig.
  *
  * @see com.robojacks.robot.commands.TankDrive
  * @see com.robojacks.robot.commands.ArcadeDrive
  */
 public class DriveSubsystem extends SubsystemBase implements TankDriveSubsystem {
-    // Left side motors
-    private final VexMotor m_leftFront = new VexMotor(kLeftFrontMotorPort, kLeftFrontMotorReversed, kCartridge);
-    private final VexMotor m_leftMiddle = new VexMotor(kLeftMiddleMotorPort, kLeftMiddleMotorReversed, kCartridge);
-    private final VexMotor m_leftRear = new VexMotor(kLeftRearMotorPort, kLeftRearMotorReversed, kCartridge);
+    // Left side: the front motor leads, the others follow it
+    private final VexMotor m_leftLeader = new VexMotor(kLeftFrontMotorPort, kCartridge);
+    private final VexMotor m_leftFollower1 = new VexMotor(kLeftMiddleMotorPort, kCartridge);
+    private final VexMotor m_leftFollower2 = new VexMotor(kLeftRearMotorPort, kCartridge);
 
-    // Right side motors
-    private final VexMotor m_rightFront = new VexMotor(kRightFrontMotorPort, kRightFrontMotorReversed, kCartridge);
-    private final VexMotor m_rightMiddle = new VexMotor(kRightMiddleMotorPort, kRightMiddleMotorReversed, kCartridge);
-    private final VexMotor m_rightRear = new VexMotor(kRightRearMotorPort, kRightRearMotorReversed, kCartridge);
+    // Right side
+    private final VexMotor m_rightLeader = new VexMotor(kRightFrontMotorPort, kCartridge);
+    private final VexMotor m_rightFollower1 = new VexMotor(kRightMiddleMotorPort, kCartridge);
+    private final VexMotor m_rightFollower2 = new VexMotor(kRightRearMotorPort, kCartridge);
 
-    // Motor groups for each side
-    private final VexMotorGroup m_leftMotors = new VexMotorGroup(m_leftFront, m_leftMiddle, m_leftRear);
-    private final VexMotorGroup m_rightMotors = new VexMotorGroup(m_rightFront, m_rightMiddle, m_rightRear);
+    // Encoders on the leaders, reading meters (see the conversion factors below)
+    private final VexEncoder m_leftEncoder = m_leftLeader.getEncoder();
+    private final VexEncoder m_rightEncoder = m_rightLeader.getEncoder();
 
     // The robot's drive
-    private final DifferentialDrive m_drive = new DifferentialDrive(m_leftMotors, m_rightMotors);
+    private final DifferentialDrive m_drive = new DifferentialDrive(m_leftLeader, m_rightLeader);
 
     // The Inertial Sensor (gyro)
     private final VexInertial m_gyro = new VexInertial(kImuPort);
@@ -63,7 +65,37 @@ public class DriveSubsystem extends SubsystemBase implements TankDriveSubsystem 
     /** Creates a new DriveSubsystem. */
     public DriveSubsystem() {
         super("DriveSubsystem");
-        setBrakeMode(true);
+
+        // Settings every drive motor shares
+        VexMotorConfig globalConfig = new VexMotorConfig();
+        globalConfig
+                .idleMode(IdleMode.kBrake)
+                .smartCurrentLimit(kCurrentLimitAmps);
+        globalConfig.encoder
+                .positionConversionFactor(kMetersPerMotorRotation)          // meters
+                .velocityConversionFactor(kMetersPerMotorRotation / 60.0);  // meters per second
+
+        VexMotorConfig leftLeaderConfig = new VexMotorConfig();
+        VexMotorConfig leftFollower1Config = new VexMotorConfig();
+        VexMotorConfig leftFollower2Config = new VexMotorConfig();
+        VexMotorConfig rightLeaderConfig = new VexMotorConfig();
+        VexMotorConfig rightFollower1Config = new VexMotorConfig();
+        VexMotorConfig rightFollower2Config = new VexMotorConfig();
+
+        leftLeaderConfig.apply(globalConfig).inverted(kLeftFrontMotorReversed);
+        leftFollower1Config.apply(globalConfig).inverted(kLeftMiddleMotorReversed).follow(m_leftLeader);
+        leftFollower2Config.apply(globalConfig).inverted(kLeftRearMotorReversed).follow(m_leftLeader);
+        rightLeaderConfig.apply(globalConfig).inverted(kRightFrontMotorReversed);
+        rightFollower1Config.apply(globalConfig).inverted(kRightMiddleMotorReversed).follow(m_rightLeader);
+        rightFollower2Config.apply(globalConfig).inverted(kRightRearMotorReversed).follow(m_rightLeader);
+
+        m_leftLeader.configure(leftLeaderConfig);
+        m_leftFollower1.configure(leftFollower1Config);
+        m_leftFollower2.configure(leftFollower2Config);
+        m_rightLeader.configure(rightLeaderConfig);
+        m_rightFollower1.configure(rightFollower1Config);
+        m_rightFollower2.configure(rightFollower2Config);
+
         resetEncoders();
         m_odometry = new DifferentialDriveOdometry(
                 m_gyro.getRotation2d(), getLeftEncoderDistance(), getRightEncoderDistance());
@@ -113,8 +145,8 @@ public class DriveSubsystem extends SubsystemBase implements TankDriveSubsystem 
     /** Sets each side's voltage directly. Used by auto commands. */
     @Override
     public void tankDriveVolts(double leftVolts, double rightVolts) {
-        m_leftMotors.setVoltage(leftVolts);
-        m_rightMotors.setVoltage(rightVolts);
+        m_leftLeader.setVoltage(leftVolts);
+        m_rightLeader.setVoltage(rightVolts);
     }
 
     /** Scales all driver output, e.g. 0.5 for a slow/precision mode. */
@@ -123,10 +155,14 @@ public class DriveSubsystem extends SubsystemBase implements TankDriveSubsystem 
     }
 
     /** Brake (holds its spot when pushed) or coast (rolls freely, good for defense). */
-    public void setBrakeMode(boolean brake) {
-        NeutralMode mode = brake ? NeutralMode.BRAKE : NeutralMode.COAST;
-        m_leftMotors.setNeutralMode(mode);
-        m_rightMotors.setNeutralMode(mode);
+    public void setIdleMode(IdleMode mode) {
+        VexMotorConfig config = new VexMotorConfig().idleMode(mode);
+        m_leftLeader.configure(config);
+        m_leftFollower1.configure(config);
+        m_leftFollower2.configure(config);
+        m_rightLeader.configure(config);
+        m_rightFollower1.configure(config);
+        m_rightFollower2.configure(config);
     }
 
     /** Stops the drivetrain. */
@@ -140,18 +176,18 @@ public class DriveSubsystem extends SubsystemBase implements TankDriveSubsystem 
     // =====================================================================
 
     public void resetEncoders() {
-        m_leftMotors.resetPosition();
-        m_rightMotors.resetPosition();
+        m_leftEncoder.setPosition(0.0);
+        m_rightEncoder.setPosition(0.0);
     }
 
     /** Left side distance traveled, meters. */
     public double getLeftEncoderDistance() {
-        return m_leftMotors.getPosition() * kMetersPerMotorRotation;
+        return m_leftEncoder.getPosition();
     }
 
     /** Right side distance traveled, meters. */
     public double getRightEncoderDistance() {
-        return m_rightMotors.getPosition() * kMetersPerMotorRotation;
+        return m_rightEncoder.getPosition();
     }
 
     @Override
@@ -161,12 +197,12 @@ public class DriveSubsystem extends SubsystemBase implements TankDriveSubsystem 
 
     @Override
     public double getLeftEncoderRate() {
-        return m_leftMotors.getVelocity() / 60.0 * kMetersPerMotorRotation;
+        return m_leftEncoder.getVelocity();
     }
 
     @Override
     public double getRightEncoderRate() {
-        return m_rightMotors.getVelocity() / 60.0 * kMetersPerMotorRotation;
+        return m_rightEncoder.getVelocity();
     }
 
     /** The robot's position on the field (meters, field-centered). */

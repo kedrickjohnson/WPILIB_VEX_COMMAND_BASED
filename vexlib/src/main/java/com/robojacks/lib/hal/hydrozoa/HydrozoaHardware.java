@@ -109,6 +109,26 @@ public class HydrozoaHardware implements Hardware {
         }
 
         @Override
+        public void setInverted(boolean inverted) {
+            motor.setDirection(inverted ? Motor.Direction.REVERSE : Motor.Direction.FORWARD);
+        }
+
+        @Override
+        public void setCurrentLimit(double amps) {
+            VexSdk.Motor.setCurrentLimit(handle, (int) Math.round(amps * 1000.0)); // milliamps
+        }
+
+        @Override
+        public double getCurrentAmps() {
+            return isConnected() ? VexSdk.Motor.getCurrent(handle) / 1000.0 : 0.0;
+        }
+
+        @Override
+        public double getTemperatureCelsius() {
+            return isConnected() ? VexSdk.Motor.getTemperature(handle) : 0.0;
+        }
+
+        @Override
         public void setPositionTarget(double rotations, double maxRpm) {
             try {
                 motor.moveToPosition(EncoderPosition.ofRotations(rotations), (int) Math.round(maxRpm));

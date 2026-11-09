@@ -26,7 +26,7 @@ public final class Constants {
         public static final int kRightMiddleMotorPort = 5;
         public static final int kRightRearMotorPort = 6;
 
-        // Flip any of these if that motor fights the others.
+        // Each motor's own direction. Flip one if that motor fights the others.
         public static final boolean kLeftFrontMotorReversed = true;
         public static final boolean kLeftMiddleMotorReversed = true;
         public static final boolean kLeftRearMotorReversed = true;
@@ -35,6 +35,8 @@ public final class Constants {
         public static final boolean kRightRearMotorReversed = false;
 
         public static final Cartridge kCartridge = Cartridge.BLUE;
+        /** Amps per motor. 2.5 is the V5 11 W motor's maximum. */
+        public static final double kCurrentLimitAmps = 2.5;
         public static final int kImuPort = 10;
 
         // ---- Geometry ----
@@ -66,6 +68,7 @@ public final class Constants {
         public static final int kMotorPort = 7;
         public static final boolean kReversed = false;
         public static final Cartridge kCartridge = Cartridge.BLUE;
+        public static final double kCurrentLimitAmps = 2.5;
         public static final double kIntakeVolts = 12.0;
         public static final double kOuttakeVolts = -10.0;
     }

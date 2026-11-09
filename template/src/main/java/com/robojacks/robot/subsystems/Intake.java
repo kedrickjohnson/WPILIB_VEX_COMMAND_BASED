@@ -2,18 +2,24 @@ package com.robojacks.robot.subsystems;
 
 import com.robojacks.lib.command.Command;
 import com.robojacks.lib.command.SubsystemBase;
-import com.robojacks.lib.hal.MotorIO.NeutralMode;
 import com.robojacks.lib.hardware.VexMotor;
+import com.robojacks.lib.hardware.VexMotorConfig;
+import com.robojacks.lib.hardware.VexMotorConfig.IdleMode;
 
 import static com.robojacks.robot.Constants.IntakeConstants.*;
 
 /** Example single-motor mechanism. Copy this pattern for rollers, flywheels, etc. */
 public class Intake extends SubsystemBase {
-    private final VexMotor m_motor = new VexMotor(kMotorPort, kReversed, kCartridge);
+    private final VexMotor m_motor = new VexMotor(kMotorPort, kCartridge);
 
     public Intake() {
         super("Intake");
-        m_motor.setNeutralMode(NeutralMode.COAST);
+
+        VexMotorConfig config = new VexMotorConfig();
+        config.inverted(kReversed)
+              .idleMode(IdleMode.kCoast)
+              .smartCurrentLimit(kCurrentLimitAmps);
+        m_motor.configure(config);
     }
 
     public void setVoltage(double volts) {

@@ -19,6 +19,7 @@ public final class Constants {
         public static final int kRightMotorPort = 10;
         public static final boolean kRightMotorReversed = true;
         public static final Cartridge kCartridge = Cartridge.GREEN;
+        public static final double kCurrentLimitAmps = 2.5;
 
         /**
          * The kit Clawbot has no Inertial Sensor, so heading comes from the wheel encoders.
@@ -52,9 +53,12 @@ public final class Constants {
         public static final int kMotorPort = 8;
         public static final boolean kReversed = false;
         public static final Cartridge kCartridge = Cartridge.GREEN;
+        public static final double kCurrentLimitAmps = 2.5;
 
         /** Arm rotations per motor rotation. Count your gears: motor gear teeth / arm gear teeth. */
         public static final double kGearRatio = 12.0 / 84.0;
+        /** Arm degrees per motor rotation: makes the arm encoder read in degrees. */
+        public static final double kDegreesPerMotorRotation = 360.0 * kGearRatio;
 
         // The arm must be all the way DOWN when the program starts: that's 0 degrees.
         public static final double kMinDegrees = 0.0;
@@ -76,6 +80,8 @@ public final class Constants {
         /** If R1 closes the claw instead of opening it, flip this. */
         public static final boolean kReversed = false;
         public static final Cartridge kCartridge = Cartridge.GREEN;
+        /** Low on purpose: the claw stalls against objects, and this keeps it cool. */
+        public static final double kCurrentLimitAmps = 1.2;
 
         public static final double kOpenVolts = 6.0;
         public static final double kCloseVolts = -6.0;

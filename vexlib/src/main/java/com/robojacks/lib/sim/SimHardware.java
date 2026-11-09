@@ -166,6 +166,9 @@ public class SimHardware implements Hardware {
             volts = Math.max(-12, Math.min(12, v));
         }
         @Override public void setNeutralMode(NeutralMode mode) { neutral = mode; }
+        // Direction is logical in sim: what the code commands is what the mechanism does.
+        @Override public void setInverted(boolean inverted) {}
+        @Override public void setCurrentLimit(double amps) {}
         @Override public void setPositionTarget(double rot, double rpmLimit) {
             positionMode = true;
             targetRotations = rot;
