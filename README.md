@@ -36,15 +36,32 @@ public static final DrivetrainConfig DRIVE = DrivetrainConfig.builder()
 `build()` checks the config at startup: ports must be 1-21, no port used twice, IMU not on a
 motor port, and track width set. Mistakes fail with a message that names the problem.
 
-In autos, the drivetrain gives you commands directly:
+## The Drivetrain subsystem
+
+`robot/subsystems/Drivetrain.java` is a normal FRC-style subsystem with its commands in it.
+The motors, IMU and odometry come from the library base class (`TankDrivetrain`), so the file
+holds only commands and your own additions:
+
+| Command | Use |
+| --- | --- |
+| `arcadeDriveCommand(fwd, turn)` | Default teleop drive |
+| `tankDriveCommand(left, right)` | Tank-style teleop |
+| `resetPoseCommand(pose)` | Set the starting position for auto |
+| `driveDistanceCommand(m)` | Straight line, holds heading |
+| `turnToAngleCommand(deg)` | Turn to a field heading |
+| `driveToPointCommand(x, y)` | Drive to a field point, steering as it goes |
+| `backToPointCommand(x, y)` | Reverse into a field point |
+| `turnAndDriveToPointCommand(x, y)` | Face the point first, then drive |
+| `stopCommand()` | Stop |
+
+Add your own commands the same way. Autos read like FRC:
 
 ```java
 Commands.sequence(
     drive.resetPoseCommand(StartPoses.LEFT_START),
-    drive.driveTo(-0.9, 0.6),               // field point, meters
-    drive.turnToDegrees(180),               // field heading
-    drive.backTo(-1.2, 0.0),                // reverse into a point
-    drive.driveDistance(0.3));              // straight, holding heading
+    drive.driveToPointCommand(-0.9, 0.6),
+    drive.turnToAngleCommand(180),
+    drive.backToPointCommand(-1.2, 0.0));
 ```
 
 ## Tuning without writing code
@@ -70,8 +87,8 @@ corrections can't move the robot and turns stall a few degrees short. Run test A
 ```
 src/main/java/com/robojacks/
 ├── lib/                         # "WPILib-lite" — teams don't edit this
-│   ├── drive/                   # DrivetrainConfig, TankDrivetrain, TurnToHeading, DriveToPoint,
-│   │                            # DriveDistance, TuningCommands (+ auto-tune, characterization)
+│   ├── drive/                   # DrivetrainConfig, TankDrivetrain (base class), TurnToHeading,
+│   │                            # DriveToPoint, DriveDistance, TuningCommands
 │   ├── command/                 # Command, Subsystem, CommandScheduler, Trigger, groups, Commands
 │   ├── math/                    # Pose2d, Rotation2d, Translation2d, Twist2d, MathUtil
 │   ├── controller/              # PIDController, SimpleMotorFeedforward
@@ -86,7 +103,7 @@ src/main/java/com/robojacks/
     ├── RobotContainer.java      # Bindings (match or tuning mode)
     ├── Constants.java           # ← the drivetrain config lives here
     ├── FieldConstants.java      # Field coordinate convention + start poses
-    ├── subsystems/              # Intake (example mechanism to copy)
+    ├── subsystems/              # Drivetrain (commands live here), Intake (example)
     └── autos/                   # Autos.exampleAuto
 
 src/sim/java/com/robojacks/sim/  # Desktop simulator (not uploaded)

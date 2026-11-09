@@ -1,19 +1,19 @@
 package com.robojacks.robot;
 
 import com.robojacks.lib.command.Command;
-import com.robojacks.lib.drive.TankDrivetrain;
 import com.robojacks.lib.drive.TuningCommands;
 import com.robojacks.lib.hal.HAL;
 import com.robojacks.lib.input.VexController;
 import com.robojacks.lib.math.MathUtil;
 import com.robojacks.robot.autos.Autos;
+import com.robojacks.robot.subsystems.Drivetrain;
 import com.robojacks.robot.subsystems.Intake;
 
 import static com.robojacks.robot.Constants.OIConstants.DEADBAND;
 
 /** Creates subsystems, binds controls, picks the auto. Same role as in FRC command-based. */
 public class RobotContainer {
-    private final TankDrivetrain drivetrain = new TankDrivetrain(Constants.DRIVE);
+    private final Drivetrain drivetrain = new Drivetrain();
     private final Intake intake = new Intake();
 
     private final VexController driver = new VexController(HAL.get().primaryController());
@@ -37,10 +37,10 @@ public class RobotContainer {
         driver.r2().whileTrue(intake.outtakeCommand());
 
         // Snap to field headings (handy for testing odometry + turn PID).
-        driver.up().onTrue(drivetrain.turnToDegrees(0));
-        driver.left().onTrue(drivetrain.turnToDegrees(90));
-        driver.down().onTrue(drivetrain.turnToDegrees(180));
-        driver.right().onTrue(drivetrain.turnToDegrees(-90));
+        driver.up().onTrue(drivetrain.turnToAngleCommand(0));
+        driver.left().onTrue(drivetrain.turnToAngleCommand(90));
+        driver.down().onTrue(drivetrain.turnToAngleCommand(180));
+        driver.right().onTrue(drivetrain.turnToAngleCommand(-90));
     }
 
     /** Press a button to start a test. L1 aborts it and hands control back to the sticks. */
@@ -56,7 +56,7 @@ public class RobotContainer {
         return Autos.exampleAuto(drivetrain, intake);
     }
 
-    public TankDrivetrain getDrivetrain() {
+    public Drivetrain getDrivetrain() {
         return drivetrain;
     }
 }

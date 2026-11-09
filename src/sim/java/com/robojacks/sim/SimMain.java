@@ -13,6 +13,7 @@ import com.robojacks.lib.math.Pose2d;
 import com.robojacks.lib.telemetry.Telemetry;
 import com.robojacks.robot.Constants;
 import com.robojacks.robot.Robot;
+import com.robojacks.robot.subsystems.Drivetrain;
 
 /**
  * Runs robot code against SimHardware on your computer.
@@ -102,7 +103,7 @@ public final class SimMain {
         // 1) Characterize + auto-tune on the CURRENT config.
         DrivetrainConfig start = Constants.DRIVE;
         SimHardware hw = newHardware(start);
-        TankDrivetrain drive = new TankDrivetrain(start);
+        TankDrivetrain drive = new Drivetrain(start);
         wireImu(hw, start);
         runFor(hw, 2.5); // IMU calibration
 
@@ -118,7 +119,7 @@ public final class SimMain {
                 .feedforward(ff.getKS(), ff.getKV())
                 .build();
         SimHardware hw2 = newHardware(tuned);
-        TankDrivetrain drive2 = new TankDrivetrain(tuned);
+        TankDrivetrain drive2 = new Drivetrain(tuned);
         wireImu(hw2, tuned);
         runFor(hw2, 2.5);
 

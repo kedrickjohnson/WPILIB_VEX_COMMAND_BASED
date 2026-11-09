@@ -1,6 +1,5 @@
 package com.robojacks.lib.drive;
 
-import com.robojacks.lib.command.Command;
 import com.robojacks.lib.command.SubsystemBase;
 import com.robojacks.lib.hal.HAL;
 import com.robojacks.lib.hal.ImuIO;
@@ -9,15 +8,14 @@ import com.robojacks.lib.kinematics.DifferentialDriveOdometry;
 import com.robojacks.lib.math.MathUtil;
 import com.robojacks.lib.math.Pose2d;
 import com.robojacks.lib.math.Rotation2d;
-import com.robojacks.lib.math.Translation2d;
 import com.robojacks.lib.telemetry.Telemetry;
-import java.util.function.DoubleSupplier;
 
 /**
- * Ready-made tank drivetrain with IMU + encoder odometry. Teams don't edit this file;
- * everything team-specific comes from {@link DrivetrainConfig}.
+ * Ready-made tank drivetrain plumbing: motors, IMU and odometry, all set up from a
+ * {@link DrivetrainConfig}. Teams don't edit this file. Extend it instead, the way
+ * robot/subsystems/Drivetrain does, and put your commands there.
  */
-public class TankDrivetrain extends SubsystemBase {
+public abstract class TankDrivetrain extends SubsystemBase {
     private final DrivetrainConfig config;
     private final MotorIO[] left;
     private final MotorIO[] right;
@@ -26,7 +24,7 @@ public class TankDrivetrain extends SubsystemBase {
     private boolean odometryReady;
     private Pose2d pendingReset = Pose2d.kZero;
 
-    public TankDrivetrain(DrivetrainConfig config) {
+    protected TankDrivetrain(DrivetrainConfig config) {
         super("Drivetrain");
         this.config = config;
         left = new MotorIO[config.leftPorts.length];
@@ -183,50 +181,5 @@ public class TankDrivetrain extends SubsystemBase {
         Telemetry.put("drive/x", pose.getX());
         Telemetry.put("drive/y", pose.getY());
         Telemetry.put("drive/deg", pose.getRotation().getDegrees());
-    }
-
-    // ----- Command factories -----
-
-    /** Arcade drive from suppliers (forward, CCW turn), the usual default command. */
-    public Command arcadeDriveCommand(DoubleSupplier forward, DoubleSupplier turn) {
-        return run(() -> arcadeDrive(forward.getAsDouble(), turn.getAsDouble())).withName("ArcadeDrive");
-    }
-
-    public Command tankDriveCommand(DoubleSupplier leftPct, DoubleSupplier rightPct) {
-        return run(() -> tankDriveVolts(12.0 * leftPct.getAsDouble(), 12.0 * rightPct.getAsDouble()))
-                .withName("TankDrive");
-    }
-
-    public Command resetPoseCommand(Pose2d pose) {
-        return runOnce(() -> resetPose(pose)).withName("ResetPose");
-    }
-
-    public Command stopCommand() {
-        return runOnce(this::stop).withName("StopDrive");
-    }
-
-    public Command turnTo(Rotation2d fieldHeading) {
-        return new TurnToHeading(this, fieldHeading);
-    }
-
-    public Command turnToDegrees(double fieldHeadingDeg) {
-        return turnTo(Rotation2d.fromDegrees(fieldHeadingDeg));
-    }
-
-    public Command driveTo(Translation2d fieldPoint) {
-        return new DriveToPoint(this, fieldPoint, false);
-    }
-
-    public Command driveTo(double xMeters, double yMeters) {
-        return driveTo(new Translation2d(xMeters, yMeters));
-    }
-
-    public Command backTo(double xMeters, double yMeters) {
-        return new DriveToPoint(this, new Translation2d(xMeters, yMeters), true);
-    }
-
-    /** Straight line forward (negative = backward), holding the starting heading. */
-    public Command driveDistance(double meters) {
-        return new DriveDistance(this, meters);
     }
 }
