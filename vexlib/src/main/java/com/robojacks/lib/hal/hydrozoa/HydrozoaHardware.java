@@ -1,5 +1,6 @@
 package com.robojacks.lib.hal.hydrozoa;
 
+import com.robojacks.lib.math.util.Units;
 import com.robojacks.lib.hal.Cartridge;
 import com.robojacks.lib.hal.Clock;
 import com.robojacks.lib.hal.CompetitionIO;
@@ -115,12 +116,12 @@ public class HydrozoaHardware implements Hardware {
 
         @Override
         public void setCurrentLimit(double amps) {
-            VexSdk.Motor.setCurrentLimit(handle, (int) Math.round(amps * 1000.0)); // milliamps
+            VexSdk.Motor.setCurrentLimit(handle, (int) Math.round(Units.ampsToMilliamps(amps)));
         }
 
         @Override
         public double getCurrentAmps() {
-            return isConnected() ? VexSdk.Motor.getCurrent(handle) / 1000.0 : 0.0;
+            return isConnected() ? Units.milliampsToAmps(VexSdk.Motor.getCurrent(handle)) : 0.0;
         }
 
         @Override

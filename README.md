@@ -91,6 +91,7 @@ defaults to tank, the Clawbot to arcade.
 | `MotorControllerGroup` | `VexMotorGroup` (or leader + followers) |
 | `Pigeon2`, `AHRS` | `VexInertial` (`getAngle()` CW, `getRotation2d()` CCW) |
 | `DifferentialDrive`, `DifferentialDriveOdometry` | Same names |
+| `edu.wpi.first.math.util.Units` | `com.robojacks.lib.math.util.Units` (same methods, plus tiles, mm, mV, mA) |
 | `CommandXboxController` | `VexController` — **stick up is positive** (FRC is negative) |
 | SmartDashboard | `Telemetry`, printed over USB serial |
 

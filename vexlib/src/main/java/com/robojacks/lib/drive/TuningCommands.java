@@ -1,5 +1,6 @@
 package com.robojacks.lib.drive;
 
+import com.robojacks.lib.math.util.Units;
 import com.robojacks.lib.command.Command;
 import com.robojacks.lib.command.Commands;
 import com.robojacks.lib.math.Rotation2d;
@@ -32,7 +33,7 @@ public final class TuningCommands {
     public static Command driveDistanceTest(TankDriveSubsystem drive, double meters) {
         DriveDistance d = new DriveDistance(drive, meters);
         return d.andThen(Commands.runOnce(() -> {
-            double reportedIn = d.traveledMeters() / 0.0254;
+            double reportedIn = Units.metersToInches(d.traveledMeters());
             System.out.println("[DriveTest] robot thinks it drove " + round(reportedIn) + " in");
             System.out.println("[DriveTest] measure the real distance A (in), then multiply "
                     + "kWheelDiameterInches by A / " + round(reportedIn));

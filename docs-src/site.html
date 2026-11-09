@@ -956,6 +956,26 @@ m_armMotor.configure(config);</code></pre>
     <li><strong>Heading</strong> is WPILib-style: 0 points along +X and counter-clockwise is positive.</li>
   </ul>
 
+  <h2>Unit conversions</h2>
+  <p><code>Units</code> (in <code>com.robojacks.lib.math.util</code>, same name and methods as WPILib's) converts what you measured into the units the library uses. Convert once, in <code>Constants</code>:</p>
+<pre class="code"><code>import com.robojacks.lib.math.util.Units;
+
+public static final double kWheelDiameterMeters = Units.inchesToMeters(3.25);
+public static final double kTurnToleranceRad = Units.degreesToRadians(2.0);
+public static final double kStartX = Units.tilesToMeters(-2.5);   // 2.5 tiles left of center</code></pre>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Kind</th><th>Methods</th></tr></thead>
+    <tbody>
+      <tr><td>Length</td><td><code>inchesToMeters</code>, <code>metersToInches</code>, <code>feetToMeters</code>, <code>metersToFeet</code>, <code>millimetersToMeters</code> (GPS), <code>metersToMillimeters</code>, <code>tilesToMeters</code>, <code>metersToTiles</code> (24 in tiles)</td></tr>
+      <tr><td>Angle</td><td><code>degreesToRadians</code>, <code>radiansToDegrees</code>, <code>rotationsToRadians</code>, <code>radiansToRotations</code>, <code>rotationsToDegrees</code>, <code>degreesToRotations</code></td></tr>
+      <tr><td>Angular speed</td><td><code>rotationsPerMinuteToRadiansPerSecond</code>, <code>radiansPerSecondToRotationsPerMinute</code></td></tr>
+      <tr><td>Time</td><td><code>millisecondsToSeconds</code>, <code>secondsToMilliseconds</code></td></tr>
+      <tr><td>Mass</td><td><code>kilogramsToLbs</code>, <code>lbsToKilograms</code></td></tr>
+      <tr><td>Electrical</td><td><code>voltsToMillivolts</code>, <code>millivoltsToVolts</code>, <code>ampsToMilliamps</code>, <code>milliampsToAmps</code> (the V5 SDK's units)</td></tr>
+    </tbody>
+  </table></div>
+  <p>WPILib's newer <code>Measure</code> types (<code>Inches.of(3.25)</code>) aren't included. Plain doubles keep the brain's interpreter fast; <code>Measure</code> types create objects, which it handles slowly.</p>
+
   <h2>Mirroring</h2>
   <p>Most V5RC fields are rotationally symmetric, so the other starting side is a 180° turn about the center: <code>(x, y, θ) → (−x, −y, θ + 180°)</code>. Use <code>FieldConstants.mirror(pose)</code> in code, or <em>Mirror to other side</em> in the path planner.</p>
 

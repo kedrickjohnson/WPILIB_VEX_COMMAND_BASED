@@ -1,5 +1,6 @@
 package com.robojacks.robot;
 
+import com.robojacks.lib.math.util.Units;
 import com.robojacks.lib.hal.Cartridge;
 
 /**
@@ -46,8 +47,8 @@ public final class Constants {
         /** Center of left wheels to center of right wheels. */
         public static final double kTrackWidthInches = 11.5;
 
-        public static final double kWheelDiameterMeters = kWheelDiameterInches * 0.0254;
-        public static final double kTrackWidthMeters = kTrackWidthInches * 0.0254;
+        public static final double kWheelDiameterMeters = Units.inchesToMeters(kWheelDiameterInches);
+        public static final double kTrackWidthMeters = Units.inchesToMeters(kTrackWidthInches);
         /** Distance traveled per motor-output rotation (VEX reports position after the cartridge). */
         public static final double kMetersPerMotorRotation = kGearRatio * Math.PI * kWheelDiameterMeters;
         /** Top speed at 12 V with no load. */

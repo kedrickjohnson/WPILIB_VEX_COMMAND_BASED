@@ -1,5 +1,6 @@
 package com.robojacks.robot;
 
+import com.robojacks.lib.math.util.Units;
 import com.robojacks.lib.math.Pose2d;
 import com.robojacks.lib.math.Rotation2d;
 import com.robojacks.lib.math.Translation2d;
@@ -21,7 +22,7 @@ public final class FieldConstants {
     private FieldConstants() {}
 
     /** VEX field is 12 ft (about 3.66 m) square. */
-    public static final double FIELD_SIZE_M = 12 * 12 * 0.0254;
+    public static final double FIELD_SIZE_M = Units.feetToMeters(12);
     public static final double HALF_FIELD_M = FIELD_SIZE_M / 2.0;
 
     /**
@@ -34,7 +35,7 @@ public final class FieldConstants {
 
     /** Converts a GPS reading (mm, mm, degrees CW) into our field Pose2d. */
     public static Pose2d fromGps(double xMm, double yMm, double headingDegCW) {
-        return new Pose2d(xMm / 1000.0, yMm / 1000.0,
+        return new Pose2d(Units.millimetersToMeters(xMm), Units.millimetersToMeters(yMm),
                 Rotation2d.fromDegrees(GPS_HEADING_OFFSET_DEG - headingDegCW));
     }
 

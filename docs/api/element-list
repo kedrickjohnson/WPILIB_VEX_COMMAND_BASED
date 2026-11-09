@@ -12,6 +12,7 @@ com.robojacks.lib.hardware
 com.robojacks.lib.input
 com.robojacks.lib.kinematics
 com.robojacks.lib.math
+com.robojacks.lib.math.util
 com.robojacks.lib.robot
 com.robojacks.lib.sim
 com.robojacks.lib.telemetry

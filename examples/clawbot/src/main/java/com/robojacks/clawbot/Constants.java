@@ -1,5 +1,6 @@
 package com.robojacks.clawbot;
 
+import com.robojacks.lib.math.util.Units;
 import com.robojacks.lib.hal.Cartridge;
 
 /**
@@ -34,8 +35,8 @@ public final class Constants {
         /** Center of left wheel to center of right wheel. MEASURE YOURS: it sets turn accuracy without an IMU. */
         public static final double kTrackWidthInches = 11.0;
 
-        public static final double kWheelDiameterMeters = kWheelDiameterInches * 0.0254;
-        public static final double kTrackWidthMeters = kTrackWidthInches * 0.0254;
+        public static final double kWheelDiameterMeters = Units.inchesToMeters(kWheelDiameterInches);
+        public static final double kTrackWidthMeters = Units.inchesToMeters(kTrackWidthInches);
         public static final double kMetersPerMotorRotation = kGearRatio * Math.PI * kWheelDiameterMeters;
         /** Top speed at 12 V with no load. */
         public static final double kMaxSpeedMetersPerSecond = kCartridge.freeRpm / 60.0 * kMetersPerMotorRotation;
