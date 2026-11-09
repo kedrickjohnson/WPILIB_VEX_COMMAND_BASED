@@ -1,0 +1,72 @@
+/* Matches the javadoc pages to the guides: same palette and type, light and dark. */
+@import url("https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@600;700&family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;600&display=swap");
+
+:root {
+  --body-font-family: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --block-font-family: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --code-font-family: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+  --body-font-size: 15px;
+  --code-font-size: 13.5px;
+  --body-text-color: #142029;
+  --block-text-color: #142029;
+  --body-background-color: #eef1f4;
+  --section-background-color: #ffffff;
+  --detail-background-color: #ffffff;
+  --navbar-background-color: #142029;
+  --navbar-text-color: #eef1f4;
+  --subnav-background-color: #e3e8ed;
+  --selected-background-color: #1d5bd6;
+  --selected-text-color: #ffffff;
+  --selected-link-color: #ffffff;
+  --even-row-color: #ffffff;
+  --odd-row-color: #f3f6f8;
+  --title-color: #142029;
+  --link-color: #1d5bd6;
+  --link-color-active: #e8a10b;
+  --snippet-background-color: #101820;
+  --snippet-text-color: #dbe4ec;
+  --snippet-highlight-color: #f2c46d;
+  --border-color: #cfd7df;
+  --table-border-color: #cfd7df;
+  --search-input-background-color: #ffffff;
+  --search-input-text-color: #142029;
+  --search-input-placeholder-color: #56677a;
+  --search-tag-highlight-color: #f2c46d;
+  --copy-icon-brightness: 100%;
+  --copy-button-background-color-active: rgba(29, 91, 214, 0.2);
+  --invalid-tag-background-color: #fde7e7;
+  --invalid-tag-text-color: #142029;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --body-text-color: #e2e9ef;
+    --block-text-color: #e2e9ef;
+    --body-background-color: #0d1318;
+    --section-background-color: #141c23;
+    --detail-background-color: #141c23;
+    --navbar-background-color: #0a0f14;
+    --navbar-text-color: #e2e9ef;
+    --subnav-background-color: #1a242d;
+    --selected-background-color: #5d93f5;
+    --selected-text-color: #08111d;
+    --selected-link-color: #08111d;
+    --even-row-color: #141c23;
+    --odd-row-color: #17212a;
+    --title-color: #e2e9ef;
+    --link-color: #7fb2ff;
+    --link-color-active: #f2b63a;
+    --border-color: #26323d;
+    --table-border-color: #26323d;
+    --search-input-background-color: #1a242d;
+    --search-input-text-color: #e2e9ef;
+    --search-input-placeholder-color: #8b9cad;
+    --copy-icon-brightness: 180%;
+    --invalid-tag-background-color: #3a1d1d;
+    --invalid-tag-text-color: #e2e9ef;
+    color-scheme: dark;
+  }
+}
+h1, h2, .title { font-family: "Chakra Petch", "Bahnschrift", "Arial Narrow", sans-serif; letter-spacing: 0.01em; }
+.top-nav a, .sub-nav a { color: inherit; }
+pre, code { font-family: var(--code-font-family); }
+.block pre, pre.snippet { background: var(--snippet-background-color); color: var(--snippet-text-color); padding: 10px 12px; border-radius: 6px; overflow-x: auto; }

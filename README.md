@@ -10,6 +10,12 @@ motors, command factories, triggers, `Pose2d` and odometry.
 | `vexlib/` | The shared library ("WPILib-lite"). Teams don't edit it. |
 | `template/` | Starting point for your own robot: 6-motor tank drive + example intake. |
 | `examples/clawbot/` | A complete V5 Clawbot: drive, arm, claw, autos. |
+| `docs/` | The website: guides, the path planner, and the API reference. |
+
+**Website:** guides, a PathPlanner-style path planner, and the full API reference live in `docs/`.
+To publish it, go to the repository's **Settings → Pages**, choose **Deploy from a branch**, and pick
+the `main` branch and the `/docs` folder. Rebuild it after changing the library with
+`python3 docs-src/build.py --javadoc`.
 
 > **Status:** Everything compiles against Hydrozoa's real SDK source and runs in the desktop
 > simulator. It has **not yet been run on a physical brain.** Hydrozoa itself is experimental

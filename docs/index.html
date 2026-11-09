@@ -1,0 +1,2598 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}</style>
+<title>VEX Command-Based</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="description" content="FRC-style command-based Java for VEX V5: guides, a path planner, and the full API reference.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@600;700&family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: sticky top bar; guides are sidebar + 70ch article; the planner is a three-column workbench
+   (project | field | inspector) that stacks on phones. Palette comes from the V5RC field:
+   foam-tile greys, alliance blue as the accent, alliance red for reversing, tape amber for markers. */
+:root {
+  --bg: #eef1f4;
+  --surface: #ffffff;
+  --panel: #e3e8ed;
+  --ink: #142029;
+  --muted: #56677a;
+  --line: #cfd7df;
+  --accent: #1d5bd6;
+  --accent-ink: #ffffff;
+  --accent-wash: rgba(29, 91, 214, 0.18);
+  --ink-wash: rgba(20, 32, 41, 0.12);
+  --red: #c42f2c;
+  --signal: #e8a10b;
+  --on-signal: #1d1300;
+  --slow: #e8590b;
+  --fast: #1d5bd6;
+  --zone: rgba(232, 161, 11, 0.32);
+  --tile-a: #c4cad1;
+  --tile-b: #b9c0c8;
+  --tile-seam: #a7afb8;
+  --wall: #6d7782;
+  --code-bg: #101820;
+  --code-fg: #dbe4ec;
+  --tk-kw: #7fb2ff;
+  --tk-type: #7fd8c4;
+  --tk-str: #f2c46d;
+  --tk-num: #f59f7a;
+  --tk-com: #7d8b99;
+  --ok: #19864d;
+  --warn: #a86900;
+  --err: #c42f2c;
+  --font-display: "Chakra Petch", "Bahnschrift", "Arial Narrow", sans-serif;
+  --font-body: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  --radius: 6px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0d1318; --surface: #141c23; --panel: #1a242d; --ink: #e2e9ef; --muted: #8b9cad; --line: #26323d;
+    --accent: #5d93f5; --accent-ink: #08111d; --accent-wash: rgba(93, 147, 245, 0.22); --ink-wash: rgba(226, 233, 239, 0.14);
+    --red: #f0605b; --signal: #f2b63a; --on-signal: #1d1300; --slow: #f2803a; --fast: #5d93f5; --zone: rgba(242, 182, 58, 0.28);
+    --tile-a: #29323b; --tile-b: #232b33; --tile-seam: #313b45; --wall: #56616c;
+    --code-bg: #0a0f14; --code-fg: #d6e0e9; --ok: #3cc47c; --warn: #f2b63a; --err: #f0605b;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0d1318; --surface: #141c23; --panel: #1a242d; --ink: #e2e9ef; --muted: #8b9cad; --line: #26323d;
+  --accent: #5d93f5; --accent-ink: #08111d; --accent-wash: rgba(93, 147, 245, 0.22); --ink-wash: rgba(226, 233, 239, 0.14);
+  --red: #f0605b; --signal: #f2b63a; --on-signal: #1d1300; --slow: #f2803a; --fast: #5d93f5; --zone: rgba(242, 182, 58, 0.28);
+  --tile-a: #29323b; --tile-b: #232b33; --tile-seam: #313b45; --wall: #56616c;
+  --code-bg: #0a0f14; --code-fg: #d6e0e9; --ok: #3cc47c; --warn: #f2b63a; --err: #f0605b;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 400 16px/1.6 var(--font-body); -webkit-font-smoothing: antialiased; }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--surface); }
+a { color: var(--accent); text-underline-offset: 2px; }
+a:hover { text-decoration-thickness: 2px; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+button, input, select, textarea { font: inherit; color: inherit; }
+[hidden] { display: none !important; }
+
+/* ---------- top bar ---------- */
+.topbar {
+  position: sticky; top: env(safe-area-inset-top, 0px); z-index: 20;
+  background: var(--surface); border-bottom: 1px solid var(--line);
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.topbar-inner { display: flex; align-items: center; gap: 20px; min-height: 56px; max-width: 1440px; margin: 0 auto; }
+.brand { display: flex; align-items: center; gap: 10px; color: var(--ink); text-decoration: none; font: 700 18px/1 var(--font-display); letter-spacing: 0.02em; text-transform: uppercase; white-space: nowrap; }
+.brand-mark { width: 26px; height: 26px; flex: none; }
+.topnav { display: flex; gap: 4px; margin-left: auto; }
+.topnav a { padding: 8px 12px; border-radius: var(--radius); color: var(--muted); text-decoration: none; font-weight: 500; font-size: 15px; }
+.topnav a:hover { color: var(--ink); background: var(--panel); }
+.topnav a[aria-current="page"], body[data-view]:not([data-view="planner"]):not([data-view="home"]) .topnav a[data-guides] { color: var(--ink); background: var(--panel); }
+@media (max-width: 560px) { .topnav a { padding: 8px 8px; font-size: 14px; } .brand span { display: none; } }
+
+/* ---------- shared layout ---------- */
+.shell { max-width: 1440px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.guide { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 48px; padding-block: 32px 80px; }
+.sidenav { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 80px); align-self: start; display: grid; gap: 22px; }
+.sidenav h2 { margin: 0 0 6px; font: 600 11px/1 var(--font-mono); letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
+.sidenav ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 1px; }
+.sidenav a { display: block; padding: 6px 10px; border-radius: var(--radius); color: var(--ink); text-decoration: none; font-size: 15px; border-left: 2px solid transparent; }
+.sidenav a:hover { background: var(--panel); }
+.sidenav a[aria-current="page"] { background: var(--panel); border-left-color: var(--accent); font-weight: 600; }
+.menu-btn { display: none; }
+@media (max-width: 900px) {
+  .guide { grid-template-columns: minmax(0, 1fr); gap: 16px; padding-top: 16px; }
+  .menu-btn { display: inline-flex; align-items: center; gap: 8px; justify-self: start; padding: 8px 14px; border: 1px solid var(--line); background: var(--surface); border-radius: var(--radius); font-weight: 600; cursor: pointer; }
+  .sidenav { position: static; display: none; padding: 16px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); }
+  .sidenav.is-open { display: grid; }
+}
+
+/* ---------- articles ---------- */
+.doc { min-width: 0; max-width: 72ch; }
+.doc > * + * { margin-top: 1em; }
+.eyebrow { font: 600 12px/1 var(--font-mono); letter-spacing: 0.12em; text-transform: uppercase; color: var(--accent); margin: 0; }
+.doc h1 { font: 700 clamp(30px, 4.5vw, 42px)/1.1 var(--font-display); margin: 8px 0 0; text-wrap: balance; letter-spacing: 0.005em; }
+.doc .lede { font-size: 19px; color: var(--muted); margin-top: 12px; }
+.doc h2 { font: 700 24px/1.2 var(--font-display); margin-top: 2.2em; padding-top: 18px; border-top: 1px solid var(--line); text-wrap: balance; }
+.doc h3 { font: 600 18px/1.3 var(--font-body); margin-top: 1.8em; }
+.doc p, .doc li { max-width: 68ch; }
+.doc ul, .doc ol { padding-left: 1.3em; }
+.doc li + li { margin-top: 0.35em; }
+.doc code { font: 0.88em/1.4 var(--font-mono); background: var(--panel); padding: 0.1em 0.35em; border-radius: 4px; overflow-wrap: anywhere; }
+.doc kbd { font: 600 0.82em var(--font-mono); padding: 0.1em 0.45em; border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 4px; background: var(--surface); }
+.note { padding: 14px 16px; background: var(--surface); border: 1px solid var(--line); border-left: 3px solid var(--signal); border-radius: var(--radius); }
+.note.is-info { border-left-color: var(--accent); }
+.note > :first-child { margin-top: 0; }
+.note strong:first-child { font-weight: 600; }
+
+pre.code { position: relative; margin: 1.2em 0; padding: 16px 18px; background: var(--code-bg); color: var(--code-fg); border-radius: var(--radius); overflow-x: auto; font: 13.5px/1.6 var(--font-mono); tab-size: 4; }
+pre.code code { background: none; padding: 0; font: inherit; color: inherit; }
+.copy-btn { position: absolute; top: 8px; right: 8px; padding: 4px 10px; font: 600 12px var(--font-mono); background: rgba(255, 255, 255, 0.08); color: var(--code-fg); border: 1px solid rgba(255, 255, 255, 0.16); border-radius: 4px; cursor: pointer; opacity: 0.7; }
+.copy-btn:hover, .copy-btn:focus-visible { opacity: 1; }
+.tk-kw { color: var(--tk-kw); } .tk-type { color: var(--tk-type); } .tk-str { color: var(--tk-str); } .tk-num { color: var(--tk-num); }
+.tk-com { color: var(--tk-com); font-style: italic; } .tk-ann { color: var(--tk-num); } .tk-key { color: var(--tk-kw); }
+
+.table-wrap { overflow-x: auto; margin: 1.2em 0; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); }
+table { border-collapse: collapse; width: 100%; font-size: 14.5px; }
+th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font: 600 12px/1.3 var(--font-mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); background: var(--panel); white-space: nowrap; }
+tr:last-child td { border-bottom: 0; }
+td code { white-space: nowrap; }
+
+.steps { counter-reset: step; list-style: none; padding-left: 0 !important; }
+.steps > li { counter-increment: step; position: relative; padding-left: 44px; }
+.steps > li + li { margin-top: 14px; }
+.steps > li::before { content: counter(step); position: absolute; left: 0; top: 0; width: 28px; height: 28px; display: grid; place-items: center; font: 700 14px/1 var(--font-display); background: var(--accent); color: var(--accent-ink); border-radius: 4px; }
+
+.pager { display: flex; justify-content: space-between; gap: 12px; margin-top: 3em; padding-top: 18px; border-top: 1px solid var(--line); flex-wrap: wrap; }
+.pager a { display: grid; gap: 2px; padding: 10px 14px; border: 1px solid var(--line); border-radius: var(--radius); text-decoration: none; color: var(--ink); background: var(--surface); min-width: 0; }
+.pager a span { font: 600 11px var(--font-mono); letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
+.pager a:last-child { text-align: right; margin-left: auto; }
+
+/* ---------- home ---------- */
+.home { padding-block: 48px 80px; display: grid; gap: 56px; }
+.hero { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr); gap: 48px; align-items: center; }
+.hero h1 { font: 700 clamp(36px, 5.4vw, 60px)/1.02 var(--font-display); margin: 12px 0 0; text-wrap: balance; letter-spacing: 0.005em; }
+.hero p { font-size: 19px; color: var(--muted); max-width: 46ch; margin: 18px 0 0; }
+.cta { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 26px; }
+.btn { display: inline-flex; align-items: center; gap: 8px; padding: 11px 18px; border-radius: var(--radius); font-weight: 600; text-decoration: none; border: 1px solid var(--line); color: var(--ink); background: var(--surface); }
+.btn:hover { border-color: var(--ink); }
+.btn.is-primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.compare { display: grid; gap: 0; border-radius: var(--radius); overflow: hidden; border: 1px solid var(--line); min-width: 0; }
+.compare-tabs { display: flex; background: var(--code-bg); border-bottom: 1px solid rgba(255, 255, 255, 0.08); }
+.compare-tabs button { flex: 1; padding: 10px 12px; border: 0; background: none; color: var(--tk-com); font: 600 12px var(--font-mono); letter-spacing: 0.08em; text-transform: uppercase; cursor: pointer; }
+.compare-tabs button[aria-selected="true"] { color: var(--code-fg); box-shadow: inset 0 -2px 0 var(--accent); }
+.compare pre.code { margin: 0; border-radius: 0; min-height: 300px; }
+@media (max-width: 900px) { .hero { grid-template-columns: minmax(0, 1fr); } }
+.pillars { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.pillar { padding: 22px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); display: grid; gap: 8px; align-content: start; text-decoration: none; color: var(--ink); }
+.pillar:hover { border-color: var(--accent); }
+.pillar h3 { margin: 0; font: 700 20px/1.2 var(--font-display); }
+.pillar p { margin: 0; color: var(--muted); font-size: 15px; }
+.pillar .go { font: 600 13px var(--font-mono); color: var(--accent); margin-top: 6px; }
+@media (max-width: 760px) { .pillars { grid-template-columns: minmax(0, 1fr); } }
+.status { padding: 16px 18px; border: 1px dashed var(--line); border-radius: var(--radius); color: var(--muted); font-size: 15px; max-width: 90ch; }
+.status strong { color: var(--ink); }
+.home h2 { font: 700 26px/1.2 var(--font-display); margin: 0 0 14px; }
+
+/* ---------- planner ---------- */
+.pl { display: grid; grid-template-columns: 210px minmax(0, 1fr) 370px; gap: 18px; padding-block: 18px 60px; align-items: start; }
+@media (max-width: 1240px) { .pl { grid-template-columns: minmax(0, 1fr) 360px; } .pl-project { grid-column: 1 / -1; } }
+@media (max-width: 860px) { .pl { grid-template-columns: minmax(0, 1fr); } }
+.pl-card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px; min-width: 0; }
+.pl-project { display: grid; gap: 14px; }
+@media (max-width: 1240px) and (min-width: 561px) { .pl-project { grid-template-columns: 1fr 1fr; } }
+.pl-group-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+.pl-group-head h3 { margin: 0; font: 600 12px var(--font-mono); letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
+.pl-project ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.pl-item { width: 100%; display: flex; justify-content: space-between; gap: 8px; align-items: baseline; padding: 8px 10px; border: 1px solid transparent; border-radius: var(--radius); background: var(--panel); cursor: pointer; text-align: left; }
+.pl-item:hover { border-color: var(--line); }
+.pl-item.is-sel { background: var(--accent-wash); border-color: var(--accent); }
+.pl-item-name { font: 600 14px var(--font-mono); overflow-wrap: anywhere; }
+.pl-item-meta { font: 12px var(--font-mono); color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.pl-item-meta.is-over { color: var(--err); }
+.pl-rev { font-style: normal; font-size: 11px; color: var(--red); }
+.pl-small, .pl-group-head button, .pl-actions button, .pl-subhead button, .pl-toolbar button, .pl-tabs button, .pl-import button, #pl-cmd-form button {
+  padding: 6px 11px; border: 1px solid var(--line); background: var(--surface); border-radius: var(--radius); font-size: 13.5px; font-weight: 600; cursor: pointer; white-space: nowrap;
+}
+.pl-group-head button:hover, .pl-actions button:hover, .pl-subhead button:hover, .pl-toolbar button:hover, .pl-import button:hover, #pl-cmd-form button:hover { border-color: var(--ink); }
+button:disabled { opacity: 0.45; cursor: default; }
+.pl-danger { color: var(--err); }
+.pl-danger.is-armed { background: var(--err); color: var(--surface); border-color: var(--err); }
+#pl-sample.is-armed { background: var(--signal); color: var(--on-signal); border-color: var(--signal); }
+
+.pl-stage { display: grid; gap: 10px; min-width: 0; }
+.pl-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.pl-toolbar h2 { margin: 0 auto 0 0; font: 700 19px/1.2 var(--font-display); overflow-wrap: anywhere; }
+#pl-play { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+#pl-clock { font: 13px var(--font-mono); color: var(--muted); font-variant-numeric: tabular-nums; min-width: 9ch; }
+.pl-field-wrap { width: 100%; display: flex; justify-content: center; }
+#pl-field { display: block; border-radius: 4px; touch-action: none; cursor: crosshair; max-width: 100%; box-shadow: 0 1px 0 var(--line); }
+.pl-under { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 16px; font: 12.5px/1.5 var(--font-mono); color: var(--muted); }
+.pl-legend { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; }
+.pl-legend i { display: inline-block; vertical-align: middle; margin-right: 6px; }
+.pl-grad { width: 46px; height: 6px; border-radius: 3px; background: linear-gradient(90deg, var(--slow), var(--fast)); }
+.pl-dash { width: 26px; height: 0; border-top: 3px dashed var(--muted); }
+.pl-diamond { width: 9px; height: 9px; background: var(--signal); transform: rotate(45deg); }
+.pl-zonekey { width: 22px; height: 10px; background: var(--zone); border-radius: 5px; }
+#pl-hint-line { color: var(--ink); font-family: var(--font-body); font-size: 14px; }
+
+.pl-side { display: grid; gap: 14px; min-width: 0; }
+#pl-inspector h4 { margin: 0 0 10px; font: 700 17px/1.2 var(--font-display); }
+#pl-inspector h5 { margin: 0; font: 600 12px var(--font-mono); letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
+.pl-insp-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
+.pl-insp-head h4 { margin: 0 !important; }
+.pl-back { border: 0; background: none; color: var(--accent); font-weight: 600; padding: 0; cursor: pointer; }
+.pl-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); gap: 8px; margin-bottom: 8px; }
+.pl-field { display: grid; gap: 4px; font-size: 12.5px; color: var(--muted); min-width: 0; }
+.pl-field > span:first-child { font-weight: 500; }
+.pl-field input[type="text"], .pl-field select, .pl-input-wrap { width: 100%; }
+.pl-field input[type="text"], .pl-field select, .pl-input-wrap, .pl-astep select { border: 1px solid var(--line); border-radius: var(--radius); background: var(--bg); min-height: 36px; }
+.pl-field input[type="text"], .pl-field select, .pl-astep select { padding: 6px 9px; font: 14px var(--font-mono); color: var(--ink); }
+.pl-input-wrap { display: flex; align-items: center; padding-right: 8px; }
+.pl-input-wrap input { width: 100%; min-width: 0; border: 0; background: none; padding: 6px 4px 6px 9px; font: 14px var(--font-mono); color: var(--ink); font-variant-numeric: tabular-nums; }
+.pl-input-wrap em { font: normal 12px var(--font-mono); color: var(--muted); }
+.pl-input-wrap:focus-within, .pl-field input[type="text"]:focus, .pl-field select:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+.pl-input-wrap input:focus { outline: none; }
+.pl-check { display: flex; gap: 8px; align-items: center; font-size: 14px; margin: 8px 0; cursor: pointer; }
+.pl-check input { width: 16px; height: 16px; accent-color: var(--accent); }
+.pl-hint { font-size: 13px; color: var(--muted); margin: 6px 0 0; line-height: 1.5; }
+.pl-stats { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0 0; }
+.pl-stats span { padding: 3px 8px; border-radius: 4px; background: var(--panel); font: 12.5px var(--font-mono); font-variant-numeric: tabular-nums; }
+.pl-subhead { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin: 18px 0 8px; padding-top: 12px; border-top: 1px solid var(--line); }
+.pl-row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)) auto; gap: 8px; align-items: end; padding: 8px 0; border-bottom: 1px dashed var(--line); }
+.pl-row .pl-input-wrap input { padding-left: 7px; }
+@media (max-width: 420px) { .pl-row { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; } .pl-row .pl-range { grid-column: 1 / -1; grid-row: 2; } }
+.pl-range input { width: 100%; accent-color: var(--signal); margin: 8px 0 6px; }
+.pl-range b { color: var(--ink); font-variant-numeric: tabular-nums; }
+.pl-x { border: 1px solid var(--line); background: var(--surface); border-radius: var(--radius); width: 34px; height: 36px; cursor: pointer; color: var(--muted); }
+.pl-x:hover { color: var(--err); border-color: var(--err); }
+.pl-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+.pl-meter { display: flex; align-items: center; gap: 10px; margin: 10px 0 12px; font: 13px var(--font-mono); font-variant-numeric: tabular-nums; }
+.pl-meter-track { flex: 1; height: 8px; background: var(--panel); border-radius: 4px; overflow: hidden; }
+.pl-meter-fill { height: 100%; background: var(--ok); }
+.pl-meter.is-over .pl-meter-fill { background: var(--err); }
+.pl-meter.is-over span { color: var(--err); }
+.pl-steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; counter-reset: s; }
+.pl-astep { display: grid; grid-template-columns: 70px minmax(0, 1fr) auto; gap: 8px; align-items: center; }
+.pl-astep .pl-input-wrap, .pl-astep select { width: 100%; }
+.pl-kind { font: 600 11px var(--font-mono); letter-spacing: 0.06em; text-transform: uppercase; padding: 4px 6px; border-radius: 4px; background: var(--panel); text-align: center; }
+.pl-kind-path { background: var(--accent-wash); color: var(--accent); }
+.pl-kind-command { background: var(--zone); color: var(--ink); }
+.pl-step-tools { display: flex; gap: 2px; }
+.pl-step-tools button { width: 30px; height: 32px; border: 1px solid var(--line); background: var(--surface); border-radius: 4px; cursor: pointer; color: var(--muted); }
+.pl-step-tools button:hover:not(:disabled) { color: var(--ink); border-color: var(--ink); }
+
+#pl-warnings { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+#pl-warnings li { padding: 9px 12px; border-radius: var(--radius); font-size: 13.5px; background: var(--surface); border: 1px solid var(--line); border-left: 3px solid var(--warn); }
+#pl-warnings li.is-error { border-left-color: var(--err); }
+
+details.pl-card summary { cursor: pointer; font: 700 16px var(--font-display); list-style-position: inside; }
+details.pl-card[open] summary { margin-bottom: 12px; }
+.pl-settings-group { margin-top: 14px; }
+.pl-settings-group h5 { margin: 0 0 8px; font: 600 12px var(--font-mono); letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
+#pl-cmds { list-style: none; margin: 0 0 10px; padding: 0; display: grid; gap: 6px; }
+#pl-cmds li { display: grid; grid-template-columns: minmax(0, 1fr) 96px auto; gap: 8px; align-items: center; }
+#pl-cmds code { font: 13.5px var(--font-mono); overflow-wrap: anywhere; }
+#pl-cmd-form { display: flex; gap: 8px; }
+#pl-cmd-form input { flex: 1; min-width: 0; border: 1px solid var(--line); border-radius: var(--radius); background: var(--bg); padding: 7px 9px; font: 14px var(--font-mono); }
+
+.pl-export h4 { margin: 0; font: 700 17px var(--font-display); }
+.pl-tabs { display: flex; gap: 6px; align-items: center; margin: 10px 0 8px; flex-wrap: wrap; }
+.pl-tabs [role="tab"][aria-selected="true"] { background: var(--ink); color: var(--surface); border-color: var(--ink); }
+#pl-copy { margin-left: auto; background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.pl-output { margin: 0; max-height: 340px; overflow: auto; padding: 12px 14px; background: var(--code-bg); color: var(--code-fg); border-radius: var(--radius); font: 12px/1.55 var(--font-mono); white-space: pre; }
+#pl-out-hint { font-size: 13px; color: var(--muted); margin: 8px 0 0; }
+.pl-import { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line); display: grid; gap: 8px; }
+.pl-import label { font-size: 13px; color: var(--muted); font-weight: 500; }
+.pl-import textarea { width: 100%; min-height: 70px; resize: vertical; border: 1px solid var(--line); border-radius: var(--radius); background: var(--bg); padding: 8px; font: 12px var(--font-mono); }
+.pl-import-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.pl-import-row input[type="file"] { font-size: 13px; max-width: 100%; }
+.pl-import-msg { font-size: 13px; margin: 0; }
+.pl-import-msg.is-ok { color: var(--ok); } .pl-import-msg.is-error { color: var(--err); }
+
+@media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
+</style>
+
+</head>
+<body>
+<header class="topbar">
+  <div class="topbar-inner">
+    <a class="brand" href="#home" aria-label="VEX Command-Based home">
+      <svg class="brand-mark" viewBox="0 0 26 26" aria-hidden="true">
+        <rect x="1" y="1" width="24" height="24" rx="3" fill="none" stroke="currentColor" stroke-width="2"/>
+        <path d="M9 1v24M17 1v24M1 9h24M1 17h24" stroke="currentColor" stroke-width="1" opacity=".45"/>
+        <path d="M5 21 C 9 13, 13 15, 21 5" fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-linecap="round"/>
+      </svg>
+      <span>VEX Command-Based</span>
+    </a>
+    <nav class="topnav" aria-label="Site">
+      <a href="#start" data-guides>Guides</a>
+      <a href="#planner" data-nav>Path planner</a>
+      <a href="api/index.html">API</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+<!-- ======================================================================= HOME -->
+<section class="view shell" id="home">
+  <div class="home">
+    <div class="hero">
+      <div>
+        <p class="eyebrow">Java for VEX V5 · runs on Hydrozoa</p>
+        <h1>Program your VEX robot the way FRC teams program theirs.</h1>
+        <p>Subsystems, commands, triggers, odometry and path following, with the same names WPILib uses. Write a drivetrain like a SPARK MAX tank drive, draw autos in a path planner, and test it all in a simulator before it touches a field tile.</p>
+        <div class="cta">
+          <a class="btn is-primary" href="#start">Get started</a>
+          <a class="btn" href="#planner">Open the path planner</a>
+          <a class="btn" href="api/index.html">API reference</a>
+        </div>
+      </div>
+      <div class="compare">
+        <div class="compare-tabs" role="tablist" aria-label="Code comparison">
+          <button type="button" role="tab" id="cmp-vex" aria-selected="true">VEX V5 · this library</button>
+          <button type="button" role="tab" id="cmp-frc" aria-selected="false">FRC · REVLib</button>
+        </div>
+<pre class="code" id="cmp-vex-code" data-nocopy><code class="lang-java">private final VexMotor m_leftLeader = new VexMotor(1, Cartridge.BLUE);
+private final VexMotor m_leftFollower = new VexMotor(2, Cartridge.BLUE);
+private final DifferentialDrive m_drive =
+        new DifferentialDrive(m_leftLeader, m_rightLeader);
+
+public DriveSubsystem() {
+    VexMotorConfig config = new VexMotorConfig();
+    config.idleMode(IdleMode.kBrake).smartCurrentLimit(2.5);
+    config.encoder.positionConversionFactor(kMetersPerRotation);
+    m_leftLeader.configure(config);
+    m_leftFollower.configure(
+            new VexMotorConfig().apply(config).follow(m_leftLeader));
+}
+
+public Command driveDistanceCommand(double meters) {
+    return new DriveDistance(this, meters);
+}</code></pre>
+<pre class="code" id="cmp-frc-code" data-nocopy hidden><code class="lang-java">private final SparkMax m_leftLeader = new SparkMax(1, MotorType.kBrushless);
+private final SparkMax m_leftFollower = new SparkMax(2, MotorType.kBrushless);
+private final DifferentialDrive m_drive =
+        new DifferentialDrive(m_leftLeader, m_rightLeader);
+
+public DriveSubsystem() {
+    SparkMaxConfig config = new SparkMaxConfig();
+    config.idleMode(IdleMode.kBrake).smartCurrentLimit(50);
+    config.encoder.positionConversionFactor(kMetersPerRotation);
+    m_leftLeader.configure(config, ResetMode.kResetSafeParameters,
+            PersistMode.kPersistParameters);
+    m_leftFollower.configure(new SparkMaxConfig().apply(config).follow(m_leftLeader),
+            ResetMode.kResetSafeParameters, PersistMode.kPersistParameters);
+}</code></pre>
+      </div>
+    </div>
+
+    <div>
+      <h2>What's here</h2>
+      <div class="pillars">
+        <a class="pillar" href="#start">
+          <h3>Guides</h3>
+          <p>From cloning the project to tuning and deploying: commands, motors, the drivetrain, field coordinates, the simulator and a complete Clawbot.</p>
+          <span class="go">Read the guides →</span>
+        </a>
+        <a class="pillar" href="#planner">
+          <h3>Path planner</h3>
+          <p>Draw curved paths on the V5RC field, add event markers and slow zones, build autos, preview them, and export Java your robot follows.</p>
+          <span class="go">Open the planner →</span>
+        </a>
+        <a class="pillar" href="api/index.html">
+          <h3>API reference</h3>
+          <p>Every public class and method in the library, generated from the source: commands, math, kinematics, trajectories and hardware.</p>
+          <span class="go">Browse the API →</span>
+        </a>
+      </div>
+    </div>
+
+    <p class="status"><strong>Status.</strong> Everything compiles against Hydrozoa's real SDK source and runs in the desktop simulator, including path following. It has not yet been run on a physical V5 brain, and Hydrozoa itself is experimental, so expect rough edges on hardware.</p>
+  </div>
+</section>
+
+<!-- ======================================================================= GUIDES -->
+<div class="shell guide" id="guides-shell">
+  <button type="button" class="menu-btn" id="menu-btn" aria-expanded="false" aria-controls="menu">☰ Guides menu</button>
+  <nav class="sidenav" id="menu" aria-label="Guides">
+    <div>
+      <h2>Start</h2>
+      <ul>
+        <li><a href="#start" data-nav>Getting started</a></li>
+        <li><a href="#structure" data-nav>Robot structure &amp; commands</a></li>
+      </ul>
+    </div>
+    <div>
+      <h2>Hardware</h2>
+      <ul>
+        <li><a href="#hardware" data-nav>Motors, sensors &amp; configs</a></li>
+        <li><a href="#drivetrain" data-nav>The drivetrain</a></li>
+        <li><a href="#field" data-nav>Field coordinates &amp; odometry</a></li>
+        <li><a href="#tuning" data-nav>Tuning</a></li>
+      </ul>
+    </div>
+    <div>
+      <h2>Autonomous</h2>
+      <ul>
+        <li><a href="#autos" data-nav>Autos &amp; path following</a></li>
+        <li><a href="#planner-guide" data-nav>Using the path planner</a></li>
+      </ul>
+    </div>
+    <div>
+      <h2>Run it</h2>
+      <ul>
+        <li><a href="#simulator" data-nav>Simulator</a></li>
+        <li><a href="#clawbot" data-nav>Clawbot example</a></li>
+        <li><a href="#deploy" data-nav>Deploying &amp; troubleshooting</a></li>
+      </ul>
+    </div>
+    <div>
+      <h2>Reference</h2>
+      <ul>
+        <li><a href="api/index.html">API reference (Javadoc)</a></li>
+      </ul>
+    </div>
+  </nav>
+
+<!-- ----------------------------------------------------------------------- start -->
+<section class="view doc" id="start">
+  <p class="eyebrow">Start</p>
+  <h1>Getting started</h1>
+  <p class="lede">Clone the project, run a robot in the simulator, then put it on a brain.</p>
+
+  <h2>What you need</h2>
+  <ul>
+    <li><strong>Java 21</strong> (the same version Hydrozoa builds with). Gradle comes with the project through the wrapper.</li>
+    <li><strong>The Hydrozoa CLI</strong>, which uploads programs to the brain. It's a Rust tool, so install Rust first, then:
+<pre class="code"><code class="lang-shell">cargo install --git https://github.com/vexide/hydrozoa-cli.git</code></pre></li>
+    <li>A V5 brain and a USB cable, once you're ready to run on hardware. You don't need one for the simulator.</li>
+  </ul>
+
+  <h2>Get the code</h2>
+<pre class="code"><code class="lang-shell">git clone https://github.com/kedrickjohnson/vex-command-template.git
+cd vex-command-template</code></pre>
+  <p>The repository holds three Gradle projects:</p>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Folder</th><th>What it is</th></tr></thead>
+    <tbody>
+      <tr><td><code>vexlib/</code></td><td>The shared library: commands, math, odometry, trajectories, hardware. You don't edit it.</td></tr>
+      <tr><td><code>template/</code></td><td>The starting point for your robot: a 6-motor tank drive and an example intake.</td></tr>
+      <tr><td><code>examples/clawbot/</code></td><td>A complete V5 Clawbot: drive, arm, claw and autos.</td></tr>
+    </tbody>
+  </table></div>
+
+  <h2>Run it in the simulator</h2>
+<pre class="code"><code class="lang-shell">./gradlew :template:simulate
+./gradlew :examples:clawbot:simulate</code></pre>
+  <p>The simulator runs the real robot code against simulated motors: 3 seconds disabled while the Inertial Sensor calibrates, the 15-second autonomous period, then a scripted driver. It prints the robot's position every second. See <a href="#simulator">Simulator</a> for how it works.</p>
+
+  <h2>Run it on a robot</h2>
+  <ol class="steps">
+    <li>Wire the robot to match <code>Constants.java</code>, or change the ports in <code>Constants.java</code> to match the robot.</li>
+    <li>Plug the brain into your computer over USB.</li>
+    <li>Upload: <code>./gradlew :template:hydrozoaUpload</code>. The program appears in slot 1 on the brain.</li>
+    <li>Run it from the brain's screen, or plug in a competition switch.</li>
+  </ol>
+
+  <h2>Make it your robot</h2>
+  <ol class="steps">
+    <li>Copy <code>template/</code> to a new folder (or edit it in place) and add it to <code>settings.gradle.kts</code>.</li>
+    <li>Set the ports, cartridge, gear ratio, wheel size and track width in <code>DriveConstants</code>.</li>
+    <li>Turn on <code>kTuningMode</code> and run the four <a href="#tuning">tuning tests</a>. Paste each result into <code>Constants.java</code>.</li>
+    <li>Add your mechanisms as subsystems, following <code>Intake.java</code>.</li>
+    <li>Draw autos in the <a href="#planner">path planner</a> and paste the exported class into <code>autos/</code>.</li>
+  </ol>
+
+  <nav class="pager" aria-label="Next page"><a href="#structure"><span>Next</span>Robot structure &amp; commands</a></nav>
+</section>
+
+<!-- ----------------------------------------------------------------------- structure -->
+<section class="view doc" id="structure">
+  <p class="eyebrow">Start</p>
+  <h1>Robot structure &amp; commands</h1>
+  <p class="lede">The same command-based framework FRC teams use, with the same class and method names.</p>
+
+  <h2>The files in a robot</h2>
+  <div class="table-wrap"><table>
+    <thead><tr><th>File</th><th>Job</th></tr></thead>
+    <tbody>
+      <tr><td><code>Main.java</code></td><td>One line: <code>HydrozoaRuntime.start(Robot::new)</code>. Set as the entrypoint in <code>build.gradle.kts</code>.</td></tr>
+      <tr><td><code>Robot.java</code></td><td>Runs the scheduler every loop and starts or cancels the auto. Almost identical to an FRC <code>Robot.java</code>.</td></tr>
+      <tr><td><code>RobotContainer.java</code></td><td>Creates subsystems, binds controller buttons, registers named commands, picks the auto.</td></tr>
+      <tr><td><code>Constants.java</code></td><td>Ports, gear ratios, gains. FRC naming: <code>DriveConstants.kLeftFrontMotorPort</code>.</td></tr>
+      <tr><td><code>subsystems/</code></td><td>One class per mechanism. Each owns its motors and sensors.</td></tr>
+      <tr><td><code>commands/</code></td><td>Command classes such as <code>TankDrive</code> and <code>ArcadeDrive</code>.</td></tr>
+      <tr><td><code>autos/</code></td><td>Autonomous routines, including the path planner's exported class.</td></tr>
+    </tbody>
+  </table></div>
+
+  <h2>Robot modes</h2>
+  <p><code>Robot</code> extends <code>VexRobot</code>, the VEX version of <code>TimedRobot</code>. Every 10 ms it runs the current mode's periodic method, then <code>robotPeriodic()</code>. The mode comes from field control or a competition switch. With nothing plugged in, the brain reports driver control, enabled.</p>
+  <div class="table-wrap"><table>
+    <thead><tr><th>VEX</th><th>Here (same as FRC)</th></tr></thead>
+    <tbody>
+      <tr><td>Disabled</td><td><code>disabledInit / disabledPeriodic / disabledExit</code></td></tr>
+      <tr><td>Autonomous</td><td><code>autonomousInit / autonomousPeriodic / autonomousExit</code></td></tr>
+      <tr><td>Driver control</td><td><code>teleopInit / teleopPeriodic / teleopExit</code></td></tr>
+    </tbody>
+  </table></div>
+<pre class="code"><code class="lang-java">public class Robot extends VexRobot {
+    private RobotContainer m_robotContainer;
+    private Command m_autonomousCommand;
+
+    @Override
+    public void robotInit() {
+        m_robotContainer = new RobotContainer();
+    }
+
+    @Override
+    public void robotPeriodic() {
+        CommandScheduler.getInstance().run();
+        Telemetry.flush();
+    }
+
+    @Override
+    public void autonomousInit() {
+        m_autonomousCommand = m_robotContainer.getAutonomousCommand();
+        if (m_autonomousCommand != null) {
+            m_autonomousCommand.schedule();
+        }
+    }
+
+    @Override
+    public void teleopInit() {
+        if (m_autonomousCommand != null) {
+            m_autonomousCommand.cancel();
+        }
+    }
+}</code></pre>
+
+  <h2>Subsystems</h2>
+  <p>Extend <code>SubsystemBase</code>. The constructor registers it with the scheduler. <code>periodic()</code> runs every loop before any command. A subsystem can have a default command that runs whenever nothing else needs it.</p>
+<pre class="code"><code class="lang-java">public class Intake extends SubsystemBase {
+    private final VexMotor m_motor = new VexMotor(kMotorPort, kCartridge);
+
+    public Intake() {
+        super("Intake");
+        VexMotorConfig config = new VexMotorConfig();
+        config.inverted(kReversed).idleMode(IdleMode.kCoast).smartCurrentLimit(kCurrentLimitAmps);
+        m_motor.configure(config);
+    }
+
+    /** Runs while held; stops when interrupted. */
+    public Command intakeCommand() {
+        return startEnd(() -> m_motor.setVoltage(kIntakeVolts), m_motor::stopMotor).withName("Intake");
+    }
+}</code></pre>
+
+  <h2>Commands</h2>
+  <p>A command runs <code>initialize()</code> once, <code>execute()</code> every loop until <code>isFinished()</code> returns true, then <code>end(interrupted)</code>. It declares the subsystems it uses with <code>addRequirements</code>. Scheduling a command that needs a subsystem already in use cancels the old one, unless that command returns <code>kCancelIncoming</code> from <code>getInterruptionBehavior()</code>.</p>
+  <p>Write commands as classes for anything with state, and as factory methods on the subsystem for one-liners:</p>
+<pre class="code"><code class="lang-java">public class TankDrive extends Command {
+    private final DriveSubsystem m_drive;
+    private final DoubleSupplier m_left;
+    private final DoubleSupplier m_right;
+
+    public TankDrive(DriveSubsystem drive, DoubleSupplier left, DoubleSupplier right) {
+        m_drive = drive;
+        m_left = left;
+        m_right = right;
+        addRequirements(m_drive);
+    }
+
+    @Override
+    public void execute() {
+        m_drive.tankDrive(m_left.getAsDouble(), m_right.getAsDouble());
+    }
+
+    @Override
+    public void end(boolean interrupted) {
+        m_drive.stop();
+    }
+}</code></pre>
+
+  <h3>Factories</h3>
+  <div class="table-wrap"><table>
+    <thead><tr><th>On a subsystem / <code>Commands.*</code></th><th>Behavior</th></tr></thead>
+    <tbody>
+      <tr><td><code>runOnce(action)</code></td><td>Runs once and finishes.</td></tr>
+      <tr><td><code>run(action)</code></td><td>Runs every loop until interrupted.</td></tr>
+      <tr><td><code>startEnd(start, end)</code></td><td>Runs <code>start</code> once, <code>end</code> when interrupted.</td></tr>
+      <tr><td><code>runEnd(run, end)</code></td><td>Runs <code>run</code> every loop, <code>end</code> when interrupted.</td></tr>
+      <tr><td><code>Commands.waitSeconds(s)</code>, <code>waitUntil(cond)</code></td><td>Waits.</td></tr>
+      <tr><td><code>Commands.sequence / parallel / race / deadline</code></td><td>Groups.</td></tr>
+      <tr><td><code>Commands.either(a, b, cond)</code></td><td>Picks one when it starts.</td></tr>
+      <tr><td><code>Commands.defer(supplier, reqs)</code></td><td>Builds the command when it starts (to use the robot's pose at that moment).</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3>Decorators</h3>
+  <p>Each returns a new command: <code>withTimeout(s)</code>, <code>until(cond)</code>, <code>onlyWhile(cond)</code>, <code>andThen(...)</code>, <code>beforeStarting(...)</code>, <code>alongWith(...)</code>, <code>raceWith(...)</code>, <code>deadlineFor(...)</code>, <code>finallyDo(...)</code>, <code>ignoringDisable(true)</code>, <code>withName(...)</code>. A command can belong to only one group, so build a new instance each time you use it.</p>
+
+  <h2>Controller bindings</h2>
+  <p><code>VexController</code> works like <code>CommandXboxController</code>. Its buttons are <code>a() b() x() y() up() down() left() right() l1() l2() r1() r2()</code>, and each returns a <code>Trigger</code>.</p>
+<pre class="code"><code class="lang-java">m_driverController.r1().whileTrue(m_intake.intakeCommand());     // runs while held
+m_driverController.a().onTrue(m_arm.carryCommand());             // starts on press
+m_driverController.b().toggleOnTrue(m_flywheel.spinCommand());   // each press toggles
+m_driverController.l1().and(m_driverController.l2()).onTrue(...);</code></pre>
+  <div class="note"><strong>Stick signs differ from FRC.</strong> On a VEX controller, pushing a stick up reads <em>positive</em>, so forward is <code>getLeftY()</code> with no minus sign. Pushing right is positive too, but turning left (counter-clockwise) is positive in WPILib math, so arcade turning uses <code>-getRightX()</code>.</div>
+
+  <h2>Telemetry</h2>
+  <p>There's no SmartDashboard on VEX. <code>Telemetry.put("arm/deg", angle)</code> collects values, and <code>Telemetry.flush()</code> (called in <code>robotPeriodic</code>) prints them on one line over USB serial, four times a second.</p>
+
+  <nav class="pager" aria-label="More pages"><a href="#start"><span>Previous</span>Getting started</a><a href="#hardware"><span>Next</span>Motors, sensors &amp; configs</a></nav>
+</section>
+
+<!-- ----------------------------------------------------------------------- hardware -->
+<section class="view doc" id="hardware">
+  <p class="eyebrow">Hardware</p>
+  <h1>Motors, sensors &amp; configs</h1>
+  <p class="lede">Motors are configured the way REVLib configures a SPARK MAX: build a config, then call <code>configure()</code>.</p>
+
+  <h2>VexMotor</h2>
+<pre class="code"><code class="lang-java">private final VexMotor m_armMotor = new VexMotor(8, Cartridge.GREEN);
+private final VexEncoder m_armEncoder = m_armMotor.getEncoder();</code></pre>
+  <p>The cartridge goes in the constructor because it's hardware, like a SPARK's motor type. It must match the cartridge installed: it sets the encoder scaling (1800 / 900 / 300 ticks per output revolution for red / green / blue).</p>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Method</th><th>Does</th></tr></thead>
+    <tbody>
+      <tr><td><code>set(speed)</code></td><td>Percent output, -1 to 1.</td></tr>
+      <tr><td><code>setVoltage(volts)</code></td><td>-12 to 12 V. Exactly 0 applies the idle mode.</td></tr>
+      <tr><td><code>stopMotor()</code></td><td>0 V (so the idle mode applies).</td></tr>
+      <tr><td><code>setPositionTarget(position, maxRpm)</code></td><td>Moves to a position with the motor's built-in PID, in encoder units.</td></tr>
+      <tr><td><code>getEncoder()</code></td><td>The built-in encoder (position and velocity).</td></tr>
+      <tr><td><code>getOutputCurrent()</code>, <code>getMotorTemperature()</code></td><td>Amps and °C (5° steps).</td></tr>
+      <tr><td><code>getAppliedVoltage()</code>, <code>isConnected()</code>, <code>isFollower()</code></td><td>Status.</td></tr>
+    </tbody>
+  </table></div>
+
+  <h2>VexMotorConfig</h2>
+<pre class="code"><code class="lang-java">VexMotorConfig config = new VexMotorConfig();
+config.inverted(false)
+      .idleMode(IdleMode.kHold)
+      .smartCurrentLimit(2.5);
+config.encoder
+      .positionConversionFactor(360.0 * kGearRatio)   // arm degrees
+      .velocityConversionFactor(360.0 * kGearRatio / 60.0);
+m_armMotor.configure(config);</code></pre>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Setting</th><th>Values</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr><td><code>inverted(b)</code></td><td>true / false</td><td>Reverses output and readings.</td></tr>
+      <tr><td><code>idleMode(m)</code></td><td><code>kCoast</code>, <code>kBrake</code>, <code>kHold</code></td><td>What happens at 0 V. <code>kHold</code> actively holds position: use it for arms and lifts.</td></tr>
+      <tr><td><code>smartCurrentLimit(amps)</code></td><td>0 to 2.5</td><td>2.5 A is the V5 11 W motor's maximum and default.</td></tr>
+      <tr><td><code>follow(leader[, invert])</code></td><td>another <code>VexMotor</code></td><td>Copies the leader's voltage and position commands.</td></tr>
+      <tr><td><code>disableFollowerMode()</code></td><td></td><td>Stops following.</td></tr>
+      <tr><td><code>encoder.positionConversionFactor(f)</code></td><td>units per motor rotation</td><td>Position reads <code>rotations × f</code>.</td></tr>
+      <tr><td><code>encoder.velocityConversionFactor(f)</code></td><td>units per RPM</td><td>Velocity reads <code>rpm × f</code>.</td></tr>
+      <tr><td><code>apply(other)</code></td><td>another config</td><td>Copies every setting <code>other</code> set.</td></tr>
+    </tbody>
+  </table></div>
+  <p>Only settings you call are applied, so you can build a shared config and layer per-motor changes on top:</p>
+<pre class="code"><code class="lang-java">leftFollowerConfig.apply(globalConfig).inverted(kLeftRearMotorReversed).follow(m_leftLeader);</code></pre>
+  <p>Two differences from a SPARK MAX. V5 motors don't store settings, so there's no persist or reset mode. And a follower's own <code>inverted</code> still applies, because VEX gearboxes often mount motors facing opposite ways. Set each motor's direction for how it's mounted.</p>
+
+  <h2>Encoders</h2>
+  <p><code>VexEncoder</code> works like REVLib's <code>RelativeEncoder</code>: <code>getPosition()</code>, <code>getVelocity()</code> and <code>setPosition(value)</code>, all in your converted units. VEX reports position after the cartridge, so the conversion factor needs only your external gearing. <code>setPositionTarget</code> uses the same units: with a degrees factor, <code>setPositionTarget(85, 120)</code> moves an arm to 85°.</p>
+
+  <h2>VexInertial</h2>
+  <p>The Inertial Sensor, used like an FRC gyro. Calibration starts when it's created and takes about 2 seconds, so keep the robot still. The drive subsystems wait for it before starting odometry.</p>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Method</th><th>Returns</th></tr></thead>
+    <tbody>
+      <tr><td><code>getAngle()</code></td><td>Unbounded degrees, <strong>clockwise</strong> positive (WPILib <code>Gyro</code> convention).</td></tr>
+      <tr><td><code>getRotation2d()</code></td><td>Unbounded, <strong>counter-clockwise</strong> positive, for odometry.</td></tr>
+      <tr><td><code>isCalibrating()</code>, <code>calibrate()</code>, <code>reset()</code></td><td>Status and control.</td></tr>
+    </tbody>
+  </table></div>
+
+  <h2>What the hardware actually does</h2>
+  <p>Every setting above maps to a V5 SDK call that PROS and VEXcode C++ also use. Nothing is emulated in software except followers.</p>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Here</th><th>V5 SDK</th><th>PROS</th><th>VEXcode C++</th></tr></thead>
+    <tbody>
+      <tr><td><code>inverted</code></td><td><code>vexDeviceMotorReverseFlagSet</code></td><td><code>motor_set_reversed</code></td><td><code>setReversed</code></td></tr>
+      <tr><td><code>idleMode</code></td><td><code>vexDeviceMotorBrakeModeSet</code></td><td><code>motor_set_brake_mode</code></td><td><code>setStopping</code></td></tr>
+      <tr><td><code>smartCurrentLimit</code></td><td><code>vexDeviceMotorCurrentLimitSet</code> (mA)</td><td><code>motor_set_current_limit</code></td><td><code>setMaxTorque(x, amp)</code></td></tr>
+      <tr><td><code>setPositionTarget</code></td><td><code>vexDeviceMotorAbsoluteTargetSet</code></td><td><code>motor_move_absolute</code></td><td><code>spinToPosition</code></td></tr>
+      <tr><td>current / temperature</td><td><code>vexDeviceMotorCurrentGet</code> / <code>TemperatureGet</code></td><td><code>motor_get_current_draw</code> / <code>get_temperature</code></td><td><code>current</code> / <code>temperature</code></td></tr>
+      <tr><td><code>VexInertial.getAngle</code></td><td><code>vexDeviceImuHeadingGet</code></td><td><code>imu_get_rotation</code></td><td><code>rotation</code></td></tr>
+      <tr><td>followers</td><td>(software)</td><td><code>MotorGroup</code></td><td><code>motor_group</code></td></tr>
+    </tbody>
+  </table></div>
+  <ul>
+    <li><strong>More than 8 motors:</strong> VEXos lowers every motor's current limit so the battery isn't overloaded. Capping motors that don't need full current (claws, intakes) leaves more for the drive.</li>
+    <li><strong>Heat:</strong> a hot motor cuts its own current in steps: to 50%, 25%, 12.5%, then 0%.</li>
+    <li><strong>Built-in PID:</strong> position moves use the motor's own controller, which runs every 10 ms.</li>
+  </ul>
+
+  <nav class="pager" aria-label="More pages"><a href="#structure"><span>Previous</span>Robot structure</a><a href="#drivetrain"><span>Next</span>The drivetrain</a></nav>
+</section>
+
+<!-- ----------------------------------------------------------------------- drivetrain -->
+<section class="view doc" id="drivetrain">
+  <p class="eyebrow">Hardware</p>
+  <h1>The drivetrain</h1>
+  <p class="lede"><code>DriveSubsystem</code> is laid out like an FRC tank drive: named motors, a leader and followers per side, <code>DifferentialDrive</code>, a gyro and odometry.</p>
+
+  <h2>Anatomy</h2>
+<pre class="code"><code class="lang-java">public class DriveSubsystem extends SubsystemBase implements TankDriveSubsystem {
+    // Left side: the front motor leads, the others follow it
+    private final VexMotor m_leftLeader = new VexMotor(kLeftFrontMotorPort, kCartridge);
+    private final VexMotor m_leftFollower1 = new VexMotor(kLeftMiddleMotorPort, kCartridge);
+    private final VexMotor m_leftFollower2 = new VexMotor(kLeftRearMotorPort, kCartridge);
+    // ...right side the same...
+
+    private final VexEncoder m_leftEncoder = m_leftLeader.getEncoder();   // meters
+    private final DifferentialDrive m_drive = new DifferentialDrive(m_leftLeader, m_rightLeader);
+    private final VexInertial m_gyro = new VexInertial(kImuPort);
+    private final DifferentialDriveOdometry m_odometry;
+
+    public void tankDrive(double leftSpeed, double rightSpeed) { m_drive.tankDrive(leftSpeed, rightSpeed); }
+    public void arcadeDrive(double forward, double rotation) { m_drive.arcadeDrive(forward, rotation); }
+    public void setMaxOutput(double maxOutput) { m_drive.setMaxOutput(maxOutput); }
+    public Pose2d getPose() { return m_odometry.getPoseMeters(); }
+    // ...
+}</code></pre>
+  <p><code>DifferentialDrive</code> matches WPILib: <code>arcadeDrive(xSpeed, zRotation)</code> and <code>tankDrive(left, right)</code>, with a 0.02 deadband and squared inputs (pass <code>false</code> as a third argument to turn squaring off), plus <code>setMaxOutput</code> for a slow mode.</p>
+
+  <h2>TankDriveSubsystem</h2>
+  <p>Implement this small interface and the library's auto commands, path follower and tuning tests all work with your drivetrain.</p>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Method</th><th>Returns</th></tr></thead>
+    <tbody>
+      <tr><td><code>tankDriveVolts(left, right)</code></td><td>Sets each side's voltage.</td></tr>
+      <tr><td><code>getPose()</code>, <code>resetOdometry(pose)</code></td><td>Field pose from odometry, and setting it.</td></tr>
+      <tr><td><code>getAverageEncoderDistance()</code></td><td>Meters.</td></tr>
+      <tr><td><code>getLeftEncoderRate()</code>, <code>getRightEncoderRate()</code></td><td>Meters per second.</td></tr>
+      <tr><td><code>getTrackWidthMeters()</code></td><td>Left-to-right wheel distance.</td></tr>
+      <tr><td><code>getGains()</code></td><td>The <code>DriveGains</code> below.</td></tr>
+    </tbody>
+  </table></div>
+
+  <h2>DriveGains</h2>
+<pre class="code"><code class="lang-java">private DriveGains m_gains = new DriveGains(
+        kTurnP, kTurnD, kDriveP, kDriveD, kS, kV, kMaxAutoVolts,
+        kTurnToleranceDegrees, kDriveToleranceMeters).withKA(kA);</code></pre>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Gain</th><th>Unit</th><th>Used by</th></tr></thead>
+    <tbody>
+      <tr><td><code>kTurnP</code>, <code>kTurnD</code></td><td>V per radian</td><td>Turning to a heading.</td></tr>
+      <tr><td><code>kDriveP</code>, <code>kDriveD</code></td><td>V per meter</td><td>Driving a distance or to a point.</td></tr>
+      <tr><td><code>kS</code></td><td>V</td><td>Everything: the voltage needed to start moving.</td></tr>
+      <tr><td><code>kV</code></td><td>V per m/s</td><td>Path following.</td></tr>
+      <tr><td><code>kA</code></td><td>V per m/s²</td><td>Path following, while speeding up and slowing down.</td></tr>
+      <tr><td><code>pathKP</code> (default 3)</td><td>V per m/s of error</td><td>Path following feedback.</td></tr>
+    </tbody>
+  </table></div>
+  <p>The <a href="#tuning">tuning tests</a> measure all of these. Templates start with kV from the motor's free speed and kA at 0, which works but tracks paths a few centimeters loosely.</p>
+
+  <h2>Drive commands</h2>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Command</th><th>Does</th></tr></thead>
+    <tbody>
+      <tr><td><code>new TankDrive(drive, left, right)</code></td><td>Driver control, tank style. The template's default command.</td></tr>
+      <tr><td><code>new ArcadeDrive(drive, fwd, rot)</code></td><td>Driver control, arcade style. The Clawbot's default.</td></tr>
+      <tr><td><code>driveDistanceCommand(m)</code></td><td>Straight line, holding heading. Negative drives backward.</td></tr>
+      <tr><td><code>turnToAngleCommand(deg)</code></td><td>Turns in place to a field heading.</td></tr>
+      <tr><td><code>driveToPointCommand(x, y)</code></td><td>Drives to a field point, steering as it goes.</td></tr>
+      <tr><td><code>backToPointCommand(x, y)</code></td><td>Same, backing up.</td></tr>
+      <tr><td><code>AutoBuilder.followPath(drive, path, markers...)</code></td><td>Follows a curved path. See <a href="#autos">Autos</a>.</td></tr>
+    </tbody>
+  </table></div>
+
+  <h2>No Inertial Sensor?</h2>
+  <p>The kit Clawbot doesn't have one, so its drive computes heading from the wheels: <code>(right distance − left distance) / track width</code>. That drifts whenever a wheel slips, so measure the track width carefully, and add a sensor if you can.</p>
+
+  <nav class="pager" aria-label="More pages"><a href="#hardware"><span>Previous</span>Motors &amp; configs</a><a href="#field"><span>Next</span>Field coordinates &amp; odometry</a></nav>
+</section>
+
+<!-- ----------------------------------------------------------------------- field -->
+<section class="view doc" id="field">
+  <p class="eyebrow">Hardware</p>
+  <h1>Field coordinates &amp; odometry</h1>
+  <p class="lede">Positions are meters from the center of the field, the same convention as the VEX GPS sensor and FTC.</p>
+
+  <figure style="margin: 1.6em 0; max-width: 420px;">
+    <svg viewBox="0 0 300 300" role="img" aria-label="V5RC field: origin at the center, +X to the right, +Y up, 6 by 6 tiles of 24 inches, corners at plus and minus 1.83 meters" style="width: 100%; height: auto; display: block;">
+      <rect x="10" y="10" width="280" height="280" fill="var(--tile-b)" stroke="var(--wall)" stroke-width="4"/>
+      <g stroke="var(--tile-seam)" stroke-width="1">
+        <path d="M56.7 10v280M103.3 10v280M196.7 10v280M243.3 10v280M10 56.7h280M10 103.3h280M10 196.7h280M10 243.3h280"/>
+      </g>
+      <g stroke="var(--muted)" stroke-dasharray="3 4"><path d="M150 10v280M10 150h280"/></g>
+      <path d="M150 150h88" stroke="var(--accent)" stroke-width="3"/><path d="M238 144l10 6-10 6z" fill="var(--accent)"/>
+      <path d="M150 150v-88" stroke="var(--accent)" stroke-width="3"/><path d="M144 62l6-10 6 10z" fill="var(--accent)"/>
+      <path d="M186 150 A36 36 0 0 0 175.5 124.5" fill="none" stroke="var(--signal)" stroke-width="2.5"/><path d="M171 128l4-8 6 6z" fill="var(--signal)"/>
+      <circle cx="150" cy="150" r="4" fill="var(--ink)"/>
+      <g font-family="IBM Plex Mono, monospace" font-size="11" fill="var(--ink)">
+        <text x="252" y="141">+X</text><text x="158" y="58">+Y</text><text x="156" y="166">(0, 0)</text>
+        <text x="190" y="128" fill="var(--warn)">+θ</text>
+        <text x="16" y="282" fill="var(--muted)">(−1.83, −1.83)</text><text x="196" y="26" fill="var(--muted)">(1.83, 1.83)</text>
+      </g>
+    </svg>
+    <figcaption style="font-size: 13px; color: var(--muted); margin-top: 6px;">The V5RC field: 12 ft (3.66 m) square, 6 × 6 foam tiles of 24 in.</figcaption>
+  </figure>
+
+  <ul>
+    <li><strong>Origin</strong> at the center of the field. Each axis runs from about −1.83 m to +1.83 m.</li>
+    <li><strong>Axes</strong> match the GPS sensor's, so GPS x and y map straight in.</li>
+    <li><strong>Units</strong> are meters inside the code. The path planner can show inches.</li>
+    <li><strong>Heading</strong> is WPILib-style: 0 points along +X and counter-clockwise is positive.</li>
+  </ul>
+
+  <h2>Mirroring</h2>
+  <p>Most V5RC fields are rotationally symmetric, so the other starting side is a 180° turn about the center: <code>(x, y, θ) → (−x, −y, θ + 180°)</code>. Use <code>FieldConstants.mirror(pose)</code> in code, or <em>Mirror to other side</em> in the path planner.</p>
+
+  <h2>GPS sensor</h2>
+  <p><code>FieldConstants.fromGps(xMm, yMm, headingDeg)</code> converts a GPS reading. The GPS reports compass-style heading (clockwise), so check <code>GPS_HEADING_OFFSET_DEG</code> on a real field: point the robot along +X and adjust the offset until the conversion reads 0°.</p>
+
+  <h2>How odometry works</h2>
+  <p>Every loop, <code>DifferentialDriveOdometry.update(gyroAngle, leftMeters, rightMeters)</code> adds the distance each side moved since the last loop and integrates it along an arc, the same math as WPILib. Heading comes from the Inertial Sensor; position comes from the wheels.</p>
+  <ol class="steps">
+    <li>The drive waits for the Inertial Sensor to finish calibrating, then starts odometry.</li>
+    <li>Call <code>resetOdometry(startPose)</code> at the start of each auto. If calibration isn't done yet, the pose is applied as soon as it is.</li>
+    <li>Read <code>getPose()</code> anywhere. Telemetry prints it as <code>drive/x</code>, <code>drive/y</code>, <code>drive/deg</code>.</li>
+  </ol>
+  <div class="note is-info"><strong>Accuracy tips.</strong> Get the wheel diameter right with tuning test X. Accelerate gently, because slipping wheels lose distance. Use tracking wheels with Rotation Sensors for the most accurate position.</div>
+
+  <nav class="pager" aria-label="More pages"><a href="#drivetrain"><span>Previous</span>The drivetrain</a><a href="#tuning"><span>Next</span>Tuning</a></nav>
+</section>
+
+<!-- ----------------------------------------------------------------------- tuning -->
+<section class="view doc" id="tuning">
+  <p class="eyebrow">Hardware</p>
+  <h1>Tuning</h1>
+  <p class="lede">Four tests measure the numbers the drive commands need. No code changes, just buttons.</p>
+
+  <h2>Run the tests</h2>
+  <ol class="steps">
+    <li>Set <code>kTuningMode = true</code> in <code>Constants.java</code> and upload.</li>
+    <li>Put the robot on the field with room to move, plug the brain into your computer, and open a serial terminal to see the results.</li>
+    <li>Enable driver control and press a button. <kbd>L1</kbd> aborts a test.</li>
+    <li>Paste each printed line into <code>DriveConstants</code>.</li>
+    <li>Set <code>kTuningMode</code> back to <code>false</code> before competing.</li>
+  </ol>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Button</th><th>Test</th><th>Space</th><th>Gives you</th></tr></thead>
+    <tbody>
+      <tr><td><kbd>A</kbd></td><td>Feedforward characterization</td><td>1.5 m in front</td><td><code>kS</code>, <code>kV</code>, <code>kA</code></td></tr>
+      <tr><td><kbd>B</kbd></td><td>Turn PID auto-tune</td><td>Spot to rotate</td><td><code>kTurnP</code>, <code>kTurnD</code></td></tr>
+      <tr><td><kbd>X</kbd></td><td>Drive 1 m, then measure</td><td>1.2 m in front</td><td>Corrected <code>kWheelDiameterInches</code></td></tr>
+      <tr><td><kbd>Y</kbd></td><td>Four 90° turns</td><td>Spot to rotate</td><td>Error at each stop</td></tr>
+    </tbody>
+  </table></div>
+  <p><strong>Run A first.</strong> <code>kS</code> is the voltage needed to beat friction. With too little, small end-of-turn corrections can't move the robot and turns stall a few degrees short. Path following needs <code>kV</code> and <code>kA</code>.</p>
+
+  <h2>What each test does</h2>
+  <h3>A: feedforward</h3>
+  <p>The robot ramps voltage up slowly while driving forward. At such low acceleration nearly all the voltage goes to friction and speed, so a straight-line fit of voltage against speed gives <code>kS</code> (the intercept) and <code>kV</code> (the slope). Then it pauses and backs up with a sudden 6 V step. Whatever voltage <code>kS</code> and <code>kV</code> don't explain went into accelerating, which gives <code>kA</code>.</p>
+  <h3>B: turn auto-tune</h3>
+  <p>The robot rocks back and forth around its heading with a fixed voltage (a relay test). How far and how fast it swings gives the system's ultimate gain and period. The test then uses the Ziegler–Nichols "no overshoot" rule, because overshooting a turn costs more in VEX than arriving a little slower. If turns still overshoot, lower <code>kTurnP</code> about 20% or raise <code>kTurnD</code>.</p>
+  <h3>X: wheel diameter</h3>
+  <p>The robot drives 1 m by its encoders and prints how far it thinks it went. Measure the real distance with a tape, then multiply <code>kWheelDiameterInches</code> by <em>real ÷ reported</em>. Wheels wear and compress, so this beats the nominal size.</p>
+  <h3>Y: turn check</h3>
+  <p>Four 90° turns, printing the error after each. Use it to check test B's numbers.</p>
+
+  <div class="note is-info"><strong>Try it in the simulator first.</strong> <code>./gradlew :template:simulate --args=tune</code> runs tests A and B, applies the results, and runs Y and X with them. The simulator has no wheel slip or backlash, so its numbers differ from a real robot's. Use it to learn the process.</div>
+
+  <nav class="pager" aria-label="More pages"><a href="#field"><span>Previous</span>Field coordinates</a><a href="#autos"><span>Next</span>Autos &amp; path following</a></nav>
+</section>
+
+<!-- ----------------------------------------------------------------------- autos -->
+<section class="view doc" id="autos">
+  <p class="eyebrow">Autonomous</p>
+  <h1>Autos &amp; path following</h1>
+  <p class="lede">An auto is a command. Build it from point-to-point moves, curved paths, and named commands.</p>
+
+  <h2>Choosing the auto</h2>
+<pre class="code"><code class="lang-java">public Command getAutonomousCommand() {
+    return PlannerAutos.exampleAuto(m_robotDrive);
+}</code></pre>
+
+  <h2>Named commands</h2>
+  <p>Path markers and planner steps refer to commands by name. Register a <em>factory</em> for each in <code>RobotContainer</code>'s constructor, before building any autos. A factory gives every use a fresh command, since a command can be in only one group.</p>
+<pre class="code"><code class="lang-java">NamedCommands.register("intake", m_intake::intakeCommand);
+NamedCommands.register("closeClaw", m_claw::closeCommand);
+NamedCommands.register("grab", this::grabCommand);</code></pre>
+  <p>An unknown name prints a warning and does nothing, so a typo can't crash the robot.</p>
+
+  <h2>Curved paths</h2>
+  <p>The <a href="#planner">path planner</a> turns each curve into a trajectory: where the robot should be, which way it should face, and how fast it should go, every 20 ms. It does this on your computer, so the brain only looks up the next sample. That matters because Hydrozoa's interpreter is slower than native code.</p>
+  <p><code>FollowTrajectory</code> drives the robot along it. Every loop it:</p>
+  <ol class="steps">
+    <li>Samples the trajectory at the current time.</li>
+    <li>Compares that with the robot's odometry pose. A <code>RamseteController</code> (the same math as WPILib's) returns a forward speed and turn rate that pull the robot back onto the path.</li>
+    <li>Splits those into left and right wheel speeds using the track width.</li>
+    <li>Turns each wheel speed into volts: <code>kS + kV·v + kA·a</code>, plus <code>pathKP</code> times the wheel's speed error.</li>
+  </ol>
+  <p>In the simulator, with gains from tuning test A, the template robot tracks the example path within 9 mm and finishes within 1 cm and half a degree of the target.</p>
+
+  <h2>AutoBuilder</h2>
+  <p>The planner's exported code uses these, and they're just as handy by hand:</p>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Method</th><th>Does</th></tr></thead>
+    <tbody>
+      <tr><td><code>resetPose(drive, path)</code></td><td>Sets odometry to where a path starts. First step of an auto.</td></tr>
+      <tr><td><code>resetPose(drive, x, y, deg)</code></td><td>Sets odometry to a pose.</td></tr>
+      <tr><td><code>followPath(drive, path, markers...)</code></td><td>Follows a trajectory, running markers alongside.</td></tr>
+      <tr><td><code>marker(atSeconds, "name")</code></td><td>Starts a named command partway into a path; it stops when the path ends.</td></tr>
+      <tr><td><code>marker(atSeconds, forSeconds, "name")</code></td><td>Same, but stops after <code>forSeconds</code>.</td></tr>
+      <tr><td><code>turnTo(drive, deg)</code></td><td>Turns in place to a field heading.</td></tr>
+      <tr><td><code>turnToFace(drive, x, y, reversed)</code></td><td>Turns to face a point, worked out from where the robot really is.</td></tr>
+      <tr><td><code>driveTo / backTo(drive, x, y)</code></td><td>Point-to-point moves.</td></tr>
+      <tr><td><code>driveDistance(drive, m)</code></td><td>Straight line from wherever the robot is.</td></tr>
+    </tbody>
+  </table></div>
+<pre class="code"><code class="lang-java">public static Command exampleAuto(TankDriveSubsystem drive) {
+    return Commands.sequence(
+            AutoBuilder.resetPose(drive, PICKUP),
+            AutoBuilder.followPath(drive, PICKUP,
+                    AutoBuilder.marker(0.92, "intake")),
+            Commands.waitSeconds(0.3),
+            AutoBuilder.followPath(drive, SCORE),
+            NamedCommands.get("outtake").withTimeout(0.8)
+    ).withName("exampleAuto");
+}</code></pre>
+  <div class="note"><strong>Markers run beside the drive.</strong> A marker can't use the drivetrain, and two markers on one path can't use the same subsystem. Commands that need the drivetrain go between paths as their own steps.</div>
+
+  <nav class="pager" aria-label="More pages"><a href="#tuning"><span>Previous</span>Tuning</a><a href="#planner-guide"><span>Next</span>Using the path planner</a></nav>
+</section>
+
+<!-- ----------------------------------------------------------------------- planner guide -->
+<section class="view doc" id="planner-guide">
+  <p class="eyebrow">Autonomous</p>
+  <h1>Using the path planner</h1>
+  <p class="lede">Draw curved paths on the field, build autos from them, and export a Java class your robot follows.</p>
+
+  <p><a class="btn is-primary" href="#planner" style="display:inline-flex">Open the path planner</a></p>
+
+  <h2>Paths</h2>
+  <ol class="steps">
+    <li><strong>New path</strong>, then tap the field to add points. Each tap adds a point at the end of the path. If a path is selected, the new path starts where that one ends, facing the same way.</li>
+    <li>Drag the round points to move them. Drag the square handles to aim the curve and set how wide it bends: longer handles make gentler curves.</li>
+    <li>Tap a point to edit its position, direction and handle lengths exactly, add a point after it, or delete it.</li>
+    <li>Tick <strong>Drive backward</strong> for a path the robot drives in reverse. The line shows dashed.</li>
+  </ol>
+  <p>The line's color shows planned speed, from orange (slow) to blue (full speed). The robot outlines show where it starts (filled) and ends.</p>
+
+  <h3>Event markers</h3>
+  <p>A marker starts a named command partway along a path, such as an intake as the robot reaches a game piece. Pick the command, slide it along the path (the planner shows the time it fires), and set <em>Run for</em> to stop it after a time. 0 means it runs until it finishes or the path ends.</p>
+
+  <h3>Slow zones</h3>
+  <p>A zone lowers the speed limit between two points, for lining up or picking something up. Point numbers can be fractional: 1.5 is halfway from point 1 to point 2.</p>
+
+  <h2>Speed limits</h2>
+  <p>Under <strong>Settings</strong>, set the robot's size and three limits for every path:</p>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Limit</th><th>Effect</th></tr></thead>
+    <tbody>
+      <tr><td>Max speed (m/s)</td><td>Top speed. Keep it below your robot's real top speed under load (about 80%) so feedback has room to correct.</td></tr>
+      <tr><td>Max acceleration (m/s²)</td><td>How quickly it speeds up and slows down. Lower it if the wheels slip or the robot tips.</td></tr>
+      <tr><td>Max turn rate (°/s)</td><td>Slows the robot through tight curves: speed ≤ turn rate ÷ curvature.</td></tr>
+    </tbody>
+  </table></div>
+  <p>The planner warns about bends tighter than 4 cm in radius, where the robot would nearly stop, and about any spot where the robot's corners would hit the field wall.</p>
+
+  <h2>Autos</h2>
+  <p>An auto is a list of steps run in order: <strong>Path</strong>, <strong>Turn to</strong> (in place, to a field heading), <strong>Run</strong> a named command, or <strong>Wait</strong>. The robot starts wherever the first path starts. The bar shows the estimated time against the 15-second autonomous period.</p>
+  <p>The planner checks that each path starts where the robot is. If a path starts more than 5 cm away or facing more than 10° differently, it says so. Add a turn step, or start the path at the previous path's end.</p>
+  <p>A <strong>Run</strong> step waits for its command to finish. Each command's time under Settings → Commands works as a time limit there, so a run-while-held command like an intake can't stall the auto. 0 means wait until it finishes on its own.</p>
+
+  <h2>Exporting</h2>
+  <ol class="steps">
+    <li>Set the package and class name under <strong>Settings → Export</strong> to match your project.</li>
+    <li>Copy the <strong>Java</strong> tab into <code>autos/PlannerAutos.java</code>. It holds every path as a <code>Trajectory</code> and every auto as a method.</li>
+    <li>Return the auto from <code>getAutonomousCommand()</code>: <code>PlannerAutos.exampleAuto(m_robotDrive)</code>.</li>
+    <li>Register every command name the autos use with <code>NamedCommands.register</code>.</li>
+    <li>Copy the <strong>JSON</strong> tab into <code>planner-project.json</code> next to your code. Paste it back into the planner (or load the file) to keep editing later.</li>
+  </ol>
+  <div class="note is-info"><strong>Your work is saved in this browser.</strong> The planner keeps your project between visits on the same device, but save the JSON in your repository so your team has it and it's backed up.</div>
+
+  <h2>Keys and gestures</h2>
+  <ul>
+    <li><kbd>Ctrl</kbd>/<kbd>⌘</kbd> + <kbd>Z</kbd> undoes the last change (also the Undo button).</li>
+    <li>On a phone or tablet, tap to add points and drag with one finger. The field never scrolls the page while you drag.</li>
+    <li><strong>Preview</strong> animates the robot along the selected path or auto at real speed.</li>
+  </ul>
+
+  <nav class="pager" aria-label="More pages"><a href="#autos"><span>Previous</span>Autos &amp; path following</a><a href="#simulator"><span>Next</span>Simulator</a></nav>
+</section>
+
+<!-- ----------------------------------------------------------------------- simulator -->
+<section class="view doc" id="simulator">
+  <p class="eyebrow">Run it</p>
+  <h1>Simulator</h1>
+  <p class="lede">Run the real robot code on your computer, faster than real time, with no brain attached.</p>
+
+  <h2>Running it</h2>
+<pre class="code"><code class="lang-shell">./gradlew :template:simulate                 # disabled, 15 s auto, scripted driver
+./gradlew :template:simulate --args=tune     # tuning tests, then checks their numbers
+./gradlew :examples:clawbot:simulate</code></pre>
+  <p>The simulator sources live in <code>src/sim/java</code>, a separate source set that never goes to the brain.</p>
+
+  <h2>How it works</h2>
+  <p>Robot code talks to hardware only through the library's <code>Hardware</code> interface. On the brain that's <code>HydrozoaHardware</code>; in the simulator it's <code>SimHardware</code>, which:</p>
+  <ul>
+    <li>models each motor's speed following its voltage with an 80 ms lag, plus 0.6 V of static friction;</li>
+    <li>turns the Inertial Sensor from the difference between left and right wheel speeds;</li>
+    <li>supports hard stops, so arms and claws stall at their limits;</li>
+    <li>runs time as fast as the CPU allows.</li>
+  </ul>
+
+  <h2>Writing a sim script</h2>
+<pre class="code"><code class="lang-java">SimHardware hw = new SimHardware();
+HAL.set(hw);
+Robot robot = new Robot();
+robot.robotInit();
+hw.simulateTankDrive(leftPorts, rightPorts, kMetersPerMotorRotation, kTrackWidthMeters);
+hw.getMotor(ArmConstants.kMotorPort).setHardStops(0.0, 1.9);   // rotations
+
+for (double t = 0; t &lt; 20; t += 0.01) {
+    hw.competition.enabled = t &gt;= 2.0;
+    hw.competition.autonomous = t &lt; 17.0;
+    hw.primary.buttons[GamepadIO.BUTTON_A] = t &gt;= 18.0 &amp;&amp; t &lt; 18.2;
+    hw.primary.axes[GamepadIO.AXIS_LEFT_Y] = 0.0;
+    robot.loopFunc();
+    hw.clock().sleepUntil(t);
+}</code></pre>
+
+  <h2>What it doesn't model</h2>
+  <p>Wheel slip, backlash, battery sag, game elements, and VEXos's current sharing between motors. Use it to check logic and sequencing, not final gains.</p>
+
+  <nav class="pager" aria-label="More pages"><a href="#planner-guide"><span>Previous</span>Using the path planner</a><a href="#clawbot"><span>Next</span>Clawbot example</a></nav>
+</section>
+
+<!-- ----------------------------------------------------------------------- clawbot -->
+<section class="view doc" id="clawbot">
+  <p class="eyebrow">Run it</p>
+  <h1>Clawbot example</h1>
+  <p class="lede">A complete program for the V5 Clawbot kit build in <code>examples/clawbot/</code>.</p>
+
+  <h2>Wiring</h2>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Device</th><th>Port</th><th>Cartridge</th></tr></thead>
+    <tbody>
+      <tr><td>Left drive</td><td>1</td><td>Green</td></tr>
+      <tr><td>Right drive (reversed)</td><td>10</td><td>Green</td></tr>
+      <tr><td>Claw</td><td>3</td><td>Green</td></tr>
+      <tr><td>Arm</td><td>8</td><td>Green</td></tr>
+      <tr><td>Inertial Sensor (optional)</td><td>4, with <code>kHasImu = true</code></td><td></td></tr>
+    </tbody>
+  </table></div>
+  <p><strong>Start the program with the arm all the way down.</strong> That position is 0°.</p>
+
+  <h2>Controls</h2>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Input</th><th>Action</th></tr></thead>
+    <tbody>
+      <tr><td>Left stick up/down</td><td>Drive</td></tr>
+      <tr><td>Right stick left/right</td><td>Turn</td></tr>
+      <tr><td><kbd>L1</kbd> / <kbd>L2</kbd> held</td><td>Arm up / down, with soft limits; holds position when released</td></tr>
+      <tr><td><kbd>R1</kbd> / <kbd>R2</kbd></td><td>Open / close the claw (runs until it stalls, then keeps a light grip)</td></tr>
+      <tr><td>D-pad up / right / down</td><td>Arm presets: high / carry / down</td></tr>
+      <tr><td><kbd>A</kbd></td><td>Grab: close the claw, lift to carry</td></tr>
+      <tr><td><kbd>B</kbd></td><td>Place: lower the arm, open the claw</td></tr>
+      <tr><td><kbd>Y</kbd> held</td><td>Half speed</td></tr>
+    </tbody>
+  </table></div>
+
+  <h2>Subsystems</h2>
+  <ul>
+    <li><strong>DriveSubsystem:</strong> two motors in brake mode, encoders in meters, heading from the wheels (or the Inertial Sensor if you add one).</li>
+    <li><strong>Arm:</strong> the encoder reads arm degrees through a conversion factor; presets use the motor's built-in position PID, and idle mode <code>kHold</code> keeps the arm from sagging.</li>
+    <li><strong>Claw:</strong> current-limited to 1.2 A because it stalls on objects on purpose; open and close finish when the motor stops moving.</li>
+  </ul>
+
+  <h2>Autos</h2>
+  <p><code>pickUpAndMove</code> grabs an object in front of the claw, carries it forward and to the left, sets it down and backs away. <code>square</code> drives a 0.5 m square to check turns and tracking. The Clawbot registers <code>openClaw</code>, <code>closeClaw</code>, <code>armDown</code>, <code>armCarry</code>, <code>armHigh</code>, <code>grab</code> and <code>place</code> as named commands for the path planner.</p>
+
+  <h2>Check on your Clawbot</h2>
+  <ul>
+    <li><strong>Track width</strong> (<code>kTrackWidthInches</code>): without an Inertial Sensor, turns depend on it.</li>
+    <li><strong>Arm gear ratio</strong> (<code>kGearRatio</code>): count the teeth. The example uses 12:84.</li>
+    <li><strong>Claw direction</strong>: if <kbd>R1</kbd> closes it, flip <code>ClawConstants.kReversed</code>.</li>
+  </ul>
+
+  <nav class="pager" aria-label="More pages"><a href="#simulator"><span>Previous</span>Simulator</a><a href="#deploy"><span>Next</span>Deploying &amp; troubleshooting</a></nav>
+</section>
+
+<!-- ----------------------------------------------------------------------- deploy -->
+<section class="view doc" id="deploy">
+  <p class="eyebrow">Run it</p>
+  <h1>Deploying &amp; troubleshooting</h1>
+  <p class="lede">Hydrozoa compiles Java to WebAssembly and runs it on the brain in an interpreter.</p>
+
+  <h2>Uploading</h2>
+<pre class="code"><code class="lang-shell">./gradlew :template:hydrozoaUpload           # slot 1
+./gradlew :examples:clawbot:hydrozoaUpload   # slot 2</code></pre>
+  <p>Each robot's <code>build.gradle.kts</code> sets the program's name, slot and icon in its <code>hydrozoa { }</code> block, and points <code>runtime</code> at <code>hydrozoa.bin</code> in the repository root. That's the Hydrozoa runtime uploaded with your program (from vexide/Hydrozoa-Java, MIT license).</p>
+
+  <h2>Reading output</h2>
+  <p><code>System.out.println</code> and <code>Telemetry</code> go to the brain's USB serial port. View them with any serial terminal while the brain is plugged in. An uncaught exception prints over serial and shows on the brain's screen.</p>
+
+  <h2>Messages you might see</h2>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Message</th><th>Meaning</th></tr></thead>
+    <tbody>
+      <tr><td><code>[HAL] motor on port N: …</code></td><td>The motor isn't plugged in, or something else is on that port. Printed once per motor; commands to it are skipped.</td></tr>
+      <tr><td><code>[HAL] no Inertial Sensor found on port N</code></td><td>Check the port in <code>Constants.java</code>. Odometry falls back to not waiting for calibration.</td></tr>
+      <tr><td><code>[HAL] Inertial Sensor … reports an error</code></td><td>The sensor returned its error status. Re-seat the cable.</td></tr>
+      <tr><td><code>[VexMotor] port N: current limit … outside 0-2.5 A</code></td><td>The config asked for more than the motor allows; 2.5 A was used.</td></tr>
+      <tr><td><code>[NamedCommands] no command registered as '…'</code></td><td>An auto used a name you didn't register. That step does nothing.</td></tr>
+      <tr><td><code>Port N has already been used</code></td><td>Two devices are set to the same port.</td></tr>
+    </tbody>
+  </table></div>
+
+  <h2>Performance</h2>
+  <p>The interpreter is slower than native PROS or vexide code. Keep <code>periodic()</code> methods light, avoid creating lots of objects every loop, and let the planner pre-compute trajectories. Telemetry prints at most four times a second for the same reason.</p>
+
+  <nav class="pager" aria-label="More pages"><a href="#clawbot"><span>Previous</span>Clawbot example</a><a href="api/index.html"><span>Reference</span>API reference</a></nav>
+</section>
+</div>
+
+<!-- ======================================================================= PLANNER -->
+<section class="view shell" id="planner">
+  <div class="pl">
+    <aside class="pl-project" id="pl-project" aria-label="Project">
+      <div class="pl-card">
+        <div class="pl-group-head"><h3>Paths</h3><button type="button" id="pl-new-path">New path</button></div>
+        <ul id="pl-paths"></ul>
+      </div>
+      <div class="pl-card">
+        <div class="pl-group-head"><h3>Autos</h3><button type="button" id="pl-new-auto">New auto</button></div>
+        <ul id="pl-autos"></ul>
+      </div>
+    </aside>
+
+    <div class="pl-stage">
+      <div class="pl-toolbar">
+        <h2 id="pl-title">Path planner</h2>
+        <span id="pl-clock" aria-live="polite"></span>
+        <button type="button" id="pl-play">Preview</button>
+        <button type="button" id="pl-undo" disabled>Undo</button>
+        <button type="button" id="pl-sample">Load example</button>
+      </div>
+      <div class="pl-field-wrap"><canvas id="pl-field" width="600" height="600" aria-label="V5RC field. Tap to add path points; drag points and handles to shape the path."></canvas></div>
+      <div class="pl-under">
+        <span id="pl-hint-line"></span>
+        <span id="pl-readout">Field coordinates appear here.</span>
+      </div>
+      <div class="pl-under pl-legend" aria-hidden="true">
+        <span><i class="pl-grad"></i>slow → fast</span>
+        <span><i class="pl-dash"></i>reversed</span>
+        <span><i class="pl-diamond"></i>marker</span>
+        <span><i class="pl-zonekey"></i>slow zone</span>
+      </div>
+    </div>
+
+    <div class="pl-side">
+      <div class="pl-card" id="pl-inspector"></div>
+      <ul id="pl-warnings" aria-live="polite"></ul>
+
+      <details class="pl-card" id="pl-settings">
+        <summary>Settings</summary>
+        <div class="pl-settings-group">
+          <h5>Display</h5>
+          <div class="pl-grid">
+            <label class="pl-field" for="pl-units"><span>Units</span><select id="pl-units"><option value="in">inches</option><option value="m">meters</option></select></label>
+            <label class="pl-field" for="pl-snap"><span>Snap</span><select id="pl-snap"><option value="0">off</option><option value="1">1 in</option><option value="3">3 in</option><option value="12">half tile</option></select></label>
+          </div>
+        </div>
+        <div class="pl-settings-group">
+          <h5>Robot</h5>
+          <div class="pl-grid">
+            <label class="pl-field" for="pl-rw"><span>Width</span><span class="pl-input-wrap"><input id="pl-rw" type="number" min="1" step="0.5"><em>in</em></span></label>
+            <label class="pl-field" for="pl-rl"><span>Length</span><span class="pl-input-wrap"><input id="pl-rl" type="number" min="1" step="0.5"><em>in</em></span></label>
+            <label class="pl-field" for="pl-tw"><span>Track width</span><span class="pl-input-wrap"><input id="pl-tw" type="number" min="1" step="0.25"><em>in</em></span></label>
+          </div>
+        </div>
+        <div class="pl-settings-group">
+          <h5>Limits for every path</h5>
+          <div class="pl-grid">
+            <label class="pl-field" for="pl-maxv"><span>Max speed</span><span class="pl-input-wrap"><input id="pl-maxv" type="number" min="0.1" step="0.05"><em>m/s</em></span></label>
+            <label class="pl-field" for="pl-maxa"><span>Max accel</span><span class="pl-input-wrap"><input id="pl-maxa" type="number" min="0.1" step="0.1"><em>m/s²</em></span></label>
+            <label class="pl-field" for="pl-maxw"><span>Max turn rate</span><span class="pl-input-wrap"><input id="pl-maxw" type="number" min="10" step="10"><em>°/s</em></span></label>
+          </div>
+        </div>
+        <div class="pl-settings-group">
+          <h5>Commands</h5>
+          <ul id="pl-cmds"></ul>
+          <form id="pl-cmd-form"><input id="pl-cmd-new" type="text" placeholder="closeClaw" spellcheck="false" autocomplete="off" aria-label="New command name"><button type="submit">Add</button></form>
+          <p class="pl-hint">Names you register with NamedCommands.register in RobotContainer. The time is a limit when the command runs as an auto step (0 = until it finishes).</p>
+        </div>
+        <div class="pl-settings-group">
+          <h5>Export</h5>
+          <div class="pl-grid">
+            <label class="pl-field" for="pl-pkg"><span>Package</span><input id="pl-pkg" type="text" spellcheck="false" autocomplete="off"></label>
+            <label class="pl-field" for="pl-cls"><span>Class</span><input id="pl-cls" type="text" spellcheck="false" autocomplete="off"></label>
+          </div>
+        </div>
+      </details>
+
+      <div class="pl-card pl-export">
+        <h4>Export</h4>
+        <div class="pl-tabs" role="tablist" aria-label="Export format">
+          <button type="button" role="tab" id="pl-tab-java" aria-selected="true">Java</button>
+          <button type="button" role="tab" id="pl-tab-json" aria-selected="false">JSON</button>
+          <button type="button" id="pl-copy">Copy</button>
+        </div>
+        <pre class="pl-output"><code id="pl-code"></code></pre>
+        <p id="pl-out-hint"></p>
+        <div class="pl-import">
+          <label for="pl-import">Load a project: paste its JSON</label>
+          <textarea id="pl-import" spellcheck="false" placeholder='{ "version": 2, "paths": [ ... ] }'></textarea>
+          <div class="pl-import-row">
+            <button type="button" id="pl-import-btn">Load pasted JSON</button>
+            <input type="file" id="pl-file" accept=".json,application/json" aria-label="Load a project file">
+          </div>
+          <p class="pl-import-msg" id="pl-import-msg" aria-live="polite"></p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+</main>
+
+<script>
+/* home: FRC/VEX code comparison tabs */
+(function () {
+  var vex = document.getElementById('cmp-vex'), frc = document.getElementById('cmp-frc');
+  function pick(isVex) {
+    vex.setAttribute('aria-selected', String(isVex)); frc.setAttribute('aria-selected', String(!isVex));
+    document.getElementById('cmp-vex-code').hidden = !isVex; document.getElementById('cmp-frc-code').hidden = isVex;
+  }
+  vex.addEventListener('click', function () { pick(true); });
+  frc.addEventListener('click', function () { pick(false); });
+})();
+</script>
+<script>
+/*
+ * Path planner model: Bezier paths, trajectory generation, autos, warnings, Java export.
+ * Pure functions (no DOM), so they also run under Node for testing.
+ *
+ * Units: meters, seconds, radians internally; headings in the saved file are degrees.
+ * Field: V5RC, 12 ft square, origin at the center, +X right, +Y up, CCW-positive headings.
+ */
+(function (root) {
+  'use strict';
+
+  var HALF_FIELD = 1.8288;
+  var INCH = 0.0254;
+  var AUTO_SECONDS = 15;
+  var SKILLS_SECONDS = 60;
+  var DT = 0.02;          // trajectory sample period, s
+  var DS = 0.01;          // arc-length resolution for velocity planning, m
+
+  function clone(o) { return JSON.parse(JSON.stringify(o)); }
+  function rad(d) { return d * Math.PI / 180; }
+  function deg(r) { return r * 180 / Math.PI; }
+  function wrap180(d) { var x = ((d + 180) % 360 + 360) % 360 - 180; return x === -180 ? 180 : x; }
+  function wrapPi(r) { var x = ((r + Math.PI) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI) - Math.PI; return x; }
+
+  // ---------------------------------------------------------------- sample project
+  function samplePlan() {
+    return {
+      version: 2,
+      robot: { width: 18 * INCH, length: 18 * INCH, trackWidth: 11.5 * INCH },
+      constraints: { maxVel: 1.2, maxAccel: 2.0, maxAngVel: 360 },
+      commands: [
+        { name: 'intake', seconds: 0 },
+        { name: 'outtake', seconds: 0.8 },
+        { name: 'closeClaw', seconds: 0.5 },
+        { name: 'openClaw', seconds: 0.5 },
+        { name: 'armCarry', seconds: 0.8 },
+        { name: 'armDown', seconds: 0.8 }
+      ],
+      paths: [
+        {
+          name: 'pickup', reversed: false,
+          waypoints: [
+            { x: -1.5, y: 0.6, h: 0, lp: 0.3, ln: 0.45 },
+            { x: -0.75, y: 0.35, h: -45, lp: 0.3, ln: 0.3 },
+            { x: -0.55, y: -0.25, h: -90, lp: 0.3, ln: 0.3 }
+          ],
+          markers: [{ name: 'intake', pos: 0.9, duration: 0 }],
+          zones: [{ start: 1.6, end: 2.0, maxVel: 0.5 }]
+        },
+        {
+          name: 'score', reversed: true,
+          waypoints: [
+            { x: -0.55, y: -0.25, h: 90, lp: 0.3, ln: 0.35 },
+            { x: -1.25, y: 0.25, h: 180, lp: 0.4, ln: 0.3 }
+          ],
+          markers: [],
+          zones: []
+        }
+      ],
+      autos: [
+        { name: 'exampleAuto', steps: [
+          { type: 'path', path: 'pickup' },
+          { type: 'wait', seconds: 0.3 },
+          { type: 'path', path: 'score' },
+          { type: 'command', name: 'outtake' }
+        ] }
+      ]
+    };
+  }
+
+  // ---------------------------------------------------------------- geometry
+  function controlPoints(path, i) {
+    var a = path.waypoints[i], b = path.waypoints[i + 1];
+    var ha = rad(a.h), hb = rad(b.h);
+    return [
+      { x: a.x, y: a.y },
+      { x: a.x + a.ln * Math.cos(ha), y: a.y + a.ln * Math.sin(ha) },
+      { x: b.x - b.lp * Math.cos(hb), y: b.y - b.lp * Math.sin(hb) },
+      { x: b.x, y: b.y }
+    ];
+  }
+
+  function handles(path, i) {
+    var w = path.waypoints[i], h = rad(w.h), out = {};
+    if (i > 0) out.prev = { x: w.x - w.lp * Math.cos(h), y: w.y - w.lp * Math.sin(h) };
+    if (i < path.waypoints.length - 1) out.next = { x: w.x + w.ln * Math.cos(h), y: w.y + w.ln * Math.sin(h) };
+    return out;
+  }
+
+  function bez(p, t) {
+    var u = 1 - t;
+    var x = u * u * u * p[0].x + 3 * u * u * t * p[1].x + 3 * u * t * t * p[2].x + t * t * t * p[3].x;
+    var y = u * u * u * p[0].y + 3 * u * u * t * p[1].y + 3 * u * t * t * p[2].y + t * t * t * p[3].y;
+    var dx = 3 * u * u * (p[1].x - p[0].x) + 6 * u * t * (p[2].x - p[1].x) + 3 * t * t * (p[3].x - p[2].x);
+    var dy = 3 * u * u * (p[1].y - p[0].y) + 6 * u * t * (p[2].y - p[1].y) + 3 * t * t * (p[3].y - p[2].y);
+    var ddx = 6 * u * (p[2].x - 2 * p[1].x + p[0].x) + 6 * t * (p[3].x - 2 * p[2].x + p[1].x);
+    var ddy = 6 * u * (p[2].y - 2 * p[1].y + p[0].y) + 6 * t * (p[3].y - 2 * p[2].y + p[1].y);
+    var sp = Math.hypot(dx, dy);
+    var k = sp > 1e-9 ? (dx * ddy - dy * ddx) / (sp * sp * sp) : 0;
+    return { x: x, y: y, tangent: Math.atan2(dy, dx), k: k };
+  }
+
+  /** Dense points along the whole path, evenly spaced by arc length (DS apart). */
+  function pathPoints(path) {
+    var raw = [];
+    var nSeg = path.waypoints.length - 1;
+    for (var i = 0; i < nSeg; i++) {
+      var cp = controlPoints(path, i);
+      var steps = 400;
+      for (var j = (i === 0 ? 0 : 1); j <= steps; j++) {
+        var t = j / steps, b = bez(cp, t);
+        b.pos = i + t;
+        raw.push(b);
+      }
+    }
+    if (!raw.length) return [];
+    // cumulative arc length, then resample
+    raw[0].s = 0;
+    for (var r = 1; r < raw.length; r++) raw[r].s = raw[r - 1].s + Math.hypot(raw[r].x - raw[r - 1].x, raw[r].y - raw[r - 1].y);
+    var total = raw[raw.length - 1].s;
+    var n = Math.max(2, Math.ceil(total / DS) + 1);
+    var out = [], c = 0;
+    for (var q = 0; q < n; q++) {
+      var s = total * q / (n - 1);
+      while (c < raw.length - 2 && raw[c + 1].s < s) c++;
+      var A = raw[c], B = raw[c + 1] || A, span = B.s - A.s, f = span > 1e-12 ? (s - A.s) / span : 0;
+      out.push({
+        s: s,
+        x: A.x + (B.x - A.x) * f,
+        y: A.y + (B.y - A.y) * f,
+        tangent: A.tangent + wrapPi(B.tangent - A.tangent) * f,
+        k: A.k + (B.k - A.k) * f,
+        pos: A.pos + (B.pos - A.pos) * f
+      });
+    }
+    return out;
+  }
+
+  // ---------------------------------------------------------------- trajectory generation
+  /**
+   * Time-parameterizes a path: trapezoid-style speed limited by max speed, slow zones,
+   * max acceleration and max turn rate (v <= maxAngVel / |curvature|), starting and ending at rest.
+   * Returns { states: [{t,x,y,h,v,w}], total, length, posToTime(pos) }.
+   */
+  function generate(path, constraints) {
+    var pts = pathPoints(path);
+    var empty = { states: [], total: 0, length: 0, posToTime: function () { return 0; }, points: [] };
+    if (pts.length < 2) return empty;
+    var a = Math.max(0.05, constraints.maxAccel);
+    var wMax = rad(Math.max(5, constraints.maxAngVel));
+    var vCap = pts.map(function (p) {
+      var lim = constraints.maxVel;
+      (path.zones || []).forEach(function (z) {
+        if (p.pos >= Math.min(z.start, z.end) && p.pos <= Math.max(z.start, z.end)) lim = Math.min(lim, z.maxVel);
+      });
+      if (Math.abs(p.k) > 1e-6) lim = Math.min(lim, wMax / Math.abs(p.k));
+      return Math.max(0.02, lim);
+    });
+    var v = new Array(pts.length);
+    v[0] = 0;
+    for (var i = 1; i < pts.length; i++) {
+      var ds = pts[i].s - pts[i - 1].s;
+      v[i] = Math.min(vCap[i], Math.sqrt(v[i - 1] * v[i - 1] + 2 * a * ds));
+    }
+    v[pts.length - 1] = 0;
+    for (var j = pts.length - 2; j >= 0; j--) {
+      var ds2 = pts[j + 1].s - pts[j].s;
+      v[j] = Math.min(v[j], Math.sqrt(v[j + 1] * v[j + 1] + 2 * a * ds2));
+    }
+    // time at each point
+    var t = [0];
+    for (var k = 1; k < pts.length; k++) {
+      var d = pts[k].s - pts[k - 1].s, avg = (v[k] + v[k - 1]) / 2;
+      t.push(t[k - 1] + (avg > 1e-6 ? d / avg : Math.sqrt(2 * d / a)));
+    }
+    var total = t[t.length - 1];
+    var rev = !!path.reversed;
+    var states = [];
+    var n = Math.max(2, Math.round(total / DT) + 1), c = 0;
+    for (var q = 0; q < n; q++) {
+      var tq = Math.min(total, q * DT);
+      while (c < t.length - 2 && t[c + 1] < tq) c++;
+      var span = t[c + 1] - t[c], f = span > 1e-12 ? (tq - t[c]) / span : 0;
+      var A = pts[c], B = pts[c + 1];
+      var speed = v[c] + (v[c + 1] - v[c]) * f;
+      var tangent = A.tangent + wrapPi(B.tangent - A.tangent) * f;
+      var curv = A.k + (B.k - A.k) * f;
+      states.push({
+        t: q * DT,
+        x: A.x + (B.x - A.x) * f,
+        y: A.y + (B.y - A.y) * f,
+        h: wrapPi(rev ? tangent + Math.PI : tangent),
+        v: rev ? -speed : speed,
+        w: speed * curv,
+        frac: speed / Math.max(0.01, constraints.maxVel)
+      });
+    }
+    // make the last sample land exactly on the end time
+    states[states.length - 1].t = (states.length - 1) * DT;
+    function posToTime(pos) {
+      for (var i = 0; i < pts.length; i++) if (pts[i].pos >= pos) return t[i];
+      return total;
+    }
+    return { states: states, total: (states.length - 1) * DT, length: pts[pts.length - 1].s, posToTime: posToTime, points: pts };
+  }
+
+  function stateAt(traj, time) {
+    var s = traj.states;
+    if (!s.length) return null;
+    var f = Math.max(0, Math.min(time, traj.total)) / DT, i = Math.min(s.length - 1, Math.floor(f)), u = f - i;
+    var A = s[i], B = s[Math.min(s.length - 1, i + 1)];
+    return { x: A.x + (B.x - A.x) * u, y: A.y + (B.y - A.y) * u, h: A.h + wrapPi(B.h - A.h) * u, v: A.v };
+  }
+
+  function startPose(path, constraints) {
+    var w = path.waypoints[0];
+    return { x: w.x, y: w.y, h: wrapPi(rad(w.h) + (path.reversed ? Math.PI : 0)) };
+  }
+  function endPose(path) {
+    var w = path.waypoints[path.waypoints.length - 1];
+    return { x: w.x, y: w.y, h: wrapPi(rad(w.h) + (path.reversed ? Math.PI : 0)) };
+  }
+
+  function findPath(project, name) {
+    for (var i = 0; i < project.paths.length; i++) if (project.paths[i].name === name) return project.paths[i];
+    return null;
+  }
+
+  function commandSeconds(project, name) {
+    for (var i = 0; i < project.commands.length; i++) if (project.commands[i].name === name) return Number(project.commands[i].seconds) || 0;
+    return 0.5;
+  }
+
+  /** Timeline of an auto for preview and time estimates. */
+  function autoTimeline(project, auto) {
+    var segs = [], t = 0, pose = null;
+    var turnRate = Math.max(5, project.constraints.maxAngVel);
+    var first = null;
+    auto.steps.forEach(function (s) { if (!first && s.type === 'path') first = findPath(project, s.path); });
+    if (first && first.waypoints.length >= 2) pose = startPose(first);
+    auto.steps.forEach(function (s, i) {
+      if (s.type === 'path') {
+        var p = findPath(project, s.path);
+        if (!p || p.waypoints.length < 2) return;
+        var tr = generate(p, project.constraints);
+        segs.push({ kind: 'path', step: i, t0: t, t1: t + tr.total, traj: tr, path: p });
+        t += tr.total;
+        pose = endPose(p);
+      } else if (s.type === 'turn' && pose) {
+        var target = rad(wrap180(Number(s.heading) || 0));
+        var dh = wrapPi(target - pose.h), dur = Math.abs(dh) < 0.01 ? 0 : Math.abs(deg(dh)) / turnRate + 0.15;
+        segs.push({ kind: 'turn', step: i, t0: t, t1: t + dur, from: clone(pose), to: { x: pose.x, y: pose.y, h: target } });
+        t += dur;
+        pose = { x: pose.x, y: pose.y, h: target };
+      } else if (s.type === 'command' || s.type === 'wait') {
+        var d = s.type === 'wait' ? Math.max(0, Number(s.seconds) || 0) : commandSeconds(project, s.name);
+        segs.push({ kind: s.type, step: i, t0: t, t1: t + d, pose: pose && clone(pose) });
+        t += d;
+      }
+    });
+    return { segments: segs, total: t };
+  }
+
+  function poseAtAuto(tl, time) {
+    var last = null;
+    for (var i = 0; i < tl.segments.length; i++) {
+      var s = tl.segments[i];
+      if (time <= s.t1 || i === tl.segments.length - 1) {
+        var lt = Math.max(0, Math.min(time - s.t0, s.t1 - s.t0));
+        if (s.kind === 'path') return stateAt(s.traj, lt);
+        if (s.kind === 'turn') {
+          var f = s.t1 > s.t0 ? lt / (s.t1 - s.t0) : 1;
+          return { x: s.from.x, y: s.from.y, h: s.from.h + wrapPi(s.to.h - s.from.h) * f };
+        }
+        return s.pose || last;
+      }
+      if (s.kind === 'path') last = stateAt(s.traj, s.traj.total);
+      else if (s.kind === 'turn') last = s.to;
+    }
+    return last;
+  }
+
+  function corners(x, y, h, w, l) {
+    var c = Math.cos(h), s = Math.sin(h);
+    return [[l / 2, w / 2], [l / 2, -w / 2], [-l / 2, -w / 2], [-l / 2, w / 2]].map(function (p) {
+      return { x: x + p[0] * c - p[1] * s, y: y + p[0] * s + p[1] * c };
+    });
+  }
+
+  // ---------------------------------------------------------------- names
+  var JAVA_KEYWORDS = ('abstract assert boolean break byte case catch char class const continue default do double ' +
+    'else enum extends final finally float for goto if implements import instanceof int interface long native new ' +
+    'package private protected public return short static strictfp super switch synchronized this throw throws ' +
+    'transient try void volatile while true false null var record yield').split(' ');
+  function isJavaIdentifier(n) { return typeof n === 'string' && /^[A-Za-z_$][A-Za-z0-9_$]*$/.test(n) && JAVA_KEYWORDS.indexOf(n) < 0; }
+  function constName(n) {
+    return n.replace(/([a-z0-9])([A-Z])/g, '$1_$2').replace(/[^A-Za-z0-9]+/g, '_').replace(/^_+|_+$/g, '').toUpperCase() || 'PATH';
+  }
+  function uniqueName(base, taken) {
+    var n = base, k = 2;
+    while (taken.indexOf(n) >= 0) n = base + k++;
+    return n;
+  }
+
+  // ---------------------------------------------------------------- warnings
+  function warnings(project) {
+    var out = [];
+    var lim = HALF_FIELD + 0.005, R = project.robot;
+    var known = project.commands.map(function (c) { return c.name; });
+    var pathNames = [];
+    project.paths.forEach(function (p) {
+      var where = 'Path "' + p.name + '"';
+      if (!isJavaIdentifier(p.name)) out.push({ level: 'error', text: where + ': name must be a valid Java name (letters, digits, _; not starting with a digit).', path: p.name });
+      if (pathNames.indexOf(p.name) >= 0) out.push({ level: 'error', text: where + ': two paths have this name.', path: p.name });
+      pathNames.push(p.name);
+      if (p.waypoints.length < 2) { out.push({ level: 'warn', text: where + ': needs at least 2 points. Tap the field to add one.', path: p.name }); return; }
+      var tr = generate(p, project.constraints);
+      var sharp = null;
+      tr.points.forEach(function (q) { if (!sharp && Math.abs(q.k) > 1 / 0.04) sharp = q; });
+      if (sharp) out.push({ level: 'warn', text: where + ': very sharp bend near point ' + (Math.floor(sharp.pos) + 1) +
+        ' (under 4 cm radius). The robot will almost stop there. Lengthen the handles or move the points apart.', path: p.name });
+      for (var i = 0; i < tr.states.length; i += 5) {
+        var s = tr.states[i];
+        if (corners(s.x, s.y, s.h, R.width, R.length).some(function (c) { return Math.abs(c.x) > lim || Math.abs(c.y) > lim; })) {
+          out.push({ level: 'warn', text: where + ': the robot hits the field wall around ' + s.t.toFixed(1) + ' s.', path: p.name });
+          break;
+        }
+      }
+      (p.markers || []).forEach(function (m) {
+        if (known.indexOf(m.name) < 0) out.push({ level: 'warn', text: where + ': marker "' + m.name + '" isn\'t in your command list.', path: p.name });
+      });
+    });
+    var autoNames = [];
+    project.autos.forEach(function (a) {
+      var where = 'Auto "' + a.name + '"';
+      if (!isJavaIdentifier(a.name)) out.push({ level: 'error', text: where + ': name must be a valid Java method name.', auto: a.name });
+      if (autoNames.indexOf(a.name) >= 0) out.push({ level: 'error', text: where + ': two autos have this name.', auto: a.name });
+      autoNames.push(a.name);
+      var pose = null, sawPath = false;
+      a.steps.forEach(function (s, i) {
+        var n = 'step ' + (i + 1);
+        if (s.type === 'path') {
+          var p = findPath(project, s.path);
+          if (!p) { out.push({ level: 'error', text: where + ', ' + n + ': there is no path called "' + s.path + '".', auto: a.name }); return; }
+          if (p.waypoints.length < 2) return;
+          var sp = startPose(p);
+          if (pose) {
+            var gap = Math.hypot(sp.x - pose.x, sp.y - pose.y);
+            var turn = Math.abs(deg(wrapPi(sp.h - pose.h)));
+            if (gap > 0.05) out.push({ level: 'warn', text: where + ', ' + n + ': "' + p.name + '" starts ' + (gap / INCH).toFixed(0) + ' in from where the robot is.', auto: a.name });
+            else if (turn > 10) out.push({ level: 'warn', text: where + ', ' + n + ': the robot faces ' + turn.toFixed(0) + '° away from where "' + p.name + '" starts. Add a turn step before it.', auto: a.name });
+          }
+          pose = endPose(p); sawPath = true;
+        } else if (s.type === 'turn') {
+          if (pose) pose = { x: pose.x, y: pose.y, h: rad(Number(s.heading) || 0) };
+        } else if (s.type === 'command') {
+          if (known.indexOf(s.name) < 0) out.push({ level: 'warn', text: where + ', ' + n + ': "' + s.name + '" isn\'t in your command list.', auto: a.name });
+        }
+      });
+      if (!sawPath) out.push({ level: 'warn', text: where + ': add a path so the auto knows where the robot starts.', auto: a.name });
+      var total = autoTimeline(project, a).total;
+      if (total > AUTO_SECONDS) out.push({ level: total > SKILLS_SECONDS ? 'error' : 'warn', auto: a.name,
+        text: where + ': about ' + total.toFixed(1) + ' s, longer than the ' + AUTO_SECONDS + ' s autonomous period' + (total > SKILLS_SECONDS ? ' and the 60 s skills run.' : ' (fine for a 60 s skills run).') });
+    });
+    return out;
+  }
+
+  // ---------------------------------------------------------------- mirroring
+  /** Rotates a path 180 degrees about the field center (the other starting side). */
+  function mirrorPath(path) {
+    var p = clone(path);
+    p.waypoints.forEach(function (w) { w.x = -w.x; w.y = -w.y; w.h = wrap180(w.h + 180); });
+    return p;
+  }
+
+  // ---------------------------------------------------------------- Java export
+  function num(v, d) {
+    var s = Number(v).toFixed(d);
+    if (s.indexOf('.') >= 0) s = s.replace(/0+$/, '').replace(/\.$/, '');
+    if (s === '-0') s = '0';
+    return s;
+  }
+  function javaString(s) { return '"' + String(s).replace(/\\/g, '\\\\').replace(/"/g, '\\"') + '"'; }
+
+  function encodeTrajectory(tr) {
+    return tr.states.map(function (s) {
+      return [num(s.x, 3), num(s.y, 3), num(s.h, 4), num(s.v, 3), num(s.w, 3)].join(' ');
+    }).join(' ');
+  }
+
+  function chunk(str, width) {
+    var out = [];
+    while (str.length > width) {
+      var cut = str.lastIndexOf(' ', width);
+      if (cut <= 0) cut = width;
+      out.push(str.slice(0, cut + 1));
+      str = str.slice(cut + 1);
+    }
+    out.push(str);
+    return out;
+  }
+
+  function toJava(project, opts) {
+    opts = opts || {};
+    var pkg = opts.packageName || 'com.robojacks.robot.autos';
+    var cls = opts.className || 'PlannerAutos';
+    var L = [];
+    L.push('package ' + pkg + ';', '');
+    L.push('import com.robojacks.lib.auto.AutoBuilder;');
+    L.push('import com.robojacks.lib.command.Command;');
+    L.push('import com.robojacks.lib.command.Commands;');
+    L.push('import com.robojacks.lib.auto.NamedCommands;');
+    L.push('import com.robojacks.lib.drive.TankDriveSubsystem;');
+    L.push('import com.robojacks.lib.trajectory.Trajectory;', '');
+    L.push('/**');
+    L.push(' * Paths and autos made with the VEX path planner. Regenerate this file from the planner');
+    L.push(' * instead of editing it: paste the planner\'s JSON back in to keep working on it.');
+    L.push(' */');
+    L.push('public final class ' + cls + ' {');
+    L.push('    private ' + cls + '() {}', '');
+    var used = {};
+    project.paths.forEach(function (p) {
+      if (p.waypoints.length < 2 || !isJavaIdentifier(p.name)) return;
+      var tr = generate(p, project.constraints);
+      var c = constName(p.name);
+      used[p.name] = c;
+      L.push('    /** ' + p.name + (p.reversed ? ' (reversed)' : '') + ': ' + num(tr.length, 2) + ' m, ' + tr.total.toFixed(2) + ' s. */');
+      var parts = chunk(encodeTrajectory(tr), 92);
+      L.push('    public static final Trajectory ' + c + ' = Trajectory.parse(' + DT + ',');
+      parts.forEach(function (part, i) {
+        L.push('            ' + javaString(part) + (i < parts.length - 1 ? ' +' : ');'));
+      });
+      L.push('');
+    });
+    project.autos.forEach(function (a) {
+      if (!isJavaIdentifier(a.name)) return;
+      var total = autoTimeline(project, a).total;
+      var lines = [], I = '                ';
+      var firstPath = null;
+      a.steps.forEach(function (s) { if (!firstPath && s.type === 'path' && used[s.path]) firstPath = s.path; });
+      if (firstPath) lines.push(I + 'AutoBuilder.resetPose(drive, ' + used[firstPath] + ')');
+      a.steps.forEach(function (s) {
+        if (s.type === 'path') {
+          if (!used[s.path]) return;
+          var p = findPath(project, s.path), tr = generate(p, project.constraints);
+          var markers = (p.markers || []).filter(function (m) { return m.name; }).map(function (m) {
+            var at = num(Math.max(0, tr.posToTime(m.pos)), 2);
+            return Number(m.duration) > 0
+              ? 'AutoBuilder.marker(' + at + ', ' + num(m.duration, 2) + ', ' + javaString(m.name) + ')'
+              : 'AutoBuilder.marker(' + at + ', ' + javaString(m.name) + ')';
+          });
+          if (!markers.length) lines.push(I + 'AutoBuilder.followPath(drive, ' + used[s.path] + ')');
+          else lines.push(I + 'AutoBuilder.followPath(drive, ' + used[s.path] + ',\n' + markers.map(function (m) { return I + '        ' + m; }).join(',\n') + ')');
+        } else if (s.type === 'turn') {
+          lines.push(I + 'AutoBuilder.turnTo(drive, ' + num(wrap180(Number(s.heading) || 0), 1) + ')');
+        } else if (s.type === 'command') {
+          var secs = commandSeconds(project, s.name);
+          lines.push(I + 'NamedCommands.get(' + javaString(s.name) + ')' + (secs > 0 ? '.withTimeout(' + num(secs, 2) + ')' : ''));
+        } else if (s.type === 'wait') {
+          lines.push(I + 'Commands.waitSeconds(' + num(Math.max(0, Number(s.seconds) || 0), 2) + ')');
+        }
+      });
+      L.push('    /** ' + a.name + ': about ' + total.toFixed(1) + ' s. */');
+      L.push('    public static Command ' + a.name + '(TankDriveSubsystem drive) {');
+      if (!lines.length) L.push('        return Commands.none().withName(' + javaString(a.name) + ');');
+      else {
+        L.push('        return Commands.sequence(');
+        L.push(lines.join(',\n'));
+        L.push('        ).withName(' + javaString(a.name) + ');');
+      }
+      L.push('    }', '');
+    });
+    if (L[L.length - 1] === '') L.pop();
+    L.push('}');
+    return L.join('\n');
+  }
+
+  // ---------------------------------------------------------------- loading
+  function normalize(raw) {
+    if (!raw || typeof raw !== 'object' || !Array.isArray(raw.paths)) {
+      throw new Error('This isn\'t a planner project: it has no "paths" list.');
+    }
+    var base = samplePlan();
+    function n(v, d) { v = Number(v); return isFinite(v) ? v : d; }
+    var p = {
+      version: 2,
+      robot: { width: n((raw.robot || {}).width, base.robot.width), length: n((raw.robot || {}).length, base.robot.length),
+        trackWidth: n((raw.robot || {}).trackWidth, base.robot.trackWidth) },
+      constraints: { maxVel: n((raw.constraints || {}).maxVel, base.constraints.maxVel), maxAccel: n((raw.constraints || {}).maxAccel, base.constraints.maxAccel),
+        maxAngVel: n((raw.constraints || {}).maxAngVel, base.constraints.maxAngVel) },
+      commands: Array.isArray(raw.commands) ? raw.commands.filter(function (c) { return c && typeof c.name === 'string'; })
+        .map(function (c) { return { name: c.name, seconds: n(c.seconds, 0) }; }) : base.commands,
+      paths: raw.paths.map(function (rp) {
+        return {
+          name: String(rp.name || 'path'), reversed: !!rp.reversed,
+          waypoints: (rp.waypoints || []).map(function (w) { return { x: n(w.x, 0), y: n(w.y, 0), h: n(w.h, 0), lp: Math.max(0.02, n(w.lp, 0.3)), ln: Math.max(0.02, n(w.ln, 0.3)) }; }),
+          markers: (rp.markers || []).map(function (m) { return { name: String(m.name || ''), pos: n(m.pos, 0), duration: Math.max(0, n(m.duration, 0)) }; }),
+          zones: (rp.zones || []).map(function (z) { return { start: n(z.start, 0), end: n(z.end, 1), maxVel: Math.max(0.05, n(z.maxVel, 0.5)) }; })
+        };
+      }),
+      autos: (raw.autos || []).map(function (ra) {
+        return { name: String(ra.name || 'auto'), steps: (ra.steps || []).map(function (s) {
+          if (s.type === 'path') return { type: 'path', path: String(s.path || '') };
+          if (s.type === 'turn') return { type: 'turn', heading: n(s.heading, 0) };
+          if (s.type === 'command') return { type: 'command', name: String(s.name || '') };
+          return { type: 'wait', seconds: Math.max(0, n(s.seconds, 0)) };
+        }) };
+      })
+    };
+    return p;
+  }
+
+  var api = {
+    HALF_FIELD: HALF_FIELD, INCH: INCH, AUTO_SECONDS: AUTO_SECONDS, DT: DT,
+    samplePlan: samplePlan, clone: clone, rad: rad, deg: deg, wrap180: wrap180, wrapPi: wrapPi,
+    controlPoints: controlPoints, handles: handles, pathPoints: pathPoints, generate: generate, stateAt: stateAt,
+    startPose: startPose, endPose: endPose, findPath: findPath, autoTimeline: autoTimeline, poseAtAuto: poseAtAuto,
+    corners: corners, isJavaIdentifier: isJavaIdentifier, constName: constName, uniqueName: uniqueName,
+    warnings: warnings, mirrorPath: mirrorPath, toJava: toJava, normalize: normalize
+  };
+  if (typeof module !== 'undefined' && module.exports) module.exports = api;
+  else root.PlannerModel = api;
+})(this);
+
+</script>
+<script>
+/* Site shell: hash routing between views, code highlighting, copy buttons, mobile menu. */
+(function () {
+  'use strict';
+
+  // ---------------------------------------------------------------- highlighting
+  var JAVA_KW = /^(?:abstract|boolean|break|case|catch|class|default|do|double|else|enum|extends|final|finally|float|for|if|implements|import|instanceof|int|interface|long|new|package|private|protected|public|return|static|super|switch|this|throw|throws|try|var|void|while|true|false|null)$/;
+  function esc(s) { return s.replace(/[&<>]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]; }); }
+  function highlight(el) {
+    var src = el.textContent, out = '', m;
+    var lang = el.className.indexOf('json') >= 0 ? 'json' : (el.className.indexOf('shell') >= 0 ? 'shell' : 'java');
+    var re = lang === 'json'
+      ? /("(?:[^"\\]|\\.)*")(\s*:)?|(-?\d+(?:\.\d+)?(?:e-?\d+)?)|\b(true|false|null)\b/g
+      : lang === 'shell'
+        ? /(#.*$)|("(?:[^"\\]|\\.)*")|(^\s*[$>] )/gm
+        : /(\/\/.*$|\/\*[\s\S]*?\*\/)|("(?:[^"\\\n]|\\.)*")|(@\w+)|\b(\d+(?:\.\d+)?)\b|\b([A-Za-z_]\w*)\b/gm;
+    var last = 0;
+    while ((m = re.exec(src))) {
+      out += esc(src.slice(last, m.index));
+      var t = m[0], cls = null;
+      if (lang === 'json') cls = m[1] ? (m[2] ? 'tk-key' : 'tk-str') : m[3] ? 'tk-num' : 'tk-kw';
+      else if (lang === 'shell') cls = m[1] ? 'tk-com' : m[2] ? 'tk-str' : 'tk-kw';
+      else if (m[1]) cls = 'tk-com';
+      else if (m[2]) cls = 'tk-str';
+      else if (m[3]) cls = 'tk-ann';
+      else if (m[4]) cls = 'tk-num';
+      else if (m[5]) cls = JAVA_KW.test(t) ? 'tk-kw' : (/^[A-Z]/.test(t) ? 'tk-type' : null);
+      out += cls ? '<span class="' + cls + '">' + esc(t) + '</span>' : esc(t);
+      last = m.index + t.length;
+    }
+    el.innerHTML = out + esc(src.slice(last));
+  }
+  window.SiteHighlight = highlight;
+  Array.prototype.forEach.call(document.querySelectorAll('pre.code > code'), function (el) {
+    highlight(el);
+    var pre = el.parentElement;
+    if (pre.dataset.nocopy !== undefined) return;
+    var b = document.createElement('button');
+    b.type = 'button'; b.className = 'copy-btn'; b.textContent = 'Copy';
+    b.addEventListener('click', function () {
+      var text = el.textContent;
+      function done(ok) { b.textContent = ok ? 'Copied' : 'Select and copy'; setTimeout(function () { b.textContent = 'Copy'; }, 1600); }
+      function fallback() {
+        var r = document.createRange(); r.selectNodeContents(el);
+        var s = window.getSelection(); s.removeAllRanges(); s.addRange(r); done(false);
+      }
+      try { navigator.clipboard.writeText(text).then(function () { done(true); }, fallback); } catch (e) { fallback(); }
+    });
+    pre.appendChild(b);
+  });
+
+  // ---------------------------------------------------------------- routing
+  var views = Array.prototype.slice.call(document.querySelectorAll('section.view'));
+  var navLinks = Array.prototype.slice.call(document.querySelectorAll('[data-nav]'));
+  var menu = document.getElementById('menu');
+  var menuBtn = document.getElementById('menu-btn');
+
+  function show() {
+    var id = decodeURIComponent((location.hash || '').slice(1)) || 'home';
+    var target = document.getElementById(id);
+    var view = target ? (target.classList.contains('view') ? target : target.closest('section.view')) : null;
+    if (!view) { view = document.getElementById('home'); target = view; }
+    views.forEach(function (v) { v.hidden = v !== view; });
+    document.body.dataset.view = view.id;
+    var guides = document.getElementById('guides-shell');
+    if (guides) guides.hidden = view.id === 'home' || view.id === 'planner';
+    navLinks.forEach(function (a) {
+      var on = a.getAttribute('href') === '#' + view.id;
+      if (on) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
+    });
+    if (menu) { menu.classList.remove('is-open'); if (menuBtn) menuBtn.setAttribute('aria-expanded', 'false'); }
+    if (target && target !== view) target.scrollIntoView({ block: 'start' });
+    else window.scrollTo(0, 0);
+    if (view.id === 'planner' && window.PlannerRedraw) window.PlannerRedraw();
+  }
+  window.addEventListener('hashchange', show);
+  show();
+
+  if (menuBtn) {
+    menuBtn.addEventListener('click', function () {
+      var open = !menu.classList.contains('is-open');
+      menu.classList.toggle('is-open', open);
+      menuBtn.setAttribute('aria-expanded', String(open));
+    });
+  }
+})();
+
+</script>
+<script>
+/* Path planner UI: project list, field editor, inspector, settings, export. Uses PlannerModel. */
+(function () {
+  'use strict';
+  var M = window.PlannerModel;
+  var H = M.HALF_FIELD, INCH = M.INCH;
+  var STORE = 'vexPlanner.project.v2', PREFS = 'vexPlanner.prefs.v2';
+
+  var $ = function (id) { return document.getElementById(id); };
+  var canvas = $('pl-field');
+  if (!canvas) return;
+  var ctx = canvas.getContext('2d');
+
+  // ---------------------------------------------------------------- state
+  function load(k) { try { var v = localStorage.getItem(k); return v ? JSON.parse(v) : null; } catch (e) { return null; } }
+  function save(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* storage unavailable */ } }
+
+  var project;
+  try { project = load(STORE) ? M.normalize(load(STORE)) : M.samplePlan(); } catch (e) { project = M.samplePlan(); }
+  var prefs = Object.assign({ units: 'in', snap: 1, tab: 'java', pkg: 'com.robojacks.robot.autos', cls: 'PlannerAutos' }, load(PREFS) || {});
+  var sel = { type: 'path', i: 0 };   // or { type: 'auto', i }
+  var wp = -1;                        // selected waypoint in the selected path
+  var undoStack = [];
+  var playing = null, drag = null, size = 600, dpr = 1;
+  var trajCache = {};
+
+  function curPath() { return sel.type === 'path' ? project.paths[sel.i] || null : null; }
+  function curAuto() { return sel.type === 'auto' ? project.autos[sel.i] || null : null; }
+  function traj(p) {
+    var key = JSON.stringify([p, project.constraints]);
+    if (!trajCache[key]) trajCache[key] = M.generate(p, project.constraints);
+    return trajCache[key];
+  }
+
+  function snapshot() {
+    undoStack.push(JSON.stringify({ project: project, sel: sel, wp: wp }));
+    if (undoStack.length > 80) undoStack.shift();
+    $('pl-undo').disabled = false;
+  }
+  function undo() {
+    if (!undoStack.length) return;
+    var s = JSON.parse(undoStack.pop());
+    project = s.project; sel = s.sel; wp = s.wp;
+    $('pl-undo').disabled = !undoStack.length;
+    syncSettings();
+    changed(true);
+  }
+  function fixSelection() {
+    var list = sel.type === 'path' ? project.paths : project.autos;
+    if (!list.length) {
+      if (project.paths.length) sel = { type: 'path', i: 0 };
+      else if (project.autos.length) sel = { type: 'auto', i: 0 };
+      else sel = { type: 'path', i: -1 };
+    } else if (sel.i >= list.length) sel.i = list.length - 1;
+    var p = curPath();
+    if (!p || wp >= p.waypoints.length) wp = -1;
+  }
+  function changed(rebuild) {
+    fixSelection();
+    save(STORE, project);
+    trajCache = Object.keys(trajCache).length > 60 ? {} : trajCache;
+    renderProject();
+    if (rebuild) { renderInspector(); renderCommands(); } else { syncInspector(); }
+    renderOutput();
+    draw();
+  }
+
+  // ---------------------------------------------------------------- units
+  function toDisp(m) { return prefs.units === 'in' ? +(m / INCH).toFixed(1) : +m.toFixed(3); }
+  function fromDisp(v) { return prefs.units === 'in' ? v * INCH : v; }
+  function unit() { return prefs.units === 'in' ? 'in' : 'm'; }
+  function snapM(v) { var st = prefs.snap * INCH; return st > 0 ? Math.round(v / st) * st : v; }
+  function clampF(v) { return Math.max(-H, Math.min(H, v)); }
+  function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+
+  // ---------------------------------------------------------------- geometry
+  function toPx(x, y) { return { x: (x + H) / (2 * H) * size, y: (H - y) / (2 * H) * size }; }
+  function fromPx(px, py) { return { x: px / size * 2 * H - H, y: H - py / size * 2 * H }; }
+  function mToPx(m) { return m / (2 * H) * size; }
+
+  // ---------------------------------------------------------------- drawing
+  var colors = {};
+  function readColors() {
+    var cs = getComputedStyle(document.documentElement);
+    ['--tile-a', '--tile-b', '--tile-seam', '--wall', '--accent', '--accent-wash', '--red', '--signal', '--on-signal',
+      '--ink', '--ink-wash', '--surface', '--muted', '--slow', '--fast', '--zone', '--font-mono'].forEach(function (k) { colors[k] = cs.getPropertyValue(k).trim(); });
+  }
+  function hexToRgb(h) {
+    h = h.replace('#', '');
+    if (h.length === 3) h = h.split('').map(function (c) { return c + c; }).join('');
+    var n = parseInt(h, 16);
+    return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+  }
+  function speedColor(f) {
+    var a = hexToRgb(colors['--slow'] || '#c8312f'), b = hexToRgb(colors['--fast'] || '#1f5fd1');
+    f = Math.max(0, Math.min(1, f));
+    return 'rgb(' + a.map(function (v, i) { return Math.round(v + (b[i] - v) * f); }).join(',') + ')';
+  }
+
+  function resize() {
+    var wrap = canvas.parentElement;
+    if (!wrap.clientWidth) return;
+    size = Math.max(240, Math.min(wrap.clientWidth, 760));
+    dpr = window.devicePixelRatio || 1;
+    canvas.style.width = size + 'px';
+    canvas.style.height = size + 'px';
+    canvas.width = Math.round(size * dpr);
+    canvas.height = Math.round(size * dpr);
+    draw();
+  }
+
+  function drawField() {
+    var n = 6, t = size / n;
+    for (var r = 0; r < n; r++) for (var c = 0; c < n; c++) {
+      ctx.fillStyle = (r + c) % 2 ? colors['--tile-a'] : colors['--tile-b'];
+      ctx.fillRect(c * t, r * t, t + 0.5, t + 0.5);
+    }
+    ctx.strokeStyle = colors['--tile-seam']; ctx.lineWidth = 1;
+    for (var k = 1; k < n; k++) {
+      ctx.beginPath(); ctx.moveTo(k * t, 0); ctx.lineTo(k * t, size); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(0, k * t); ctx.lineTo(size, k * t); ctx.stroke();
+    }
+    ctx.save();
+    ctx.strokeStyle = colors['--muted']; ctx.setLineDash([3, 5]);
+    ctx.beginPath(); ctx.moveTo(size / 2, 0); ctx.lineTo(size / 2, size); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(0, size / 2); ctx.lineTo(size, size / 2); ctx.stroke();
+    ctx.restore();
+    ctx.fillStyle = colors['--muted'];
+    ctx.font = '600 11px ' + colors['--font-mono'];
+    ctx.textAlign = 'right'; ctx.fillText('+X', size - 10, size / 2 - 7);
+    ctx.textAlign = 'left'; ctx.fillText('+Y', size / 2 + 7, 18);
+    ctx.fillText('0,0', size / 2 + 6, size / 2 + 15);
+    ctx.strokeStyle = colors['--wall']; ctx.lineWidth = 6; ctx.strokeRect(3, 3, size - 6, size - 6);
+  }
+
+  function robot(x, y, h, fill, stroke, lw) {
+    var c = M.corners(x, y, h, project.robot.width, project.robot.length).map(function (p) { return toPx(p.x, p.y); });
+    ctx.save();
+    ctx.beginPath(); ctx.moveTo(c[0].x, c[0].y);
+    for (var i = 1; i < 4; i++) ctx.lineTo(c[i].x, c[i].y);
+    ctx.closePath();
+    if (fill) { ctx.fillStyle = fill; ctx.fill(); }
+    ctx.strokeStyle = stroke; ctx.lineWidth = lw; ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(c[0].x, c[0].y); ctx.lineTo(c[1].x, c[1].y); ctx.lineWidth = lw + 2.5; ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawTraj(tr, path, faint) {
+    var s = tr.states;
+    if (s.length < 2) return;
+    ctx.save();
+    ctx.lineCap = 'round';
+    if (path.reversed) ctx.setLineDash([8, 6]);
+    if (faint) {
+      ctx.globalAlpha = 0.35; ctx.strokeStyle = colors['--ink']; ctx.lineWidth = 2;
+      ctx.beginPath();
+      s.forEach(function (st, i) { var p = toPx(st.x, st.y); if (i) ctx.lineTo(p.x, p.y); else ctx.moveTo(p.x, p.y); });
+      ctx.stroke();
+    } else {
+      ctx.lineWidth = 4;
+      for (var i = 1; i < s.length; i++) {
+        var a = toPx(s[i - 1].x, s[i - 1].y), b = toPx(s[i].x, s[i].y);
+        ctx.strokeStyle = speedColor(s[i].frac);
+        ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+      }
+    }
+    ctx.restore();
+  }
+
+  function drawZones(path, tr) {
+    (path.zones || []).forEach(function (z) {
+      var lo = Math.min(z.start, z.end), hi = Math.max(z.start, z.end);
+      ctx.save();
+      ctx.strokeStyle = colors['--zone']; ctx.lineWidth = 14; ctx.lineCap = 'round';
+      ctx.beginPath();
+      var started = false;
+      tr.points.forEach(function (q) {
+        if (q.pos < lo || q.pos > hi) return;
+        var p = toPx(q.x, q.y);
+        if (started) ctx.lineTo(p.x, p.y); else { ctx.moveTo(p.x, p.y); started = true; }
+      });
+      ctx.stroke();
+      ctx.restore();
+    });
+  }
+
+  function drawMarkers(path, tr) {
+    (path.markers || []).forEach(function (m) {
+      var q = null;
+      for (var i = 0; i < tr.points.length; i++) if (tr.points[i].pos >= m.pos) { q = tr.points[i]; break; }
+      if (!q && tr.points.length) q = tr.points[tr.points.length - 1];
+      if (!q) return;
+      var p = toPx(q.x, q.y);
+      ctx.save();
+      ctx.fillStyle = colors['--signal']; ctx.strokeStyle = colors['--ink']; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.moveTo(p.x, p.y - 8); ctx.lineTo(p.x + 8, p.y); ctx.lineTo(p.x, p.y + 8); ctx.lineTo(p.x - 8, p.y); ctx.closePath();
+      ctx.fill(); ctx.stroke();
+      ctx.font = '600 10px ' + colors['--font-mono']; ctx.textAlign = 'left';
+      var label = m.name || '?', w = ctx.measureText(label).width + 8, lx = Math.min(p.x + 11, size - w - 6);
+      ctx.fillStyle = colors['--signal']; ctx.fillRect(lx, p.y - 22, w, 15);
+      ctx.fillStyle = colors['--on-signal']; ctx.fillText(label, lx + 4, p.y - 11);
+      ctx.restore();
+    });
+  }
+
+  function drawHandles(path) {
+    path.waypoints.forEach(function (w, i) {
+      var a = toPx(w.x, w.y), hs = M.handles(path, i);
+      ctx.save();
+      ['prev', 'next'].forEach(function (k) {
+        if (!hs[k]) return;
+        var h = toPx(hs[k].x, hs[k].y);
+        ctx.strokeStyle = colors['--ink']; ctx.globalAlpha = 0.55; ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(h.x, h.y); ctx.stroke();
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = colors['--surface']; ctx.strokeStyle = colors['--ink']; ctx.lineWidth = 2;
+        ctx.fillRect(h.x - 5, h.y - 5, 10, 10); ctx.strokeRect(h.x - 5, h.y - 5, 10, 10);
+      });
+      var isSel = i === wp;
+      ctx.beginPath(); ctx.arc(a.x, a.y, 11, 0, Math.PI * 2);
+      ctx.fillStyle = isSel ? colors['--accent'] : colors['--surface']; ctx.fill();
+      ctx.lineWidth = 2.5; ctx.strokeStyle = colors['--accent']; ctx.stroke();
+      ctx.fillStyle = isSel ? colors['--surface'] : colors['--ink'];
+      ctx.font = '700 11px ' + colors['--font-mono']; ctx.textAlign = 'center';
+      ctx.fillText(String(i + 1), a.x, a.y + 4);
+      ctx.restore();
+    });
+  }
+
+  function draw() {
+    if (!size) return;
+    readColors();
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    drawField();
+    var path = curPath(), auto = curAuto();
+    if (path) {
+      project.paths.forEach(function (p) { if (p !== path && p.waypoints.length > 1) drawTraj(traj(p), p, true); });
+      if (path.waypoints.length > 1) {
+        var tr = traj(path);
+        drawZones(path, tr);
+        drawTraj(tr, path, false);
+        var e = M.endPose(path);
+        if (!playing) robot(e.x, e.y, e.h, null, colors['--ink'], 1.5);
+        var s = M.startPose(path);
+        robot(s.x, s.y, s.h, colors['--accent-wash'], colors['--accent'], 2);
+        drawMarkers(path, tr);
+      }
+      drawHandles(path);
+    } else if (auto) {
+      var tl = M.autoTimeline(project, auto), first = true;
+      tl.segments.forEach(function (sg) {
+        if (sg.kind === 'path') {
+          drawTraj(sg.traj, sg.path, false);
+          drawMarkers(sg.path, sg.traj);
+          if (first) { var st = M.startPose(sg.path); robot(st.x, st.y, st.h, colors['--accent-wash'], colors['--accent'], 2); first = false; }
+        } else if (sg.kind === 'turn') {
+          var p = toPx(sg.to.x, sg.to.y), L = mToPx(0.28);
+          ctx.save(); ctx.strokeStyle = colors['--signal']; ctx.lineWidth = 3;
+          ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p.x + L * Math.cos(sg.to.h), p.y - L * Math.sin(sg.to.h)); ctx.stroke();
+          ctx.restore();
+        }
+      });
+    }
+    if (playing) {
+      var now = Math.min((performance.now() - playing.t0) / 1000, playing.total);
+      var pose = playing.pose(now);
+      if (pose) robot(pose.x, pose.y, pose.h, colors['--ink-wash'], colors['--ink'], 2.5);
+      $('pl-clock').textContent = now.toFixed(1) + ' / ' + playing.total.toFixed(1) + ' s';
+    }
+  }
+
+  // ---------------------------------------------------------------- pointer
+  function pt(e) { var r = canvas.getBoundingClientRect(); return { px: e.clientX - r.left, py: e.clientY - r.top }; }
+  canvas.addEventListener('pointerdown', function (e) {
+    var path = curPath();
+    if (!path) return;
+    if (playing) stopPlay();
+    var p = pt(e), m = fromPx(p.px, p.py);
+    snapshot();
+    var hit = null;
+    path.waypoints.forEach(function (w, i) {
+      var hs = M.handles(path, i);
+      ['prev', 'next'].forEach(function (k) {
+        if (!hs[k]) return;
+        var h = toPx(hs[k].x, hs[k].y);
+        if (Math.abs(p.px - h.x) < 11 && Math.abs(p.py - h.y) < 11) hit = { mode: 'handle', i: i, which: k };
+      });
+    });
+    if (!hit) path.waypoints.forEach(function (w, i) {
+      var a = toPx(w.x, w.y);
+      if (Math.hypot(p.px - a.x, p.py - a.y) < 15) hit = { mode: 'anchor', i: i };
+    });
+    if (!hit) {
+      var nw = { x: clampF(snapM(m.x)), y: clampF(snapM(m.y)), h: 0, lp: 0.3, ln: 0.3 };
+      var last = path.waypoints[path.waypoints.length - 1];
+      if (last) {
+        var d = Math.hypot(nw.x - last.x, nw.y - last.y);
+        var dir = M.deg(Math.atan2(nw.y - last.y, nw.x - last.x));
+        if (path.waypoints.length === 1) last.h = Math.round(dir);
+        last.ln = Math.max(0.05, d / 3);
+        nw.h = Math.round(dir); nw.lp = Math.max(0.05, d / 3);
+      }
+      path.waypoints.push(nw);
+      hit = { mode: 'anchor', i: path.waypoints.length - 1 };
+      wp = hit.i;
+      drag = hit;
+      canvas.setPointerCapture(e.pointerId);
+      changed(true);
+      e.preventDefault();
+      return;
+    }
+    drag = hit;
+    if (hit.mode === 'anchor' && wp !== hit.i) { wp = hit.i; renderInspector(); }
+    else if (hit.mode === 'handle' && wp !== hit.i) { wp = hit.i; renderInspector(); }
+    canvas.setPointerCapture(e.pointerId);
+    draw();
+    e.preventDefault();
+  });
+  canvas.addEventListener('pointermove', function (e) {
+    var p = pt(e), m = fromPx(p.px, p.py);
+    $('pl-readout').textContent = 'x ' + toDisp(m.x) + ', y ' + toDisp(m.y) + ' ' + unit() +
+      '  ·  tile ' + (Math.floor((m.x + H) / 0.6096) + 1) + ',' + (Math.floor((m.y + H) / 0.6096) + 1);
+    if (!drag) return;
+    var path = curPath(), w = path.waypoints[drag.i];
+    if (drag.mode === 'anchor') { w.x = clampF(snapM(m.x)); w.y = clampF(snapM(m.y)); }
+    else {
+      var dx = m.x - w.x, dy = m.y - w.y, len = Math.max(0.05, Math.hypot(dx, dy));
+      var ang = M.deg(Math.atan2(dy, dx));
+      if (drag.which === 'next') { w.h = Math.round(ang); w.ln = len; }
+      else { w.h = Math.round(M.wrap180(ang + 180)); w.lp = len; }
+    }
+    changed(false);
+  });
+  function endDrag() { if (drag) { drag = null; save(STORE, project); } }
+  canvas.addEventListener('pointerup', endDrag);
+  canvas.addEventListener('pointercancel', endDrag);
+
+  // ---------------------------------------------------------------- project list
+  function renderProject() {
+    $('pl-paths').innerHTML = project.paths.map(function (p, i) {
+      var on = sel.type === 'path' && sel.i === i, tr = p.waypoints.length > 1 ? traj(p) : null;
+      return '<li><button type="button" class="pl-item' + (on ? ' is-sel' : '') + '" data-kind="path" data-i="' + i + '">' +
+        '<span class="pl-item-name">' + esc(p.name) + (p.reversed ? ' <em class="pl-rev">rev</em>' : '') + '</span>' +
+        '<span class="pl-item-meta">' + (tr ? tr.total.toFixed(1) + ' s' : p.waypoints.length + ' pt') + '</span></button></li>';
+    }).join('') || '<li class="pl-hint">No paths yet.</li>';
+    $('pl-autos').innerHTML = project.autos.map(function (a, i) {
+      var on = sel.type === 'auto' && sel.i === i, t = M.autoTimeline(project, a).total;
+      return '<li><button type="button" class="pl-item' + (on ? ' is-sel' : '') + '" data-kind="auto" data-i="' + i + '">' +
+        '<span class="pl-item-name">' + esc(a.name) + '</span><span class="pl-item-meta' + (t > M.AUTO_SECONDS ? ' is-over' : '') + '">' + t.toFixed(1) + ' s</span></button></li>';
+    }).join('') || '<li class="pl-hint">No autos yet.</li>';
+    var p = curPath(), a = curAuto();
+    $('pl-title').textContent = p ? 'Editing path: ' + p.name : a ? 'Auto: ' + a.name : 'Make a path to start';
+    $('pl-hint-line').textContent = p
+      ? (p.waypoints.length < 2 ? 'Tap the field to add points.' : 'Drag points and the square handles to shape the curve. Tap empty field to add a point at the end.')
+      : 'Autos run paths and commands in order. Edit paths to change the route.';
+  }
+  function selectItem(kind, i) {
+    if (playing) stopPlay();
+    sel = { type: kind, i: i }; wp = -1;
+    changed(true);
+  }
+  $('pl-project').addEventListener('click', function (e) {
+    var b = e.target.closest('button.pl-item'); if (!b) return;
+    selectItem(b.dataset.kind, Number(b.dataset.i));
+  });
+  $('pl-new-path').addEventListener('click', function () {
+    snapshot();
+    var names = project.paths.map(function (p) { return p.name; });
+    var np = { name: M.uniqueName('path', names), reversed: false, waypoints: [], markers: [], zones: [] };
+    var prev = curPath();
+    if (prev && prev.waypoints.length > 1) {
+      var e = M.endPose(prev), w = prev.waypoints[prev.waypoints.length - 1];
+      np.waypoints.push({ x: w.x, y: w.y, h: Math.round(M.deg(e.h)), lp: 0.3, ln: 0.3 });
+    }
+    project.paths.push(np);
+    sel = { type: 'path', i: project.paths.length - 1 }; wp = -1;
+    changed(true);
+  });
+  $('pl-new-auto').addEventListener('click', function () {
+    snapshot();
+    var names = project.autos.map(function (a) { return a.name; });
+    var p = curPath();
+    project.autos.push({ name: M.uniqueName('auto', names), steps: p ? [{ type: 'path', path: p.name }] : [] });
+    sel = { type: 'auto', i: project.autos.length - 1 }; wp = -1;
+    changed(true);
+  });
+
+  // ---------------------------------------------------------------- inspector
+  function numField(id, label, value, step, suffix, extra) {
+    return '<label class="pl-field" for="' + id + '"><span>' + label + '</span><span class="pl-input-wrap"><input id="' + id +
+      '" type="number" inputmode="decimal" step="' + step + '" value="' + value + '"' + (extra || '') + '><em>' + suffix + '</em></span></label>';
+  }
+  function cmdOptions(selectedName) {
+    var names = project.commands.map(function (c) { return c.name; });
+    if (selectedName && names.indexOf(selectedName) < 0) names.push(selectedName);
+    return names.map(function (n) { return '<option' + (n === selectedName ? ' selected' : '') + '>' + esc(n) + '</option>'; }).join('');
+  }
+  function confirmButton(id, label) { return '<button type="button" class="pl-danger" id="' + id + '">' + label + '</button>'; }
+
+  function renderInspector() {
+    var box = $('pl-inspector'), path = curPath(), auto = curAuto(), html = '';
+    if (path && wp >= 0) {
+      var w = path.waypoints[wp], n = path.waypoints.length;
+      html = '<div class="pl-insp-head"><button type="button" class="pl-back" id="pi-back">← ' + esc(path.name) + '</button><h4>Point ' + (wp + 1) + ' of ' + n + '</h4></div>' +
+        '<div class="pl-grid">' + numField('pi-x', 'X', toDisp(w.x), 'any', unit()) + numField('pi-y', 'Y', toDisp(w.y), 'any', unit()) +
+        numField('pi-h', 'Direction', w.h, '1', '°') + '</div>' +
+        '<div class="pl-grid">' + (wp > 0 ? numField('pi-lp', 'Handle in', toDisp(w.lp), 'any', unit()) : '') +
+        (wp < n - 1 ? numField('pi-ln', 'Handle out', toDisp(w.ln), 'any', unit()) : '') + '</div>' +
+        '<p class="pl-hint">Direction is the way the path is heading here (0° = +X, counter-clockwise positive). Longer handles make wider, smoother curves.</p>' +
+        '<div class="pl-actions">' + (wp < n - 1 ? '<button type="button" id="pi-insert">Add point after</button>' : '') +
+        (n > 2 ? confirmButton('pi-delwp', 'Delete point') : '') + '</div>';
+    } else if (path) {
+      var tr = path.waypoints.length > 1 ? traj(path) : null, maxPos = Math.max(1, path.waypoints.length - 1);
+      html = '<h4>Path</h4><label class="pl-field" for="pi-name"><span>Name</span><input id="pi-name" type="text" spellcheck="false" autocomplete="off" value="' + esc(path.name) + '"></label>' +
+        '<label class="pl-check" for="pi-rev"><input id="pi-rev" type="checkbox"' + (path.reversed ? ' checked' : '') + '> Drive backward (back of the robot leads)</label>' +
+        (tr ? '<p class="pl-stats"><span>' + toDisp(tr.length) + ' ' + unit() + '</span><span>' + tr.total.toFixed(2) + ' s</span><span>' + path.waypoints.length + ' points</span></p>' : '<p class="pl-hint">Tap the field to add at least 2 points.</p>') +
+        '<div class="pl-subhead"><h5>Event markers</h5><button type="button" id="pi-addm">Add marker</button></div>' +
+        ((path.markers || []).map(function (m, k) {
+          var at = tr ? tr.posToTime(m.pos).toFixed(2) + ' s' : '—';
+          return '<div class="pl-row"><label class="pl-field" for="pm-name-' + k + '"><span>Command</span><select id="pm-name-' + k + '" data-m="' + k + '" data-f="name">' + cmdOptions(m.name) + '</select></label>' +
+            '<label class="pl-field pl-range" for="pm-pos-' + k + '"><span>Starts at <b id="pm-at-' + k + '">' + at + '</b></span><input id="pm-pos-' + k + '" type="range" min="0" max="' + maxPos + '" step="0.01" value="' + m.pos + '" data-m="' + k + '" data-f="pos"></label>' +
+            numField('pm-dur-' + k, 'Run for', m.duration, '0.1', 's', ' min="0" data-m="' + k + '" data-f="duration"') +
+            '<button type="button" class="pl-x" data-delm="' + k + '" aria-label="Remove marker">✕</button></div>';
+        }).join('') || '<p class="pl-hint">Markers start a command partway along the path (an intake as you reach a game piece). "Run for 0" means until it finishes or the path ends.</p>') +
+        '<div class="pl-subhead"><h5>Slow zones</h5><button type="button" id="pi-addz">Add zone</button></div>' +
+        ((path.zones || []).map(function (z, k) {
+          return '<div class="pl-row">' + numField('pz-s-' + k, 'From point', +(z.start + 1).toFixed(2), '0.1', '', ' min="1" max="' + (maxPos + 1) + '" data-z="' + k + '" data-f="start"') +
+            numField('pz-e-' + k, 'To point', +(z.end + 1).toFixed(2), '0.1', '', ' min="1" max="' + (maxPos + 1) + '" data-z="' + k + '" data-f="end"') +
+            numField('pz-v-' + k, 'Max speed', z.maxVel, '0.05', 'm/s', ' min="0.05" data-z="' + k + '" data-f="maxVel"') +
+            '<button type="button" class="pl-x" data-delz="' + k + '" aria-label="Remove zone">✕</button></div>';
+        }).join('') || '<p class="pl-hint">Slow down for part of the path, such as while picking something up. Point numbers can be fractional (1.5 is halfway from point 1 to 2).</p>') +
+        '<div class="pl-actions"><button type="button" id="pi-dup">Duplicate</button><button type="button" id="pi-mirror">Mirror to other side</button>' + confirmButton('pi-delpath', 'Delete path') + '</div>';
+    } else if (auto) {
+      var tl = M.autoTimeline(project, auto);
+      html = '<h4>Auto</h4><label class="pl-field" for="ai-name"><span>Name</span><input id="ai-name" type="text" spellcheck="false" autocomplete="off" value="' + esc(auto.name) + '"></label>' +
+        '<div class="pl-meter' + (tl.total > M.AUTO_SECONDS ? ' is-over' : '') + '"><div class="pl-meter-track"><div class="pl-meter-fill" style="width:' + Math.min(100, tl.total / M.AUTO_SECONDS * 100) + '%"></div></div><span>' + tl.total.toFixed(1) + ' of 15 s</span></div>' +
+        '<ol class="pl-steps">' + auto.steps.map(function (s, k) {
+          var body = '';
+          if (s.type === 'path') body = '<select id="as-' + k + '" data-s="' + k + '" data-f="path" aria-label="Path">' + project.paths.map(function (p) { return '<option' + (p.name === s.path ? ' selected' : '') + '>' + esc(p.name) + '</option>'; }).join('') +
+            (M.findPath(project, s.path) ? '' : '<option selected>' + esc(s.path) + '</option>') + '</select>';
+          else if (s.type === 'command') body = '<select id="as-' + k + '" data-s="' + k + '" data-f="name" aria-label="Command">' + cmdOptions(s.name) + '</select>';
+          else if (s.type === 'wait') body = '<span class="pl-input-wrap"><input id="as-' + k + '" type="number" min="0" step="0.05" value="' + s.seconds + '" data-s="' + k + '" data-f="seconds" aria-label="Seconds"><em>s</em></span>';
+          else body = '<span class="pl-input-wrap"><input id="as-' + k + '" type="number" step="1" value="' + s.heading + '" data-s="' + k + '" data-f="heading" aria-label="Heading"><em>°</em></span>';
+          return '<li class="pl-astep"><span class="pl-kind pl-kind-' + s.type + '">' + { path: 'Path', command: 'Run', wait: 'Wait', turn: 'Turn to' }[s.type] + '</span>' + body +
+            '<span class="pl-step-tools"><button type="button" data-up="' + k + '" aria-label="Move up"' + (k ? '' : ' disabled') + '>↑</button>' +
+            '<button type="button" data-down="' + k + '" aria-label="Move down"' + (k < auto.steps.length - 1 ? '' : ' disabled') + '>↓</button>' +
+            '<button type="button" data-dels="' + k + '" aria-label="Remove step">✕</button></span></li>';
+        }).join('') + '</ol>' +
+        (auto.steps.length ? '' : '<p class="pl-hint">Add a path first: the auto starts wherever its first path starts.</p>') +
+        '<div class="pl-actions"><button type="button" id="ai-add-path">+ Path</button><button type="button" id="ai-add-turn">+ Turn</button><button type="button" id="ai-add-cmd">+ Command</button><button type="button" id="ai-add-wait">+ Wait</button></div>' +
+        '<div class="pl-actions">' + confirmButton('ai-del', 'Delete auto') + '</div>';
+    } else {
+      html = '<h4>Nothing selected</h4><p class="pl-hint">Make a path with "New path", then tap the field to add points.</p>';
+    }
+    box.innerHTML = html;
+  }
+
+  function syncInspector() {
+    var path = curPath();
+    var set = function (id, v) { var el = $(id); if (el && document.activeElement !== el) el.value = v; };
+    if (path && wp >= 0) {
+      var w = path.waypoints[wp];
+      set('pi-x', toDisp(w.x)); set('pi-y', toDisp(w.y)); set('pi-h', w.h);
+      set('pi-lp', toDisp(w.lp)); set('pi-ln', toDisp(w.ln));
+    } else if (path) {
+      var tr = path.waypoints.length > 1 ? traj(path) : null;
+      (path.markers || []).forEach(function (m, k) { var el = $('pm-at-' + k); if (el && tr) el.textContent = tr.posToTime(m.pos).toFixed(2) + ' s'; });
+      var stats = document.querySelector('#pl-inspector .pl-stats');
+      if (stats && tr) stats.innerHTML = '<span>' + toDisp(tr.length) + ' ' + unit() + '</span><span>' + tr.total.toFixed(2) + ' s</span><span>' + path.waypoints.length + ' points</span>';
+    } else if (curAuto()) {
+      var tl = M.autoTimeline(project, curAuto()), meter = document.querySelector('#pl-inspector .pl-meter');
+      if (meter) {
+        meter.classList.toggle('is-over', tl.total > M.AUTO_SECONDS);
+        meter.querySelector('.pl-meter-fill').style.width = Math.min(100, tl.total / M.AUTO_SECONDS * 100) + '%';
+        meter.querySelector('span').textContent = tl.total.toFixed(1) + ' of 15 s';
+      }
+    }
+  }
+
+  var editSnap = false;
+  $('pl-inspector').addEventListener('focusin', function () { editSnap = false; });
+  $('pl-inspector').addEventListener('input', function (e) {
+    var el = e.target, path = curPath(), auto = curAuto();
+    if (!editSnap) { snapshot(); editSnap = true; }
+    var v = parseFloat(el.value);
+    if (path && wp >= 0) {
+      var w = path.waypoints[wp];
+      if (isNaN(v)) return;
+      if (el.id === 'pi-x') w.x = clampF(fromDisp(v));
+      if (el.id === 'pi-y') w.y = clampF(fromDisp(v));
+      if (el.id === 'pi-h') w.h = M.wrap180(v);
+      if (el.id === 'pi-lp') w.lp = Math.max(0.02, fromDisp(v));
+      if (el.id === 'pi-ln') w.ln = Math.max(0.02, fromDisp(v));
+      changed(false); return;
+    }
+    if (path) {
+      if (el.id === 'pi-name') {
+        var old = path.name, nn = el.value.trim();
+        path.name = nn;
+        project.autos.forEach(function (a) { a.steps.forEach(function (s) { if (s.type === 'path' && s.path === old) s.path = nn; }); });
+        changed(false); return;
+      }
+      if (el.id === 'pi-rev') { path.reversed = el.checked; changed(false); return; }
+      if (el.dataset.m !== undefined) {
+        var mk = path.markers[Number(el.dataset.m)];
+        if (el.dataset.f === 'name') mk.name = el.value;
+        else if (!isNaN(v)) mk[el.dataset.f] = el.dataset.f === 'duration' ? Math.max(0, v) : v;
+        changed(false); return;
+      }
+      if (el.dataset.z !== undefined) {
+        if (isNaN(v)) return;
+        var z = path.zones[Number(el.dataset.z)];
+        if (el.dataset.f === 'maxVel') z.maxVel = Math.max(0.05, v); else z[el.dataset.f] = v - 1;
+        changed(false); return;
+      }
+    }
+    if (auto) {
+      if (el.id === 'ai-name') { auto.name = el.value.trim(); changed(false); return; }
+      if (el.dataset.s !== undefined) {
+        var st = auto.steps[Number(el.dataset.s)], f = el.dataset.f;
+        if (f === 'path' || f === 'name') st[f] = el.value;
+        else if (!isNaN(v)) st[f] = f === 'seconds' ? Math.max(0, v) : M.wrap180(v);
+        changed(false);
+      }
+    }
+  });
+
+  var armed = null;
+  function confirmClick(btn, action) {
+    if (armed === btn.id) { armed = null; action(); return; }
+    armed = btn.id;
+    var label = btn.textContent;
+    btn.textContent = 'Tap again to confirm'; btn.classList.add('is-armed');
+    setTimeout(function () { if (armed === btn.id) { armed = null; if (btn.isConnected) { btn.textContent = label; btn.classList.remove('is-armed'); } } }, 3000);
+  }
+
+  $('pl-inspector').addEventListener('click', function (e) {
+    var b = e.target.closest('button'); if (!b) return;
+    var path = curPath(), auto = curAuto();
+    if (b.id === 'pi-back') { wp = -1; changed(true); return; }
+    if (b.id === 'pi-insert') {
+      snapshot();
+      var cp = M.controlPoints(path, wp), mid = (function () {
+        var t = 0.5, u = 0.5;
+        var x = u * u * u * cp[0].x + 3 * u * u * t * cp[1].x + 3 * u * t * t * cp[2].x + t * t * t * cp[3].x;
+        var y = u * u * u * cp[0].y + 3 * u * u * t * cp[1].y + 3 * u * t * t * cp[2].y + t * t * t * cp[3].y;
+        var dx = 3 * u * u * (cp[1].x - cp[0].x) + 6 * u * t * (cp[2].x - cp[1].x) + 3 * t * t * (cp[3].x - cp[2].x);
+        var dy = 3 * u * u * (cp[1].y - cp[0].y) + 6 * u * t * (cp[2].y - cp[1].y) + 3 * t * t * (cp[3].y - cp[2].y);
+        return { x: x, y: y, h: Math.round(M.deg(Math.atan2(dy, dx))) };
+      })();
+      var a = path.waypoints[wp], c = path.waypoints[wp + 1], len = Math.hypot(c.x - a.x, c.y - a.y) / 6;
+      path.waypoints.splice(wp + 1, 0, { x: mid.x, y: mid.y, h: mid.h, lp: Math.max(0.05, len), ln: Math.max(0.05, len) });
+      (path.markers || []).forEach(function (m) { if (m.pos > wp) m.pos += m.pos >= wp + 1 ? 1 : 0; });
+      (path.zones || []).forEach(function (z) { if (z.start >= wp + 1) z.start += 1; if (z.end >= wp + 1) z.end += 1; });
+      wp = wp + 1; changed(true); return;
+    }
+    if (b.id === 'pi-delwp') { confirmClick(b, function () { snapshot(); path.waypoints.splice(wp, 1); wp = -1; changed(true); }); return; }
+    if (b.id === 'pi-addm') {
+      snapshot(); path.markers.push({ name: project.commands.length ? project.commands[0].name : '', pos: 0.5, duration: 0 }); changed(true); return;
+    }
+    if (b.dataset.delm !== undefined) { snapshot(); path.markers.splice(Number(b.dataset.delm), 1); changed(true); return; }
+    if (b.id === 'pi-addz') {
+      snapshot(); var last = Math.max(1, path.waypoints.length - 1);
+      path.zones.push({ start: Math.max(0, last - 0.5), end: last, maxVel: Math.min(0.5, project.constraints.maxVel) }); changed(true); return;
+    }
+    if (b.dataset.delz !== undefined) { snapshot(); path.zones.splice(Number(b.dataset.delz), 1); changed(true); return; }
+    if (b.id === 'pi-dup') {
+      snapshot(); var copy = M.clone(path);
+      copy.name = M.uniqueName(path.name + 'Copy', project.paths.map(function (p) { return p.name; }));
+      project.paths.splice(sel.i + 1, 0, copy); sel = { type: 'path', i: sel.i + 1 }; changed(true); return;
+    }
+    if (b.id === 'pi-mirror') {
+      snapshot(); var mp = M.mirrorPath(path);
+      mp.name = M.uniqueName(path.name + 'Mirrored', project.paths.map(function (p) { return p.name; }));
+      project.paths.splice(sel.i + 1, 0, mp); sel = { type: 'path', i: sel.i + 1 }; changed(true); return;
+    }
+    if (b.id === 'pi-delpath') { confirmClick(b, function () { snapshot(); project.paths.splice(sel.i, 1); wp = -1; changed(true); }); return; }
+    if (auto) {
+      var add = { 'ai-add-path': { type: 'path', path: project.paths.length ? project.paths[0].name : '' },
+        'ai-add-turn': { type: 'turn', heading: 0 },
+        'ai-add-cmd': { type: 'command', name: project.commands.length ? project.commands[0].name : '' },
+        'ai-add-wait': { type: 'wait', seconds: 0.5 } }[b.id];
+      if (add) { snapshot(); auto.steps.push(add); changed(true); return; }
+      if (b.dataset.up !== undefined) { var k = Number(b.dataset.up); snapshot(); var t = auto.steps[k]; auto.steps[k] = auto.steps[k - 1]; auto.steps[k - 1] = t; changed(true); return; }
+      if (b.dataset.down !== undefined) { var k2 = Number(b.dataset.down); snapshot(); var t2 = auto.steps[k2]; auto.steps[k2] = auto.steps[k2 + 1]; auto.steps[k2 + 1] = t2; changed(true); return; }
+      if (b.dataset.dels !== undefined) { snapshot(); auto.steps.splice(Number(b.dataset.dels), 1); changed(true); return; }
+      if (b.id === 'ai-del') { confirmClick(b, function () { snapshot(); project.autos.splice(sel.i, 1); changed(true); }); }
+    }
+  });
+  // structural edits in the inspector that should rebuild it after the value settles
+  $('pl-inspector').addEventListener('change', function (e) {
+    if (e.target.id === 'pi-rev' || e.target.dataset.s !== undefined || e.target.dataset.z !== undefined) changed(true);
+  });
+
+  // ---------------------------------------------------------------- settings + commands
+  function syncSettings() {
+    $('pl-units').value = prefs.units;
+    $('pl-snap').value = String(prefs.snap);
+    $('pl-rw').value = +(project.robot.width / INCH).toFixed(1);
+    $('pl-rl').value = +(project.robot.length / INCH).toFixed(1);
+    $('pl-tw').value = +(project.robot.trackWidth / INCH).toFixed(1);
+    $('pl-maxv').value = project.constraints.maxVel;
+    $('pl-maxa').value = project.constraints.maxAccel;
+    $('pl-maxw').value = project.constraints.maxAngVel;
+    $('pl-pkg').value = prefs.pkg;
+    $('pl-cls').value = prefs.cls;
+  }
+  function onSetting(id, fn) { $(id).addEventListener('change', function (e) { var v = Number(e.target.value); if (v > 0) { snapshot(); fn(v); changed(true); } }); }
+  onSetting('pl-rw', function (v) { project.robot.width = v * INCH; });
+  onSetting('pl-rl', function (v) { project.robot.length = v * INCH; });
+  onSetting('pl-tw', function (v) { project.robot.trackWidth = v * INCH; });
+  onSetting('pl-maxv', function (v) { project.constraints.maxVel = v; });
+  onSetting('pl-maxa', function (v) { project.constraints.maxAccel = v; });
+  onSetting('pl-maxw', function (v) { project.constraints.maxAngVel = v; });
+  $('pl-units').addEventListener('change', function (e) { prefs.units = e.target.value; save(PREFS, prefs); changed(true); });
+  $('pl-snap').addEventListener('change', function (e) { prefs.snap = Number(e.target.value); save(PREFS, prefs); });
+  $('pl-pkg').addEventListener('input', function (e) { prefs.pkg = e.target.value.trim() || 'com.robojacks.robot.autos'; save(PREFS, prefs); renderOutput(); });
+  $('pl-cls').addEventListener('input', function (e) { prefs.cls = e.target.value.trim() || 'PlannerAutos'; save(PREFS, prefs); renderOutput(); });
+
+  function renderCommands() {
+    $('pl-cmds').innerHTML = project.commands.map(function (c, k) {
+      return '<li><code>' + esc(c.name) + '</code><label for="pl-cs' + k + '" class="pl-input-wrap" title="Time limit when run as an auto step (0 = until it finishes)"><input id="pl-cs' + k +
+        '" type="number" min="0" step="0.1" value="' + c.seconds + '" data-k="' + k + '"><em>s</em></label><button type="button" class="pl-x" data-k="' + k + '" aria-label="Remove ' + esc(c.name) + '">✕</button></li>';
+    }).join('') || '<li class="pl-hint">No commands yet.</li>';
+  }
+  $('pl-cmds').addEventListener('change', function (e) {
+    var k = e.target.dataset.k; if (k === undefined) return;
+    snapshot(); project.commands[k].seconds = Math.max(0, Number(e.target.value) || 0); changed(false);
+  });
+  $('pl-cmds').addEventListener('click', function (e) {
+    var b = e.target.closest('button'); if (!b) return;
+    snapshot(); project.commands.splice(Number(b.dataset.k), 1); changed(true);
+  });
+  $('pl-cmd-form').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var name = $('pl-cmd-new').value.trim();
+    if (!name || project.commands.some(function (c) { return c.name === name; })) return;
+    snapshot(); project.commands.push({ name: name, seconds: 0 }); $('pl-cmd-new').value = ''; changed(true);
+  });
+
+  // ---------------------------------------------------------------- output
+  function renderOutput() {
+    var w = M.warnings(project);
+    $('pl-warnings').innerHTML = w.map(function (x) { return '<li class="is-' + x.level + '">' + esc(x.text) + '</li>'; }).join('');
+    $('pl-warnings').hidden = !w.length;
+    var code = prefs.tab === 'json' ? JSON.stringify(project, null, 2) : M.toJava(project, { packageName: prefs.pkg, className: prefs.cls });
+    var out = $('pl-code');
+    out.textContent = code;
+    out.className = prefs.tab === 'json' ? 'lang-json' : 'lang-java';
+    if (window.SiteHighlight && code.length < 60000) window.SiteHighlight(out);
+    $('pl-tab-java').setAttribute('aria-selected', String(prefs.tab === 'java'));
+    $('pl-tab-json').setAttribute('aria-selected', String(prefs.tab === 'json'));
+    $('pl-out-hint').textContent = prefs.tab === 'json'
+      ? 'Your whole project. Copy it into a file (planner-project.json) and paste it back below to keep editing later.'
+      : 'Save as ' + prefs.cls + '.java in your autos folder, then return ' + prefs.cls + '.yourAuto(m_robotDrive) from getAutonomousCommand().';
+  }
+  $('pl-tab-java').addEventListener('click', function () { prefs.tab = 'java'; save(PREFS, prefs); renderOutput(); });
+  $('pl-tab-json').addEventListener('click', function () { prefs.tab = 'json'; save(PREFS, prefs); renderOutput(); });
+  $('pl-copy').addEventListener('click', function () {
+    var btn = $('pl-copy'), text = $('pl-code').textContent;
+    function done(ok) { btn.textContent = ok ? 'Copied' : 'Select and copy'; setTimeout(function () { btn.textContent = 'Copy'; }, 1600); }
+    function fallback() { var r = document.createRange(); r.selectNodeContents($('pl-code')); var s = window.getSelection(); s.removeAllRanges(); s.addRange(r); done(false); }
+    try { navigator.clipboard.writeText(text).then(function () { done(true); }, fallback); } catch (e) { fallback(); }
+  });
+  function importText(text) {
+    var msg = $('pl-import-msg');
+    try {
+      var p = M.normalize(JSON.parse(text));
+      snapshot(); project = p; sel = { type: 'path', i: 0 }; wp = -1;
+      syncSettings(); changed(true);
+      msg.textContent = 'Loaded ' + project.paths.length + ' paths and ' + project.autos.length + ' autos.';
+      msg.className = 'pl-import-msg is-ok';
+    } catch (e) {
+      msg.textContent = e instanceof SyntaxError ? 'That text isn\'t valid JSON. Copy it again from the JSON tab.' : e.message;
+      msg.className = 'pl-import-msg is-error';
+    }
+  }
+  $('pl-import-btn').addEventListener('click', function () { importText($('pl-import').value); });
+  $('pl-file').addEventListener('change', function (e) {
+    var f = e.target.files && e.target.files[0]; if (!f) return;
+    var r = new FileReader(); r.onload = function () { importText(String(r.result)); }; r.readAsText(f);
+    e.target.value = '';
+  });
+
+  // ---------------------------------------------------------------- toolbar
+  $('pl-undo').addEventListener('click', undo);
+  $('pl-sample').addEventListener('click', function (e) {
+    confirmClick(e.currentTarget, function () {
+      snapshot(); project = M.samplePlan(); sel = { type: 'path', i: 0 }; wp = -1; syncSettings(); changed(true);
+      e.currentTarget.textContent = 'Load example'; e.currentTarget.classList.remove('is-armed');
+    });
+  });
+  document.addEventListener('keydown', function (e) {
+    var view = $('planner');
+    if ((e.ctrlKey || e.metaKey) && e.key === 'z' && view && !view.hidden && !/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)) { e.preventDefault(); undo(); }
+  });
+  function stopPlay() { playing = null; $('pl-play').textContent = 'Preview'; $('pl-clock').textContent = ''; draw(); }
+  $('pl-play').addEventListener('click', function () {
+    if (playing) { stopPlay(); return; }
+    var path = curPath(), auto = curAuto();
+    if (path && path.waypoints.length > 1) {
+      var tr = traj(path);
+      playing = { t0: performance.now(), total: tr.total, pose: function (t) { return M.stateAt(tr, t); } };
+    } else if (auto) {
+      var tl = M.autoTimeline(project, auto);
+      if (!tl.segments.length) return;
+      playing = { t0: performance.now(), total: tl.total, pose: function (t) { return M.poseAtAuto(tl, t); } };
+    } else return;
+    $('pl-play').textContent = 'Stop';
+    (function frame() {
+      if (!playing) return;
+      draw();
+      if ((performance.now() - playing.t0) / 1000 > playing.total + 0.6) { stopPlay(); return; }
+      requestAnimationFrame(frame);
+    })();
+  });
+
+  // ---------------------------------------------------------------- boot
+  syncSettings();
+  changed(true);
+  if (window.ResizeObserver) new ResizeObserver(resize).observe(canvas.parentElement);
+  window.addEventListener('resize', resize);
+  var mq = window.matchMedia('(prefers-color-scheme: dark)');
+  if (mq.addEventListener) mq.addEventListener('change', draw);
+  new MutationObserver(draw).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+  window.PlannerRedraw = resize;
+  resize();
+})();
+
+</script>
+
+</body>
+</html>
