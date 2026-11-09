@@ -117,6 +117,10 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .doc li + li { margin-top: 0.35em; }
 .doc code { font: 0.88em/1.4 var(--font-mono); background: var(--panel); padding: 0.1em 0.35em; border-radius: 4px; overflow-wrap: anywhere; }
 .doc kbd { font: 600 0.82em var(--font-mono); padding: 0.1em 0.45em; border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 4px; background: var(--surface); }
+details.source { border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); }
+details.source summary { cursor: pointer; padding: 10px 14px; font-weight: 600; font-size: 15px; }
+details.source[open] summary { border-bottom: 1px solid var(--line); }
+details.source pre.code { margin: 0; border-radius: 0 0 var(--radius) var(--radius); max-height: 560px; }
 .note { padding: 14px 16px; background: var(--surface); border: 1px solid var(--line); border-left: 3px solid var(--signal); border-radius: var(--radius); }
 .note.is-info { border-left-color: var(--accent); }
 .note > :first-child { margin-top: 0; }
@@ -378,7 +382,7 @@ public DriveSubsystem() {
         </a>
         <a class="pillar" href="api/index.html">
           <h3>API reference</h3>
-          <p>Every public class and method in the library, generated from the source: commands, math, kinematics, trajectories and hardware.</p>
+          <p>Every public class and method, generated from the source: the library, plus the template robot and the Clawbot (DriveSubsystem, commands, mechanisms).</p>
           <span class="go">Browse the API →</span>
         </a>
       </div>
@@ -731,6 +735,19 @@ m_armMotor.configure(config);</code></pre>
     public Pose2d getPose() { return m_odometry.getPoseMeters(); }
     // ...
 }</code></pre>
+  <details class="source">
+    <summary>Full source: <code>template/…/subsystems/DriveSubsystem.java</code></summary>
+<pre class="code"><code class="lang-java">{{SRC:template/src/main/java/com/robojacks/robot/subsystems/DriveSubsystem.java}}</code></pre>
+  </details>
+  <details class="source">
+    <summary>Full source: <code>template/…/commands/TankDrive.java</code></summary>
+<pre class="code"><code class="lang-java">{{SRC:template/src/main/java/com/robojacks/robot/commands/TankDrive.java}}</code></pre>
+  </details>
+  <details class="source">
+    <summary>Full source: the Clawbot's two-motor <code>DriveSubsystem.java</code></summary>
+<pre class="code"><code class="lang-java">{{SRC:examples/clawbot/src/main/java/com/robojacks/clawbot/subsystems/DriveSubsystem.java}}</code></pre>
+  </details>
+  <p>Every class also has a page in the <a href="api/index.html">API reference</a>, under <em>Template robot</em> and <em>Clawbot example</em>.</p>
   <p><code>DifferentialDrive</code> matches WPILib: <code>arcadeDrive(xSpeed, zRotation)</code> and <code>tankDrive(left, right)</code>, with a 0.02 deadband and squared inputs (pass <code>false</code> as a third argument to turn squaring off), plus <code>setMaxOutput</code> for a slow mode.</p>
 
   <h2>TankDriveSubsystem</h2>

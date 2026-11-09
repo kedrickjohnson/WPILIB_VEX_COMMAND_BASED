@@ -7,7 +7,9 @@
 docs/index.html is a single page: the guides and the path planner are views switched by the
 #hash, so it works on GitHub Pages (serve the docs/ folder) and anywhere else with no server.
 """
+import html
 import pathlib
+import re
 import subprocess
 import sys
 
@@ -26,12 +28,15 @@ HEAD = """<!doctype html>
 
 def page_fragment():
     """The page without <html>/<head>/<body> wrappers, scripts inlined."""
-    html = (SRC / "site.html").read_text()
+    page = (SRC / "site.html").read_text()
     scripts = "".join(
         "<script>\n" + (SRC / name).read_text() + "\n</script>\n"
         for name in ("planner-model.js", "site.js", "planner-ui.js")
     )
-    return html.replace("{{SCRIPTS}}", scripts)
+    page = page.replace("{{SCRIPTS}}", scripts)
+    # {{SRC:path}} embeds a source file from the repo, escaped, so code shown in the guides
+    # is always the real, current code.
+    return re.sub(r"\{\{SRC:([^}]+)\}\}", lambda m: html.escape((ROOT / m.group(1)).read_text().rstrip()), page)
 
 
 def full_page(fragment):
@@ -41,16 +46,19 @@ def full_page(fragment):
 
 
 def javadoc():
-    sources = [str(p) for p in (ROOT / "vexlib/src/main/java").rglob("*.java")]
     out = DOCS / "api"
+    source_roots = ["vexlib/src/main/java", "template/src/main/java", "examples/clawbot/src/main/java"]
     cmd = [
         "javadoc", "-quiet", "-Xdoclint:none", "-d", str(out),
-        "-sourcepath", str(ROOT / "vexlib/src/main/java"),
+        "-sourcepath", ":".join(str(ROOT / r) for r in source_roots),
+        "-group", "Library", "com.robojacks.lib*",
+        "-group", "Template robot", "com.robojacks.robot*",
+        "-group", "Clawbot example", "com.robojacks.clawbot*",
         "-doctitle", "VEX Command-Based API",
         "-windowtitle", "VEX Command-Based API",
-        "-bottom", '<a href="../index.html">Guides and path planner</a>',
+        "-bottom", '<a href="{@docRoot}/../index.html">Guides and path planner</a>',
         "--add-stylesheet", str(SRC / "javadoc.css"),
-        "-subpackages", "com.robojacks.lib",
+        "-subpackages", "com.robojacks",
     ]
     classpath = sys.argv[sys.argv.index("--classpath") + 1] if "--classpath" in sys.argv else None
     if classpath:

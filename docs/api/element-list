@@ -1,3 +1,7 @@
+com.robojacks.clawbot
+com.robojacks.clawbot.autos
+com.robojacks.clawbot.commands
+com.robojacks.clawbot.subsystems
 com.robojacks.lib.auto
 com.robojacks.lib.command
 com.robojacks.lib.controller
@@ -12,3 +16,7 @@ com.robojacks.lib.robot
 com.robojacks.lib.sim
 com.robojacks.lib.telemetry
 com.robojacks.lib.trajectory
+com.robojacks.robot
+com.robojacks.robot.autos
+com.robojacks.robot.commands
+com.robojacks.robot.subsystems
