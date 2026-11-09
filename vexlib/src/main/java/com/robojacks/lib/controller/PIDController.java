@@ -66,7 +66,7 @@ public class PIDController {
         setTolerance(errorTolerance, Double.POSITIVE_INFINITY);
     }
 
-    /** Integral only accumulates while |error| < iZone. */
+    /** Integral only accumulates while |error| is below iZone. */
     public void setIZone(double iZone) {
         this.iZone = iZone;
     }

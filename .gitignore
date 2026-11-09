@@ -6,3 +6,7 @@ out/
 *.iml
 .vscode/
 .DS_Store
+
+# VS Code extension build outputs
+vscode-extension/*.vsix
+vscode-extension/resources/templates.json

@@ -400,6 +400,7 @@ public DriveSubsystem() {
       <h2>Start</h2>
       <ul>
         <li><a href="#start" data-nav>Getting started</a></li>
+        <li><a href="#vscode" data-nav>VS Code extension</a></li>
         <li><a href="#structure" data-nav>Robot structure &amp; commands</a></li>
       </ul>
     </div>
@@ -449,6 +450,8 @@ public DriveSubsystem() {
     <li>A V5 brain and a USB cable, once you're ready to run on hardware. You don't need one for the simulator.</li>
   </ul>
 
+  <p>Using VS Code? The <a href="#vscode">VEX Command-Based extension</a> creates a project for you with your team's name and package, and adds Build, Simulate and Upload buttons. The rest of this page is the same steps by hand.</p>
+
   <h2>Get the code</h2>
 <pre class="code"><code class="lang-shell">git clone https://github.com/kedrickjohnson/vex-command-template.git
 cd vex-command-template</code></pre>
@@ -484,7 +487,72 @@ cd vex-command-template</code></pre>
     <li>Draw autos in the <a href="#planner">path planner</a> and paste the exported class into <code>autos/</code>.</li>
   </ol>
 
-  <nav class="pager" aria-label="Next page"><a href="#structure"><span>Next</span>Robot structure &amp; commands</a></nav>
+  <nav class="pager" aria-label="Next page"><a href="#vscode"><span>Next</span>VS Code extension</a></nav>
+</section>
+
+<!-- ----------------------------------------------------------------------- vscode -->
+<section class="view doc" id="vscode">
+  <p class="eyebrow">Start</p>
+  <h1>VS Code extension</h1>
+  <p class="lede">Create a robot project, build, simulate and upload it, and add subsystems, commands and autos without leaving the editor.</p>
+
+  <h2>Install it</h2>
+  <ol class="steps">
+    <li>Get <code>vex-command-based-0.1.0.vsix</code> (build it from <code>vscode-extension/</code> in this repository, see below).</li>
+    <li>In VS Code open <strong>Extensions</strong>, click <strong>…</strong> at the top of the panel, choose <strong>Install from VSIX…</strong> and pick the file.</li>
+    <li>Also install the <strong>Extension Pack for Java</strong> for code completion, and JDK 21.</li>
+  </ol>
+
+  <h2>Create a project</h2>
+  <p>Open the Command Palette (<kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>P</kbd>) and run <strong>VEX: Create a New Project</strong>. It asks four things:</p>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Question</th><th>Example</th></tr></thead>
+    <tbody>
+      <tr><td>Start from</td><td><strong>Command-based template</strong> (6-motor tank drive, intake, planner autos) or <strong>V5 Clawbot</strong></td></tr>
+      <tr><td>Where</td><td>The folder the project goes in</td></tr>
+      <tr><td>Name</td><td><code>Team1234Bot</code>: the folder name and the name on the brain's screen</td></tr>
+      <tr><td>Package</td><td><code>com.team1234.robot</code></td></tr>
+    </tbody>
+  </table></div>
+  <p>The result is a standalone Gradle project: your robot code in <code>src/main/java/</code> under your package, the simulator in <code>src/sim/java/</code>, and the library as source in <code>vexlib/</code>. The library keeps its <code>com.robojacks.lib</code> package, so imports and these guides still match.</p>
+
+  <h2>Build, simulate, upload</h2>
+  <p>With a robot project open, the status bar shows four buttons:</p>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Button</th><th>Runs</th></tr></thead>
+    <tbody>
+      <tr><td><em>Robot name · slot</em></td><td>Picks the robot program, when the folder has more than one (this repository has two)</td></tr>
+      <tr><td><strong>Build</strong></td><td><code>gradlew assemble</code></td></tr>
+      <tr><td><strong>Simulate</strong></td><td><code>gradlew simulate</code>: see <a href="#simulator">Simulator</a></td></tr>
+      <tr><td><strong>Upload</strong></td><td><code>gradlew hydrozoaUpload</code>; <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>U</kbd> in a Java file</td></tr>
+    </tbody>
+  </table></div>
+  <p>Upload needs the Hydrozoa CLI. If it isn't installed, the extension says so and can run the install command in a terminal for you. <strong>VEX: Simulate Tuning Tests</strong> runs the simulator with <code>--args=tune</code>. Compile errors appear in the Problems panel.</p>
+  <p>These are also tasks of type <code>vex</code>, so they work from <strong>Terminal → Run Task</strong> and in <code>tasks.json</code>:</p>
+<pre class="code"><code class="lang-json">{ "type": "vex", "task": "upload", "robot": ":examples:clawbot" }</code></pre>
+  <p>Leave out <code>robot</code> in a project the extension created; it has one robot.</p>
+
+  <h2>New subsystems, commands and autos</h2>
+  <p>Right-click a folder under <code>src/main/java</code> and open the <strong>VEX</strong> menu:</p>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Wizard</th><th>Writes</th></tr></thead>
+    <tbody>
+      <tr><td>New Subsystem</td><td>A <code>SubsystemBase</code> with <code>periodic()</code> and an example command factory.</td></tr>
+      <tr><td>New Subsystem with a Motor</td><td>Asks for the port, cartridge and idle mode. Writes a one-motor subsystem configured with <code>VexMotorConfig</code>, with forward and reverse commands, and adds <code>&lt;Name&gt;Constants</code> to your <code>Constants.java</code>.</td></tr>
+      <tr><td>New Command</td><td>A <code>Command</code> class with <code>initialize</code>, <code>execute</code>, <code>end</code> and <code>isFinished</code>. Lists your subsystems so it can call <code>addRequirements</code>.</td></tr>
+      <tr><td>New Auto</td><td>A static factory built from <code>AutoBuilder</code> steps, ready to return from <code>RobotContainer.getAutonomousCommand()</code>.</td></tr>
+    </tbody>
+  </table></div>
+  <p>The package comes from the folder you clicked. Snippets: type <code>vexbind</code>, <code>vexstartend</code>, <code>vexrunonce</code>, <code>vexnamed</code>, <code>vexmotorconfig</code> or <code>vexsequence</code> in a Java file.</p>
+
+  <h2>Building the extension</h2>
+<pre class="code"><code class="lang-shell">cd vscode-extension
+node scripts/bundle.js        # packs vexlib/, template/ and examples/clawbot/
+node test/run.js              # tests
+npx @vscode/vsce package      # makes the .vsix</code></pre>
+  <p>Run the bundle step after changing the library or templates, so new projects get the changes. Projects created earlier keep their own copy of <code>vexlib/</code>.</p>
+
+  <nav class="pager" aria-label="More pages"><a href="#start"><span>Previous</span>Getting started</a><a href="#structure"><span>Next</span>Robot structure &amp; commands</a></nav>
 </section>
 
 <!-- ----------------------------------------------------------------------- structure -->
@@ -621,7 +689,7 @@ m_driverController.l1().and(m_driverController.l2()).onTrue(...);</code></pre>
   <h2>Telemetry</h2>
   <p>There's no SmartDashboard on VEX. <code>Telemetry.put("arm/deg", angle)</code> collects values, and <code>Telemetry.flush()</code> (called in <code>robotPeriodic</code>) prints them on one line over USB serial, four times a second.</p>
 
-  <nav class="pager" aria-label="More pages"><a href="#start"><span>Previous</span>Getting started</a><a href="#hardware"><span>Next</span>Motors, sensors &amp; configs</a></nav>
+  <nav class="pager" aria-label="More pages"><a href="#vscode"><span>Previous</span>VS Code extension</a><a href="#hardware"><span>Next</span>Motors, sensors &amp; configs</a></nav>
 </section>
 
 <!-- ----------------------------------------------------------------------- hardware -->

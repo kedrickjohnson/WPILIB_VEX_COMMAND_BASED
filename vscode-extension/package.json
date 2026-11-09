@@ -1,0 +1,114 @@
+{
+  "name": "vex-command-based",
+  "displayName": "VEX Command-Based (Java)",
+  "description": "Create, build, simulate and upload FRC-style command-based Java robots for VEX V5, with wizards for subsystems, commands and autos.",
+  "version": "0.1.0",
+  "publisher": "kedrickjohnson",
+  "license": "MIT",
+  "icon": "images/icon.png",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/kedrickjohnson/vex-command-template"
+  },
+  "engines": {
+    "vscode": "^1.74.0"
+  },
+  "categories": ["Programming Languages", "Snippets", "Other"],
+  "keywords": ["vex", "v5", "robotics", "frc", "command-based", "hydrozoa", "java"],
+  "main": "./extension.js",
+  "activationEvents": [
+    "workspaceContains:**/vex-project.json",
+    "workspaceContains:**/hydrozoa.bin",
+    "onCommand:vexCommandBased.newProject"
+  ],
+  "contributes": {
+    "commands": [
+      { "command": "vexCommandBased.newProject", "title": "Create a New Project", "category": "VEX", "icon": "$(new-folder)" },
+      { "command": "vexCommandBased.build", "title": "Build", "category": "VEX", "icon": "$(tools)" },
+      { "command": "vexCommandBased.simulate", "title": "Simulate", "category": "VEX", "icon": "$(play)" },
+      { "command": "vexCommandBased.simulateTune", "title": "Simulate Tuning Tests", "category": "VEX" },
+      { "command": "vexCommandBased.upload", "title": "Upload to Brain", "category": "VEX", "icon": "$(cloud-upload)" },
+      { "command": "vexCommandBased.selectRobot", "title": "Select Robot Program", "category": "VEX" },
+      { "command": "vexCommandBased.installCli", "title": "Install the Hydrozoa CLI", "category": "VEX" },
+      { "command": "vexCommandBased.newSubsystem", "title": "New Subsystem", "category": "VEX" },
+      { "command": "vexCommandBased.newMotorSubsystem", "title": "New Subsystem with a Motor", "category": "VEX" },
+      { "command": "vexCommandBased.newCommand", "title": "New Command", "category": "VEX" },
+      { "command": "vexCommandBased.newAuto", "title": "New Auto", "category": "VEX" },
+      { "command": "vexCommandBased.openDocs", "title": "Open Documentation", "category": "VEX" }
+    ],
+    "submenus": [
+      { "id": "vexCommandBased.explorer", "label": "VEX" }
+    ],
+    "menus": {
+      "explorer/context": [
+        { "submenu": "vexCommandBased.explorer", "group": "navigation@9", "when": "explorerResourceIsFolder && resourcePath =~ /[\\\\/]src[\\\\/][^\\\\/]+[\\\\/]java([\\\\/]|$)/" }
+      ],
+      "vexCommandBased.explorer": [
+        { "command": "vexCommandBased.newSubsystem", "group": "1_class@1" },
+        { "command": "vexCommandBased.newMotorSubsystem", "group": "1_class@2" },
+        { "command": "vexCommandBased.newCommand", "group": "1_class@3" },
+        { "command": "vexCommandBased.newAuto", "group": "1_class@4" }
+      ],
+      "editor/title": [
+        { "command": "vexCommandBased.upload", "group": "navigation@1", "when": "vexCommandBased.isProject && resourceExtname == .java" }
+      ],
+      "commandPalette": [
+        { "command": "vexCommandBased.build", "when": "vexCommandBased.isProject" },
+        { "command": "vexCommandBased.simulate", "when": "vexCommandBased.isProject" },
+        { "command": "vexCommandBased.simulateTune", "when": "vexCommandBased.isProject" },
+        { "command": "vexCommandBased.upload", "when": "vexCommandBased.isProject" },
+        { "command": "vexCommandBased.selectRobot", "when": "vexCommandBased.isProject" },
+        { "command": "vexCommandBased.newSubsystem", "when": "vexCommandBased.isProject" },
+        { "command": "vexCommandBased.newMotorSubsystem", "when": "vexCommandBased.isProject" },
+        { "command": "vexCommandBased.newCommand", "when": "vexCommandBased.isProject" },
+        { "command": "vexCommandBased.newAuto", "when": "vexCommandBased.isProject" }
+      ]
+    },
+    "keybindings": [
+      { "command": "vexCommandBased.upload", "key": "ctrl+shift+u", "mac": "cmd+shift+u", "when": "vexCommandBased.isProject && editorTextFocus" },
+      { "command": "vexCommandBased.simulate", "key": "ctrl+shift+f5", "mac": "cmd+shift+f5", "when": "vexCommandBased.isProject" }
+    ],
+    "taskDefinitions": [
+      {
+        "type": "vex",
+        "required": ["task"],
+        "properties": {
+          "task": { "type": "string", "enum": ["build", "simulate", "simulateTune", "upload"], "description": "What to run." },
+          "robot": { "type": "string", "description": "Gradle path of the robot program, such as :template. Empty for a single-robot project." }
+        }
+      }
+    ],
+    "problemMatchers": [
+      {
+        "name": "vex-javac",
+        "owner": "java",
+        "source": "javac",
+        "fileLocation": "absolute",
+        "pattern": {
+          "regexp": "^(?:e: )?(?:file://)?(.+\\.(?:java|kts)):(\\d+):(?:(\\d+):)? (error|warning): (.*)$",
+          "file": 1, "line": 2, "column": 3, "severity": 4, "message": 5
+        }
+      }
+    ],
+    "configuration": {
+      "title": "VEX Command-Based",
+      "properties": {
+        "vexCommandBased.showStatusBar": { "type": "boolean", "default": true, "description": "Show the robot, Build, Simulate and Upload buttons in the status bar." },
+        "vexCommandBased.saveBeforeRun": { "type": "boolean", "default": true, "description": "Save all files before building, simulating or uploading." },
+        "vexCommandBased.defaultPackage": { "type": "string", "default": "", "description": "Package suggested for new projects, such as com.team1234.robot. Empty = based on the project name." },
+        "vexCommandBased.hydrozoaPath": { "type": "string", "default": "", "description": "Full path to the hydrozoa CLI, if it isn't on your PATH or in ~/.cargo/bin." },
+        "vexCommandBased.gradleArgs": { "type": "array", "items": { "type": "string" }, "default": [], "description": "Extra arguments for every Gradle run, such as --offline." },
+        "vexCommandBased.docsUrl": { "type": "string", "default": "https://kedrickjohnson.github.io/vex-command-template/", "description": "Where VEX: Open Documentation goes." }
+      }
+    },
+    "snippets": [
+      { "language": "java", "path": "./resources/snippets.json" }
+    ]
+  },
+  "scripts": {
+    "bundle": "node scripts/bundle.js",
+    "test": "node test/run.js",
+    "vscode:prepublish": "node scripts/bundle.js",
+    "package": "npx @vscode/vsce package"
+  }
+}

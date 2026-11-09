@@ -1,0 +1,43 @@
+{
+  "Instant command": {
+    "prefix": "vexrunonce",
+    "body": ["runOnce(() -> ${1:doSomething()}).withName(\"${2:Name}\")"],
+    "description": "Command that runs once (inside a subsystem)"
+  },
+  "Start-end command": {
+    "prefix": "vexstartend",
+    "body": ["startEnd(() -> ${1:setVoltage(8.0)}, ${2:this::stop}).withName(\"${3:Name}\")"],
+    "description": "Command that runs while held and stops when released (inside a subsystem)"
+  },
+  "Button binding": {
+    "prefix": "vexbind",
+    "body": ["m_driverController.${1|a,b,x,y,up,down,left,right,l1,l2,r1,r2|}().${2|onTrue,whileTrue,onFalse,toggleOnTrue|}(${3:command});"],
+    "description": "Bind a controller button to a command (in RobotContainer)"
+  },
+  "Named command": {
+    "prefix": "vexnamed",
+    "body": ["NamedCommands.register(\"${1:name}\", () -> ${2:command});"],
+    "description": "Register a command the path planner's markers can run"
+  },
+  "Motor config": {
+    "prefix": "vexmotorconfig",
+    "body": [
+      "VexMotorConfig ${1:config} = new VexMotorConfig();",
+      "${1:config}.inverted(${2:false})",
+      "      .idleMode(IdleMode.${3|kCoast,kBrake,kHold|})",
+      "      .smartCurrentLimit(${4:2.5});",
+      "${5:m_motor}.configure(${1:config});"
+    ],
+    "description": "REV-style motor configuration"
+  },
+  "Command sequence": {
+    "prefix": "vexsequence",
+    "body": [
+      "Commands.sequence(",
+      "        ${1:first},",
+      "        ${2:second}",
+      ").withName(\"${3:Name}\")"
+    ],
+    "description": "Run commands one after another"
+  }
+}

@@ -11,6 +11,7 @@ motors, command factories, triggers, `Pose2d` and odometry.
 | `template/` | Starting point for your own robot: 6-motor tank drive + example intake. |
 | `examples/clawbot/` | A complete V5 Clawbot: drive, arm, claw, autos. |
 | `docs/` | The website: guides, the path planner, and the API reference. |
+| `vscode-extension/` | VS Code extension: new projects, Build / Simulate / Upload buttons, class wizards. |
 
 **Website:** guides, a PathPlanner-style path planner, and the full API reference live in `docs/`.
 To publish it, go to the repository's **Settings → Pages**, choose **Deploy from a branch**, and pick
@@ -171,6 +172,19 @@ Set `kTuningMode = true` in `Constants.java`, upload, enable in driver control a
 
 Run **A first**: `kS` is the voltage needed to beat friction, and with too little, turns stall a
 few degrees short.
+
+## VS Code extension
+
+`vscode-extension/` is a VS Code extension for teams using this library:
+
+- **VEX: Create a New Project**: a standalone project from the template or the Clawbot, with your
+  name and Java package
+- **Build / Simulate / Upload** buttons in the status bar (also `vex` tasks for `tasks.json`)
+- Right-click a folder → **VEX → New Subsystem / Subsystem with a Motor / Command / Auto**
+
+Build it with `node scripts/bundle.js` then `npx @vscode/vsce package` (or
+`python3 scripts/package-vsix.py` without npm), and install the `.vsix` with
+**Extensions → … → Install from VSIX**. See `vscode-extension/README.md`.
 
 ## Running
 
