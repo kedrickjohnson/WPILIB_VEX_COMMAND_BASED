@@ -6,7 +6,7 @@ import com.robojacks.lib.drive.DifferentialDrive;
 import com.robojacks.lib.drive.DriveDistance;
 import com.robojacks.lib.drive.DriveGains;
 import com.robojacks.lib.drive.DriveToPoint;
-import com.robojacks.lib.drive.TankDrive;
+import com.robojacks.lib.drive.TankDriveSubsystem;
 import com.robojacks.lib.drive.TurnToHeading;
 import com.robojacks.lib.hal.MotorIO.NeutralMode;
 import com.robojacks.lib.hardware.VexInertial;
@@ -16,22 +16,29 @@ import com.robojacks.lib.math.Pose2d;
 import com.robojacks.lib.math.Rotation2d;
 import com.robojacks.lib.math.Translation2d;
 import com.robojacks.lib.telemetry.Telemetry;
-import java.util.function.DoubleSupplier;
 
 import static com.robojacks.clawbot.Constants.DriveConstants.*;
 
-/** The Clawbot's two-motor tank drive with odometry. */
-public class Drivetrain extends SubsystemBase implements TankDrive {
+/**
+ * Contains all methods for control of the Clawbot's two-motor tank drive.
+ *
+ * @see com.robojacks.clawbot.commands.ArcadeDrive
+ * @see com.robojacks.clawbot.commands.TankDrive
+ */
+public class DriveSubsystem extends SubsystemBase implements TankDriveSubsystem {
     private final VexMotor m_leftMotor = new VexMotor(kLeftMotorPort, kLeftMotorReversed, kCartridge);
     private final VexMotor m_rightMotor = new VexMotor(kRightMotorPort, kRightMotorReversed, kCartridge);
 
+    // The robot's drive
     private final DifferentialDrive m_drive = new DifferentialDrive(m_leftMotor, m_rightMotor);
 
-    // Optional: the kit Clawbot doesn't come with an Inertial Sensor.
+    // Optional: the kit Clawbot doesn't come with an Inertial Sensor
     private final VexInertial m_gyro = kHasImu ? new VexInertial(kImuPort) : null;
 
+    // Odometry for tracking the robot's position
     private final DifferentialDriveOdometry m_odometry;
 
+    // Gains used by the library's auto commands (TurnToHeading, DriveToPoint, ...)
     private DriveGains m_gains = new DriveGains(
             kTurnP, kTurnD, kDriveP, kDriveD, kS, kMaxAutoVolts,
             kTurnToleranceDegrees, kDriveToleranceMeters);
@@ -39,17 +46,17 @@ public class Drivetrain extends SubsystemBase implements TankDrive {
     private boolean m_odometryStarted = false;
     private Pose2d m_startPose = Pose2d.kZero;
 
-    public Drivetrain() {
-        super("Drivetrain");
-        m_leftMotor.setNeutralMode(NeutralMode.BRAKE);
-        m_rightMotor.setNeutralMode(NeutralMode.BRAKE);
+    /** Creates a new DriveSubsystem. */
+    public DriveSubsystem() {
+        super("DriveSubsystem");
+        setBrakeMode(true);
         resetEncoders();
         m_odometry = new DifferentialDriveOdometry(
                 getGyroRotation(), getLeftEncoderDistance(), getRightEncoderDistance());
     }
 
     /**
-     * Heading for odometry, counter-clockwise positive. From the Inertial Sensor if there is
+     * Heading for odometry, counter-clockwise positive: from the Inertial Sensor if there is
      * one, otherwise from how much farther one wheel has gone than the other.
      */
     private Rotation2d getGyroRotation() {
@@ -82,22 +89,41 @@ public class Drivetrain extends SubsystemBase implements TankDrive {
     }
 
     // =====================================================================
-    // Drive methods
+    // Driving
     // =====================================================================
 
-    /** @param fwd forward -1..1, @param rot counter-clockwise rotation -1..1 */
-    public void arcadeDrive(double fwd, double rot) {
-        m_drive.arcadeDrive(fwd, rot);
+    /** Tank controls: each side -1..1. */
+    public void tankDrive(double leftSpeed, double rightSpeed) {
+        m_drive.tankDrive(leftSpeed, rightSpeed);
     }
 
+    /** Arcade controls: forward -1..1, rotation -1..1 counter-clockwise (left) positive. */
+    public void arcadeDrive(double forward, double rotation) {
+        m_drive.arcadeDrive(forward, rotation);
+    }
+
+    /** Sets each side's voltage directly. Used by auto commands. */
     @Override
     public void tankDriveVolts(double leftVolts, double rightVolts) {
         m_leftMotor.setVoltage(leftVolts);
         m_rightMotor.setVoltage(rightVolts);
     }
 
+    /** Scales all driver output, e.g. 0.5 for a slow/precision mode. */
     public void setMaxOutput(double maxOutput) {
         m_drive.setMaxOutput(maxOutput);
+    }
+
+    public void setBrakeMode(boolean brake) {
+        NeutralMode mode = brake ? NeutralMode.BRAKE : NeutralMode.COAST;
+        m_leftMotor.setNeutralMode(mode);
+        m_rightMotor.setNeutralMode(mode);
+    }
+
+    /** Stops the drivetrain. */
+    @Override
+    public void stop() {
+        m_drive.stopMotor();
     }
 
     // =====================================================================
@@ -160,16 +186,8 @@ public class Drivetrain extends SubsystemBase implements TankDrive {
     }
 
     // =====================================================================
-    // Commands
+    // Auto commands
     // =====================================================================
-
-    public Command arcadeDriveCommand(DoubleSupplier fwd, DoubleSupplier rot) {
-        return run(() -> arcadeDrive(fwd.getAsDouble(), rot.getAsDouble())).withName("ArcadeDrive");
-    }
-
-    public Command slowModeCommand() {
-        return startEnd(() -> setMaxOutput(0.5), () -> setMaxOutput(1.0)).withName("SlowMode");
-    }
 
     public Command resetOdometryCommand(Pose2d pose) {
         return runOnce(() -> resetOdometry(pose)).withName("ResetOdometry");

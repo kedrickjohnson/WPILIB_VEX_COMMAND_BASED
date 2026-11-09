@@ -6,11 +6,11 @@ import com.robojacks.lib.math.Rotation2d;
 
 /** Turns in place to a FIELD heading (CCW-positive, 0 = +X). Gains come from drive.getGains(). */
 public class TurnToHeading extends Command {
-    private final TankDrive drive;
+    private final TankDriveSubsystem drive;
     private final Rotation2d target;
     private final PIDController pid;
 
-    public TurnToHeading(TankDrive drive, Rotation2d target) {
+    public TurnToHeading(TankDriveSubsystem drive, Rotation2d target) {
         this.drive = drive;
         this.target = target;
         DriveGains g = drive.getGains();

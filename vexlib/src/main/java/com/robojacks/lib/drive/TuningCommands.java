@@ -15,12 +15,12 @@ public final class TuningCommands {
     private TuningCommands() {}
 
     /** Ramp test for kS / kV. */
-    public static Command characterize(TankDrive drive) {
+    public static Command characterize(TankDriveSubsystem drive) {
         return new FeedforwardCharacterization(drive);
     }
 
     /** Relay auto-tune for the turn PID. */
-    public static Command autoTuneTurn(TankDrive drive) {
+    public static Command autoTuneTurn(TankDriveSubsystem drive) {
         return new TurnAutoTune(drive);
     }
 
@@ -29,7 +29,7 @@ public final class TuningCommands {
      * Measure the real distance with a tape measure and correct the wheel diameter:
      * kWheelDiameterInches *= actualDistance / reportedDistance.
      */
-    public static Command driveDistanceTest(TankDrive drive, double meters) {
+    public static Command driveDistanceTest(TankDriveSubsystem drive, double meters) {
         DriveDistance d = new DriveDistance(drive, meters);
         return d.andThen(Commands.runOnce(() -> {
             double reportedIn = d.traveledMeters() / 0.0254;
@@ -43,7 +43,7 @@ public final class TuningCommands {
      * Turns 90 degrees four times and reports the error at each stop.
      * Good for checking the turn PID after auto-tuning.
      */
-    public static Command turnTest(TankDrive drive) {
+    public static Command turnTest(TankDriveSubsystem drive) {
         Command[] steps = new Command[8];
         for (int i = 0; i < 4; i++) {
             double target = 90.0 * (i + 1);

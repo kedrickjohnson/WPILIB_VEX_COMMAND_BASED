@@ -53,7 +53,7 @@ public final class SimMain {
             if (t - lastPrint >= 1.0) {
                 lastPrint = t;
                 RobotContainer c = robot.getRobotContainer();
-                Pose2d p = c.getDrivetrain().getPose();
+                Pose2d p = c.getDriveSubsystem().getPose();
                 String mode = !hw.competition.enabled ? "disabled" : hw.competition.autonomous ? "auto" : "teleop";
                 System.out.println("SIM t=" + Math.round(t) + "s " + mode + " " + p
                         + " arm=" + Math.round(c.getArm().getAngleDegrees()) + "deg"

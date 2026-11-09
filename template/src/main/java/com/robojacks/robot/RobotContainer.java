@@ -1,63 +1,80 @@
 package com.robojacks.robot;
 
 import com.robojacks.lib.command.Command;
+import com.robojacks.lib.command.Commands;
 import com.robojacks.lib.drive.TuningCommands;
 import com.robojacks.lib.hal.HAL;
 import com.robojacks.lib.input.VexController;
 import com.robojacks.lib.math.MathUtil;
 import com.robojacks.robot.autos.Autos;
-import com.robojacks.robot.subsystems.Drivetrain;
+import com.robojacks.robot.commands.TankDrive;
+import com.robojacks.robot.subsystems.DriveSubsystem;
 import com.robojacks.robot.subsystems.Intake;
 
 import static com.robojacks.robot.Constants.OIConstants.kDriveDeadband;
 
-/** Creates subsystems, binds controls, picks the auto. Same role as in FRC command-based. */
+/**
+ * Where the robot is set up: subsystems, controller bindings and the auto.
+ *
+ * <pre>
+ * Left stick  up/down   left side
+ * Right stick up/down   right side
+ * L2 (hold)             half speed
+ * R1 / R2 (hold)        intake / outtake
+ * D-pad                 turn to field heading (up 0, left 90, down 180, right -90)
+ * </pre>
+ */
 public class RobotContainer {
-    private final Drivetrain drivetrain = new Drivetrain();
-    private final Intake intake = new Intake();
+    // The robot's subsystems
+    private final DriveSubsystem m_robotDrive = new DriveSubsystem();
+    private final Intake m_intake = new Intake();
 
-    private final VexController driver = new VexController(HAL.get().primaryController());
+    // The driver's controller
+    private final VexController m_driverController = new VexController(HAL.get().primaryController());
 
     public RobotContainer() {
-        // Arcade drive: left stick forward/back, right stick turn.
-        // VEX stick up is already positive. Right stick right is +, but CCW (left) is +, so negate.
-        drivetrain.setDefaultCommand(drivetrain.arcadeDriveCommand(
-                () -> MathUtil.applyDeadband(driver.getLeftY(), kDriveDeadband),
-                () -> -MathUtil.applyDeadband(driver.getRightX(), kDriveDeadband)));
+        // Default command: tank drive. VEX sticks are already positive when pushed up.
+        m_robotDrive.setDefaultCommand(new TankDrive(
+                m_robotDrive,
+                () -> MathUtil.applyDeadband(m_driverController.getLeftY(), kDriveDeadband),
+                () -> MathUtil.applyDeadband(m_driverController.getRightY(), kDriveDeadband)));
 
         if (Constants.kTuningMode) {
             configureTuningBindings();
         } else {
-            configureBindings();
+            configureButtonBindings();
         }
     }
 
-    private void configureBindings() {
-        driver.r1().whileTrue(intake.intakeCommand());
-        driver.r2().whileTrue(intake.outtakeCommand());
-        driver.l2().whileTrue(drivetrain.slowModeCommand());
+    private void configureButtonBindings() {
+        // Drive at half speed while L2 is held
+        m_driverController.l2().whileTrue(Commands.startEnd(
+                () -> m_robotDrive.setMaxOutput(0.5), () -> m_robotDrive.setMaxOutput(1.0)));
 
-        // Snap to field headings (handy for testing odometry + turn PID).
-        driver.up().onTrue(drivetrain.turnToAngleCommand(0));
-        driver.left().onTrue(drivetrain.turnToAngleCommand(90));
-        driver.down().onTrue(drivetrain.turnToAngleCommand(180));
-        driver.right().onTrue(drivetrain.turnToAngleCommand(-90));
+        m_driverController.r1().whileTrue(m_intake.intakeCommand());
+        m_driverController.r2().whileTrue(m_intake.outtakeCommand());
+
+        // Snap to field headings (handy for testing odometry and the turn PID)
+        m_driverController.up().onTrue(m_robotDrive.turnToAngleCommand(0));
+        m_driverController.left().onTrue(m_robotDrive.turnToAngleCommand(90));
+        m_driverController.down().onTrue(m_robotDrive.turnToAngleCommand(180));
+        m_driverController.right().onTrue(m_robotDrive.turnToAngleCommand(-90));
     }
 
     /** Press a button to start a test. L1 aborts it and hands control back to the sticks. */
     private void configureTuningBindings() {
-        driver.a().onTrue(TuningCommands.characterize(drivetrain));
-        driver.b().onTrue(TuningCommands.autoTuneTurn(drivetrain));
-        driver.x().onTrue(TuningCommands.driveDistanceTest(drivetrain, 1.0));
-        driver.y().onTrue(TuningCommands.turnTest(drivetrain));
-        driver.l1().onTrue(drivetrain.stopCommand());
+        m_driverController.a().onTrue(TuningCommands.characterize(m_robotDrive));
+        m_driverController.b().onTrue(TuningCommands.autoTuneTurn(m_robotDrive));
+        m_driverController.x().onTrue(TuningCommands.driveDistanceTest(m_robotDrive, 1.0));
+        m_driverController.y().onTrue(TuningCommands.turnTest(m_robotDrive));
+        m_driverController.l1().onTrue(m_robotDrive.stopCommand());
     }
 
     public Command getAutonomousCommand() {
-        return Autos.exampleAuto(drivetrain, intake);
+        return Autos.exampleAuto(m_robotDrive, m_intake);
     }
 
-    public Drivetrain getDrivetrain() {
-        return drivetrain;
+    public DriveSubsystem getDriveSubsystem() {
+        return m_robotDrive;
     }
 }

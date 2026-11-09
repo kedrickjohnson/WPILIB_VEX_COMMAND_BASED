@@ -18,13 +18,24 @@ public final class Constants {
     public static final boolean kTuningMode = false;
 
     public static final class DriveConstants {
-        // ---- Hardware ----
-        public static final int[] kLeftMotorPorts = {1, 2, 3};
-        public static final boolean[] kLeftMotorsReversed = {true, true, true};
-        public static final int[] kRightMotorPorts = {4, 5, 6};
-        public static final boolean[] kRightMotorsReversed = {false, false, false};
-        public static final int kImuPort = 10;
+        // ---- Motor ports (smart ports 1-21) ----
+        public static final int kLeftFrontMotorPort = 1;
+        public static final int kLeftMiddleMotorPort = 2;
+        public static final int kLeftRearMotorPort = 3;
+        public static final int kRightFrontMotorPort = 4;
+        public static final int kRightMiddleMotorPort = 5;
+        public static final int kRightRearMotorPort = 6;
+
+        // Flip any of these if that motor fights the others.
+        public static final boolean kLeftFrontMotorReversed = true;
+        public static final boolean kLeftMiddleMotorReversed = true;
+        public static final boolean kLeftRearMotorReversed = true;
+        public static final boolean kRightFrontMotorReversed = false;
+        public static final boolean kRightMiddleMotorReversed = false;
+        public static final boolean kRightRearMotorReversed = false;
+
         public static final Cartridge kCartridge = Cartridge.BLUE;
+        public static final int kImuPort = 10;
 
         // ---- Geometry ----
         /** Wheel rotations per motor rotation: motor gear teeth / wheel gear teeth (1.0 = direct). */

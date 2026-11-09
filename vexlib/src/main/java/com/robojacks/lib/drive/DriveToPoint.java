@@ -12,14 +12,14 @@ import com.robojacks.lib.math.Translation2d;
  * Set {@code reversed} to back into the point.
  */
 public class DriveToPoint extends Command {
-    private final TankDrive drive;
+    private final TankDriveSubsystem drive;
     private final Translation2d target;
     private final boolean reversed;
     private final PIDController distancePid;
     private final PIDController headingPid;
     private double distance = Double.POSITIVE_INFINITY;
 
-    public DriveToPoint(TankDrive drive, Translation2d target, boolean reversed) {
+    public DriveToPoint(TankDriveSubsystem drive, Translation2d target, boolean reversed) {
         this.drive = drive;
         this.target = target;
         this.reversed = reversed;

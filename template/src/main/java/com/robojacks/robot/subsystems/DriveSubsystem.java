@@ -6,53 +6,64 @@ import com.robojacks.lib.drive.DifferentialDrive;
 import com.robojacks.lib.drive.DriveDistance;
 import com.robojacks.lib.drive.DriveGains;
 import com.robojacks.lib.drive.DriveToPoint;
-import com.robojacks.lib.drive.TankDrive;
+import com.robojacks.lib.drive.TankDriveSubsystem;
 import com.robojacks.lib.drive.TurnToHeading;
 import com.robojacks.lib.hal.MotorIO.NeutralMode;
 import com.robojacks.lib.hardware.VexInertial;
+import com.robojacks.lib.hardware.VexMotor;
 import com.robojacks.lib.hardware.VexMotorGroup;
 import com.robojacks.lib.kinematics.DifferentialDriveOdometry;
 import com.robojacks.lib.math.Pose2d;
 import com.robojacks.lib.math.Rotation2d;
 import com.robojacks.lib.math.Translation2d;
 import com.robojacks.lib.telemetry.Telemetry;
-import java.util.function.DoubleSupplier;
 
 import static com.robojacks.robot.Constants.DriveConstants.*;
 
-/** Tank drive with IMU + encoder odometry, laid out like WPILib's DriveSubsystem example. */
-public class Drivetrain extends SubsystemBase implements TankDrive {
-    // The motors on the left side of the drive.
-    private final VexMotorGroup m_leftMotors =
-            new VexMotorGroup(kLeftMotorPorts, kLeftMotorsReversed, kCartridge);
+/**
+ * Contains all methods for control of the drivetrain: a 6-motor tank drive with an
+ * Inertial Sensor and odometry.
+ *
+ * @see com.robojacks.robot.commands.TankDrive
+ * @see com.robojacks.robot.commands.ArcadeDrive
+ */
+public class DriveSubsystem extends SubsystemBase implements TankDriveSubsystem {
+    // Left side motors
+    private final VexMotor m_leftFront = new VexMotor(kLeftFrontMotorPort, kLeftFrontMotorReversed, kCartridge);
+    private final VexMotor m_leftMiddle = new VexMotor(kLeftMiddleMotorPort, kLeftMiddleMotorReversed, kCartridge);
+    private final VexMotor m_leftRear = new VexMotor(kLeftRearMotorPort, kLeftRearMotorReversed, kCartridge);
 
-    // The motors on the right side of the drive.
-    private final VexMotorGroup m_rightMotors =
-            new VexMotorGroup(kRightMotorPorts, kRightMotorsReversed, kCartridge);
+    // Right side motors
+    private final VexMotor m_rightFront = new VexMotor(kRightFrontMotorPort, kRightFrontMotorReversed, kCartridge);
+    private final VexMotor m_rightMiddle = new VexMotor(kRightMiddleMotorPort, kRightMiddleMotorReversed, kCartridge);
+    private final VexMotor m_rightRear = new VexMotor(kRightRearMotorPort, kRightRearMotorReversed, kCartridge);
 
-    // The robot's drive.
+    // Motor groups for each side
+    private final VexMotorGroup m_leftMotors = new VexMotorGroup(m_leftFront, m_leftMiddle, m_leftRear);
+    private final VexMotorGroup m_rightMotors = new VexMotorGroup(m_rightFront, m_rightMiddle, m_rightRear);
+
+    // The robot's drive
     private final DifferentialDrive m_drive = new DifferentialDrive(m_leftMotors, m_rightMotors);
 
-    // The Inertial Sensor (gyro).
+    // The Inertial Sensor (gyro)
     private final VexInertial m_gyro = new VexInertial(kImuPort);
 
-    // Odometry class for tracking robot pose.
+    // Odometry for tracking the robot's position on the field
     private final DifferentialDriveOdometry m_odometry;
 
-    // Gains used by the library drive commands (TurnToHeading, DriveToPoint, ...).
+    // Gains used by the library's auto commands (TurnToHeading, DriveToPoint, ...)
     private DriveGains m_gains = new DriveGains(
             kTurnP, kTurnD, kDriveP, kDriveD, kS, kMaxAutoVolts,
             kTurnToleranceDegrees, kDriveToleranceMeters);
 
-    // Odometry waits for the IMU to finish calibrating.
+    // Odometry waits for the Inertial Sensor to finish calibrating
     private boolean m_odometryStarted = false;
     private Pose2d m_startPose = Pose2d.kZero;
 
-    /** Creates a new Drivetrain. */
-    public Drivetrain() {
-        super("Drivetrain");
-        m_leftMotors.setNeutralMode(NeutralMode.BRAKE);
-        m_rightMotors.setNeutralMode(NeutralMode.BRAKE);
+    /** Creates a new DriveSubsystem. */
+    public DriveSubsystem() {
+        super("DriveSubsystem");
+        setBrakeMode(true);
         resetEncoders();
         m_odometry = new DifferentialDriveOdometry(
                 m_gyro.getRotation2d(), getLeftEncoderDistance(), getRightEncoderDistance());
@@ -67,7 +78,6 @@ public class Drivetrain extends SubsystemBase implements TankDrive {
             m_odometryStarted = true;
             resetOdometry(m_startPose);
         }
-        // Update the odometry in the periodic block
         m_odometry.update(m_gyro.getRotation2d(), getLeftEncoderDistance(), getRightEncoderDistance());
 
         Pose2d pose = getPose();
@@ -77,47 +87,69 @@ public class Drivetrain extends SubsystemBase implements TankDrive {
     }
 
     // =====================================================================
-    // Drive methods
+    // Driving
     // =====================================================================
 
     /**
-     * Drives the robot using arcade controls.
+     * Drives the robot with tank controls.
      *
-     * @param fwd the commanded forward movement, -1..1
-     * @param rot the commanded rotation, -1..1, counter-clockwise positive
+     * @param leftSpeed  left side, -1..1
+     * @param rightSpeed right side, -1..1
      */
-    public void arcadeDrive(double fwd, double rot) {
-        m_drive.arcadeDrive(fwd, rot);
+    public void tankDrive(double leftSpeed, double rightSpeed) {
+        m_drive.tankDrive(leftSpeed, rightSpeed);
     }
 
-    /** Controls the left and right sides of the drive directly with voltages. */
+    /**
+     * Drives the robot with arcade controls.
+     *
+     * @param forward  forward speed, -1..1
+     * @param rotation rotation, -1..1, counter-clockwise (left) positive
+     */
+    public void arcadeDrive(double forward, double rotation) {
+        m_drive.arcadeDrive(forward, rotation);
+    }
+
+    /** Sets each side's voltage directly. Used by auto commands. */
     @Override
     public void tankDriveVolts(double leftVolts, double rightVolts) {
         m_leftMotors.setVoltage(leftVolts);
         m_rightMotors.setVoltage(rightVolts);
     }
 
-    /** Sets the max output of the drive. Useful for scaling the drive to drive more slowly. */
+    /** Scales all driver output, e.g. 0.5 for a slow/precision mode. */
     public void setMaxOutput(double maxOutput) {
         m_drive.setMaxOutput(maxOutput);
+    }
+
+    /** Brake (holds its spot when pushed) or coast (rolls freely, good for defense). */
+    public void setBrakeMode(boolean brake) {
+        NeutralMode mode = brake ? NeutralMode.BRAKE : NeutralMode.COAST;
+        m_leftMotors.setNeutralMode(mode);
+        m_rightMotors.setNeutralMode(mode);
+    }
+
+    /** Stops the drivetrain. */
+    @Override
+    public void stop() {
+        m_drive.stopMotor();
     }
 
     // =====================================================================
     // Sensors and odometry
     // =====================================================================
 
-    /** Resets the drive encoders to currently read a position of 0. */
     public void resetEncoders() {
         m_leftMotors.resetPosition();
         m_rightMotors.resetPosition();
     }
 
-    /** Left wheel distance traveled, meters. */
+    /** Left side distance traveled, meters. */
     public double getLeftEncoderDistance() {
         return m_leftMotors.getPosition() * kMetersPerMotorRotation;
     }
 
-    /** Right wheel distance traveled, meters. */
+    /** Right side distance traveled, meters. */
     public double getRightEncoderDistance() {
         return m_rightMotors.getPosition() * kMetersPerMotorRotation;
     }
@@ -137,28 +169,27 @@ public class Drivetrain extends SubsystemBase implements TankDrive {
         return m_rightMotors.getVelocity() / 60.0 * kMetersPerMotorRotation;
     }
 
-    /** Returns the currently-estimated pose of the robot (field-centered meters). */
+    /** The robot's position on the field (meters, field-centered). */
     @Override
     public Pose2d getPose() {
         return m_odometry.getPoseMeters();
     }
 
-    /** Resets the odometry to the specified pose. */
+    /** Tells odometry where the robot is. */
     public void resetOdometry(Pose2d pose) {
         if (!m_odometryStarted) {
-            m_startPose = pose; // applied once the IMU finishes calibrating
+            m_startPose = pose; // applied once the Inertial Sensor finishes calibrating
             return;
         }
         m_odometry.resetPosition(m_gyro.getRotation2d(), getLeftEncoderDistance(), getRightEncoderDistance(), pose);
     }
 
-    /** Zeroes the heading of the robot. */
+    /** Makes the direction the robot is facing now read as 0 degrees. */
     public void zeroHeading() {
-        m_gyro.reset();
         resetOdometry(new Pose2d(getPose().getTranslation(), Rotation2d.kZero));
     }
 
-    /** The robot's field heading, -180..180 degrees, counter-clockwise positive. */
+    /** Field heading in degrees, -180..180, counter-clockwise positive. */
     public double getHeading() {
         return getPose().getRotation().getDegrees();
     }
@@ -168,26 +199,16 @@ public class Drivetrain extends SubsystemBase implements TankDrive {
         return m_gains;
     }
 
-    /** Swap gains at runtime, e.g. to try new numbers from the tuning tests. */
+    /** Swap gains at runtime, e.g. to try numbers from the tuning tests. */
     public void setGains(DriveGains gains) {
         m_gains = gains;
     }
 
     // =====================================================================
-    // Commands
+    // Auto commands
     // =====================================================================
 
-    /** Arcade drive from the sticks. Used as the default command. */
-    public Command arcadeDriveCommand(DoubleSupplier fwd, DoubleSupplier rot) {
-        return run(() -> arcadeDrive(fwd.getAsDouble(), rot.getAsDouble())).withName("ArcadeDrive");
-    }
-
-    /** Slows the drive while the command runs (bind with whileTrue). */
-    public Command slowModeCommand() {
-        return startEnd(() -> setMaxOutput(0.5), () -> setMaxOutput(1.0)).withName("SlowMode");
-    }
-
-    /** Tells odometry where the robot is, e.g. its starting spot at the beginning of auto. */
+    /** Tells odometry where the robot starts, e.g. first step of an auto. */
     public Command resetOdometryCommand(Pose2d pose) {
         return runOnce(() -> resetOdometry(pose)).withName("ResetOdometry");
     }

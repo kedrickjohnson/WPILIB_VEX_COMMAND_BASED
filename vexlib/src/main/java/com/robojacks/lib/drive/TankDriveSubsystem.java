@@ -8,7 +8,7 @@ import com.robojacks.lib.math.Pose2d;
  * What the library's drive commands (TurnToHeading, DriveToPoint, DriveDistance and the
  * tuning tests) need from your drivetrain. Implement it on your Drivetrain subsystem.
  */
-public interface TankDrive extends Subsystem {
+public interface TankDriveSubsystem extends Subsystem {
     /** Raw side voltages, -12..12. */
     void tankDriveVolts(double leftVolts, double rightVolts);
 

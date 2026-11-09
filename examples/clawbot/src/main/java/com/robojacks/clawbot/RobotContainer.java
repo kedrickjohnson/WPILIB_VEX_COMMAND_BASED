@@ -1,9 +1,10 @@
 package com.robojacks.clawbot;
 
 import com.robojacks.clawbot.autos.Autos;
+import com.robojacks.clawbot.commands.ArcadeDrive;
 import com.robojacks.clawbot.subsystems.Arm;
 import com.robojacks.clawbot.subsystems.Claw;
-import com.robojacks.clawbot.subsystems.Drivetrain;
+import com.robojacks.clawbot.subsystems.DriveSubsystem;
 import com.robojacks.lib.command.Command;
 import com.robojacks.lib.command.Commands;
 import com.robojacks.lib.drive.TuningCommands;
@@ -28,15 +29,18 @@ import static com.robojacks.clawbot.Constants.OIConstants.kDriveDeadband;
  * </pre>
  */
 public class RobotContainer {
-    private final Drivetrain m_drivetrain = new Drivetrain();
+    // The robot's subsystems
+    private final DriveSubsystem m_robotDrive = new DriveSubsystem();
     private final Arm m_arm = new Arm();
     private final Claw m_claw = new Claw();
 
+    // The driver's controller
     private final VexController m_driverController = new VexController(HAL.get().primaryController());
 
     public RobotContainer() {
         // VEX stick up is already positive. Right stick right is +, but CCW (left) turn is +, so negate.
-        m_drivetrain.setDefaultCommand(m_drivetrain.arcadeDriveCommand(
+        m_robotDrive.setDefaultCommand(new ArcadeDrive(
+                m_robotDrive,
                 () -> MathUtil.applyDeadband(m_driverController.getLeftY(), kDriveDeadband),
                 () -> -MathUtil.applyDeadband(m_driverController.getRightX(), kDriveDeadband)));
 
@@ -61,15 +65,17 @@ public class RobotContainer {
         m_driverController.a().onTrue(grabCommand());
         m_driverController.b().onTrue(placeCommand());
 
-        m_driverController.y().whileTrue(m_drivetrain.slowModeCommand());
+        // Drive at half speed while Y is held
+        m_driverController.y().whileTrue(Commands.startEnd(
+                () -> m_robotDrive.setMaxOutput(0.5), () -> m_robotDrive.setMaxOutput(1.0)));
     }
 
     private void configureTuningBindings() {
-        m_driverController.a().onTrue(TuningCommands.characterize(m_drivetrain));
-        m_driverController.b().onTrue(TuningCommands.autoTuneTurn(m_drivetrain));
-        m_driverController.x().onTrue(TuningCommands.driveDistanceTest(m_drivetrain, 1.0));
-        m_driverController.y().onTrue(TuningCommands.turnTest(m_drivetrain));
-        m_driverController.l1().onTrue(m_drivetrain.stopCommand());
+        m_driverController.a().onTrue(TuningCommands.characterize(m_robotDrive));
+        m_driverController.b().onTrue(TuningCommands.autoTuneTurn(m_robotDrive));
+        m_driverController.x().onTrue(TuningCommands.driveDistanceTest(m_robotDrive, 1.0));
+        m_driverController.y().onTrue(TuningCommands.turnTest(m_robotDrive));
+        m_driverController.l1().onTrue(m_robotDrive.stopCommand());
     }
 
     /** Close the claw on an object, then lift it to carry height. */
@@ -83,11 +89,11 @@ public class RobotContainer {
     }
 
     public Command getAutonomousCommand() {
-        return Autos.pickUpAndMove(m_drivetrain, m_arm, m_claw);
+        return Autos.pickUpAndMove(m_robotDrive, m_arm, m_claw);
     }
 
-    public Drivetrain getDrivetrain() {
-        return m_drivetrain;
+    public DriveSubsystem getDriveSubsystem() {
+        return m_robotDrive;
     }
 
     public Arm getArm() {

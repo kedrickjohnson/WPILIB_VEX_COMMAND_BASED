@@ -2,7 +2,7 @@ package com.robojacks.clawbot.autos;
 
 import com.robojacks.clawbot.subsystems.Arm;
 import com.robojacks.clawbot.subsystems.Claw;
-import com.robojacks.clawbot.subsystems.Drivetrain;
+import com.robojacks.clawbot.subsystems.DriveSubsystem;
 import com.robojacks.lib.command.Command;
 import com.robojacks.lib.command.Commands;
 import com.robojacks.lib.math.Pose2d;
@@ -18,7 +18,7 @@ public final class Autos {
      * Start with an object in front of the open claw. Grab it, carry it forward and to the
      * left, set it down, and back away.
      */
-    public static Command pickUpAndMove(Drivetrain drive, Arm arm, Claw claw) {
+    public static Command pickUpAndMove(DriveSubsystem drive, Arm arm, Claw claw) {
         return Commands.sequence(
                 drive.resetOdometryCommand(Pose2d.kZero),
                 claw.closeCommand(),
@@ -34,7 +34,7 @@ public final class Autos {
     }
 
     /** Drive a 0.5 m square using odometry. Good for checking turns and tracking. */
-    public static Command square(Drivetrain drive) {
+    public static Command square(DriveSubsystem drive) {
         return Commands.sequence(
                 drive.resetOdometryCommand(Pose2d.kZero),
                 drive.driveToPointCommand(0.5, 0.0),

@@ -13,7 +13,7 @@ public class FeedforwardCharacterization extends Command {
     private static final double MAX_VOLTS = 4.0;
     private static final double MIN_SPEED = 0.02; // m/s, ignore samples before it moves
 
-    private final TankDrive drive;
+    private final TankDriveSubsystem drive;
     private final Timer timer = new Timer();
 
     private int n;
@@ -25,7 +25,7 @@ public class FeedforwardCharacterization extends Command {
     private double kS = Double.NaN;
     private double kV = Double.NaN;
 
-    public FeedforwardCharacterization(TankDrive drive) {
+    public FeedforwardCharacterization(TankDriveSubsystem drive) {
         this.drive = drive;
         addRequirements(drive);
         setName("FeedforwardCharacterization");

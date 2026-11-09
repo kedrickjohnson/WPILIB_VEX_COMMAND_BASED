@@ -17,7 +17,7 @@ public class TurnAutoTune extends Command {
     private static final int MEASURE_CYCLES = 4;
     private static final double TIMEOUT_S = 12.0;
 
-    private final TankDrive drive;
+    private final TankDriveSubsystem drive;
     private final double relayVolts;
     private final double hysteresisRad = Math.toRadians(1.0);
     private final Timer timer = new Timer();
@@ -35,14 +35,14 @@ public class TurnAutoTune extends Command {
     private double kP = Double.NaN;
     private double kD = Double.NaN;
 
-    public TurnAutoTune(TankDrive drive, double relayVolts) {
+    public TurnAutoTune(TankDriveSubsystem drive, double relayVolts) {
         this.drive = drive;
         this.relayVolts = relayVolts;
         addRequirements(drive);
         setName("TurnAutoTune");
     }
 
-    public TurnAutoTune(TankDrive drive) {
+    public TurnAutoTune(TankDriveSubsystem drive) {
         this(drive, 6.0);
     }
 

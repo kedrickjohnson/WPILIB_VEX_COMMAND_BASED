@@ -17,22 +17,38 @@ motors, command factories, triggers, `Pose2d` and odometry.
 
 ## What robot code looks like
 
-A subsystem owns its hardware, like in FRC:
+Current WPILib command-based, laid out the way FRC tank-drive robots are written. The
+drive subsystem declares each motor, groups them, and drives through `DifferentialDrive`:
 
 ```java
-public class Drivetrain extends SubsystemBase implements TankDrive {
-    private final VexMotorGroup m_leftMotors =
-            new VexMotorGroup(kLeftMotorPorts, kLeftMotorsReversed, kCartridge);
-    private final VexMotorGroup m_rightMotors =
-            new VexMotorGroup(kRightMotorPorts, kRightMotorsReversed, kCartridge);
+public class DriveSubsystem extends SubsystemBase implements TankDriveSubsystem {
+    // Left side motors
+    private final VexMotor m_leftFront = new VexMotor(kLeftFrontMotorPort, kLeftFrontMotorReversed, kCartridge);
+    private final VexMotor m_leftMiddle = new VexMotor(kLeftMiddleMotorPort, kLeftMiddleMotorReversed, kCartridge);
+    private final VexMotor m_leftRear = new VexMotor(kLeftRearMotorPort, kLeftRearMotorReversed, kCartridge);
+    ...
+    private final VexMotorGroup m_leftMotors = new VexMotorGroup(m_leftFront, m_leftMiddle, m_leftRear);
+    private final VexMotorGroup m_rightMotors = new VexMotorGroup(m_rightFront, m_rightMiddle, m_rightRear);
     private final DifferentialDrive m_drive = new DifferentialDrive(m_leftMotors, m_rightMotors);
     private final VexInertial m_gyro = new VexInertial(kImuPort);
-    private final DifferentialDriveOdometry m_odometry;
+
+    public void tankDrive(double leftSpeed, double rightSpeed) { m_drive.tankDrive(leftSpeed, rightSpeed); }
+    public void arcadeDrive(double forward, double rotation) { m_drive.arcadeDrive(forward, rotation); }
     ...
-    public Command driveDistanceCommand(double meters) { ... }
-    public Command turnToAngleCommand(double degrees) { ... }
 }
 ```
+
+Driver control is a command class, set as the default command in `RobotContainer`:
+
+```java
+m_robotDrive.setDefaultCommand(new TankDrive(
+        m_robotDrive,
+        () -> m_driverController.getLeftY(),
+        () -> m_driverController.getRightY()));
+```
+
+Each robot has `commands/TankDrive.java` and `commands/ArcadeDrive.java`; the template
+defaults to tank, the Clawbot to arcade.
 
 | FRC / WPILib | Here |
 | --- | --- |
@@ -44,8 +60,8 @@ public class Drivetrain extends SubsystemBase implements TankDrive {
 | `CommandXboxController` | `VexController` — **stick up is positive** (FRC is negative) |
 | SmartDashboard | `Telemetry`, printed over USB serial |
 
-`TankDrive` is a small interface: implement it on your drivetrain and you get the library's
-`TurnToHeading`, `DriveToPoint`, `DriveDistance` and tuning commands for free.
+`TankDriveSubsystem` is a small interface: implement it on your drive subsystem and you get the
+library's `TurnToHeading`, `DriveToPoint`, `DriveDistance` and tuning commands for free.
 
 ## The Clawbot example
 

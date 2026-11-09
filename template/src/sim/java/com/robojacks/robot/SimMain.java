@@ -11,14 +11,14 @@ import com.robojacks.lib.hal.HAL;
 import com.robojacks.lib.sim.SimHardware;
 import com.robojacks.lib.math.Pose2d;
 import com.robojacks.lib.telemetry.Telemetry;
-import com.robojacks.robot.subsystems.Drivetrain;
+import com.robojacks.robot.subsystems.DriveSubsystem;
 
 /**
  * Runs the template robot code against SimHardware on your computer.
  *
  * <ul>
  *   <li>{@code ./gradlew :template:simulate} — match: 3 s disabled (IMU calibrates), 15 s auto,
- *       then teleop pressing D-pad LEFT (turn to 90).</li>
+ *       then teleop: D-pad LEFT (turn to 90), then both sticks forward (tank drive).</li>
  *   <li>{@code ./gradlew :template:simulate --args=tune} — runs the tuning tests and shows how the
  *       auto-tuned gains perform.</li>
  * </ul>
@@ -59,6 +59,10 @@ public final class SimMain {
             hw.competition.enabled = t >= 3.0;
             hw.competition.autonomous = t < 18.0;
             hw.primary.buttons[GamepadIO.BUTTON_LEFT] = t >= 19.0 && t < 19.2;
+            // Tank drive: both sticks forward for a second (robot now faces +Y).
+            double stick = (t >= 21.0 && t < 22.0) ? 0.7 : 0.0;
+            hw.primary.axes[GamepadIO.AXIS_LEFT_Y] = stick;
+            hw.primary.axes[GamepadIO.AXIS_RIGHT_Y] = stick;
 
             robot.loopFunc();
             t += period;
@@ -66,7 +70,7 @@ public final class SimMain {
 
             if (t - lastPrint >= 1.0) {
                 lastPrint = t;
-                Pose2d p = robot.getContainer().getDrivetrain().getPose();
+                Pose2d p = robot.getContainer().getDriveSubsystem().getPose();
                 String mode = !hw.competition.enabled ? "disabled" : hw.competition.autonomous ? "auto" : "teleop";
                 System.out.println("SIM t=" + Math.round(t) + "s " + mode + " " + p);
             }
@@ -76,7 +80,9 @@ public final class SimMain {
     // ---------------------------------------------------------------------------------
 
     private static void simulatePhysics(SimHardware hw) {
-        hw.simulateTankDrive(DriveConstants.kLeftMotorPorts, DriveConstants.kRightMotorPorts,
+        int[] left = {DriveConstants.kLeftFrontMotorPort, DriveConstants.kLeftMiddleMotorPort, DriveConstants.kLeftRearMotorPort};
+        int[] right = {DriveConstants.kRightFrontMotorPort, DriveConstants.kRightMiddleMotorPort, DriveConstants.kRightRearMotorPort};
+        hw.simulateTankDrive(left, right,
                 DriveConstants.kMetersPerMotorRotation, DriveConstants.kTrackWidthMeters);
     }
 
@@ -85,7 +91,7 @@ public final class SimMain {
         CommandScheduler.getInstance().setRobotEnabled(true);
 
         SimHardware hw = newHardware();
-        Drivetrain drive = new Drivetrain();
+        DriveSubsystem drive = new DriveSubsystem();
         simulatePhysics(hw);
         runFor(hw, 2.5); // IMU calibration
 

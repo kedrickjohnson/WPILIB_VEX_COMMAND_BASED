@@ -6,14 +6,14 @@ import com.robojacks.lib.math.Rotation2d;
 
 /** Drives straight a set distance (negative = backward) while holding the starting heading. */
 public class DriveDistance extends Command {
-    private final TankDrive drive;
+    private final TankDriveSubsystem drive;
     private final double meters;
     private final PIDController distancePid;
     private final PIDController headingPid;
     private double startDistance;
     private Rotation2d holdHeading;
 
-    public DriveDistance(TankDrive drive, double meters) {
+    public DriveDistance(TankDriveSubsystem drive, double meters) {
         this.drive = drive;
         this.meters = meters;
         DriveGains g = drive.getGains();
