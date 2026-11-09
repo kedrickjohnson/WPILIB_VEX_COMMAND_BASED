@@ -21,6 +21,9 @@ import java.util.List;
  * The cartridge goes in the constructor because it's hardware, like a SPARK's motor type.
  */
 public class VexMotor {
+    /** V5 11 W motor stall-current limit and the SDK's default (PROS: 2500 mA). */
+    public static final double MAX_CURRENT_AMPS = 2.5;
+
     private final MotorIO io;
     private final int port;
     private final Cartridge cartridge;
@@ -52,7 +55,13 @@ public class VexMotor {
             }
         }
         if (config.currentLimitAmps != null) {
-            io.setCurrentLimit(config.currentLimitAmps);
+            double amps = config.currentLimitAmps;
+            if (amps > MAX_CURRENT_AMPS || amps <= 0.0) {
+                System.out.println("[VexMotor] port " + port + ": current limit " + amps
+                        + " A is outside 0-" + MAX_CURRENT_AMPS + " A, using " + MAX_CURRENT_AMPS);
+                amps = MAX_CURRENT_AMPS;
+            }
+            io.setCurrentLimit(amps);
         }
         if (config.encoder.positionConversionFactor != null) {
             positionFactor = config.encoder.positionConversionFactor;

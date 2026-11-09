@@ -51,8 +51,10 @@ public class VexMotorConfig {
     }
 
     /**
-     * Current limit in amps. A V5 11 W motor tops out at 2.5 A; lower limits protect
-     * mechanisms that stall on purpose (claws) and keep motors cooler.
+     * Current limit in amps, 0-2.5 (the V5 11 W motor's maximum and default). Lower limits
+     * protect mechanisms that stall on purpose (claws) and keep motors cooler. With more than
+     * 8 motors, VEXos lowers every motor's limit on its own so the battery isn't overloaded;
+     * capping motors that don't need full current leaves more for the ones that do.
      */
     public VexMotorConfig smartCurrentLimit(double amps) {
         this.currentLimitAmps = amps;

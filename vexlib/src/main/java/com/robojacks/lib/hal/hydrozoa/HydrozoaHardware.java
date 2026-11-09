@@ -185,18 +185,30 @@ public class HydrozoaHardware implements Hardware {
         return new HydrozoaImu(peripherals.takePort(port), port);
     }
 
+    /**
+     * Calibration follows PROS (vdml_imu.c): after reset, VEXos takes a moment to raise the
+     * calibrating flag, so wait for it to appear (up to 1 s) and then to clear (up to 3 s total).
+     * Status 0xFF means the sensor reported an error.
+     */
     private final class HydrozoaImu implements ImuIO {
         private static final int STATUS_CALIBRATING = 0x01;
-        private static final double MIN_CALIBRATION_S = 0.1;  // flag can take a moment to appear
-        private static final double MAX_CALIBRATION_S = 5.0;  // give up waiting after this
+        private static final int STATUS_ERROR = 0xFF;
+        private static final double FLAG_SET_TIMEOUT_S = 1.0;
+        private static final double CALIBRATION_TIMEOUT_S = 3.0;
+
+        private static final int IDLE = 0;
+        private static final int WAITING_FOR_FLAG = 1;
+        private static final int CALIBRATING = 2;
 
         private final SmartPort smartPort;
         private final VexSdk.V5Device handle;
         private final int port;
-        private double calibrationStart = -1e9;
+        private int phase = IDLE;
+        private double calibrationStart;
         private double offset;
         private double last;
-        private boolean warned;
+        private boolean warnedMissing;
+        private boolean warnedError;
 
         HydrozoaImu(SmartPort smartPort, int port) {
             this.smartPort = smartPort;
@@ -207,11 +219,20 @@ public class HydrozoaHardware implements Hardware {
         private boolean connected() {
             Optional<SmartDevice.Type> type = smartPort.deviceType();
             boolean ok = type.isPresent() && type.get() == SmartDevice.Type.IMU;
-            if (!ok && !warned) {
-                warned = true;
+            if (!ok && !warnedMissing) {
+                warnedMissing = true;
                 System.out.println("[HAL] no Inertial Sensor found on port " + port);
             }
             return ok;
+        }
+
+        private int status() {
+            int status = VexSdk.Imu.getStatus(handle) & 0xFF;
+            if (status == STATUS_ERROR && !warnedError) {
+                warnedError = true;
+                System.out.println("[HAL] Inertial Sensor on port " + port + " reports an error");
+            }
+            return status;
         }
 
         @Override
@@ -219,29 +240,59 @@ public class HydrozoaHardware implements Hardware {
             if (!connected()) {
                 return false;
             }
-            double elapsed = clock.nowSeconds() - calibrationStart;
-            if (elapsed < MIN_CALIBRATION_S) {
-                return true;
-            }
-            if (elapsed > MAX_CALIBRATION_S) {
+            int status = status();
+            if (status == STATUS_ERROR) {
+                phase = IDLE;
                 return false;
             }
-            return (VexSdk.Imu.getStatus(handle) & STATUS_CALIBRATING) != 0;
+            boolean flag = (status & STATUS_CALIBRATING) != 0;
+            double elapsed = clock.nowSeconds() - calibrationStart;
+            switch (phase) {
+                case WAITING_FOR_FLAG:
+                    if (flag) {
+                        phase = CALIBRATING;
+                        return true;
+                    }
+                    if (elapsed > FLAG_SET_TIMEOUT_S) {
+                        System.out.println("[HAL] Inertial Sensor on port " + port + " never started calibrating");
+                        phase = IDLE;
+                        return false;
+                    }
+                    return true;
+                case CALIBRATING:
+                    if (!flag) {
+                        phase = IDLE;
+                        return false;
+                    }
+                    if (elapsed > CALIBRATION_TIMEOUT_S) {
+                        System.out.println("[HAL] Inertial Sensor on port " + port + " calibration timed out");
+                        phase = IDLE;
+                        return false;
+                    }
+                    return true;
+                default:
+                    return flag;
+            }
         }
 
         @Override
         public void calibrate() {
-            if (connected()) {
-                VexSdk.Imu.reset(handle);
-                calibrationStart = clock.nowSeconds();
-                offset = 0.0;
+            if (!connected() || status() == STATUS_ERROR) {
+                return;
             }
+            if ((status() & STATUS_CALIBRATING) != 0) {
+                return; // already calibrating (PROS refuses this too)
+            }
+            VexSdk.Imu.reset(handle);
+            calibrationStart = clock.nowSeconds();
+            phase = WAITING_FOR_FLAG;
+            offset = 0.0;
         }
 
         @Override
         public double getRotationDegreesCW() {
             if (connected()) {
-                // Unbounded yaw, clockwise-positive.
+                // vexDeviceImuHeadingGet: unbounded, clockwise-positive (PROS imu_get_rotation uses it).
                 last = VexSdk.Imu.getHeading(handle) - offset;
             }
             return last;

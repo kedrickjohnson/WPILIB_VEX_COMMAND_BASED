@@ -89,6 +89,34 @@ defaults to tank, the Clawbot to arcade.
 `TankDriveSubsystem` is a small interface: implement it on your drive subsystem and you get the
 library's `TurnToHeading`, `DriveToPoint`, `DriveDistance` and tuning commands for free.
 
+## What the hardware actually supports
+
+Every `VexMotorConfig` and `VexInertial` setting maps to a V5 SDK call that PROS and VEXcode
+C++ also use. Nothing here is emulated in software except followers.
+
+| Here | V5 SDK call | PROS | VEXcode C++ |
+| --- | --- | --- | --- |
+| `inverted` | `vexDeviceMotorReverseFlagSet` | `motor_set_reversed` | `setReversed` |
+| `idleMode` kCoast/kBrake/kHold | `vexDeviceMotorBrakeModeSet` + velocity 0 | `motor_set_brake_mode` + `motor_brake` | `setStopping` |
+| `smartCurrentLimit` (0-2.5 A) | `vexDeviceMotorCurrentLimitSet` (mA) | `motor_set_current_limit` (default 2500 mA) | `setMaxTorque(x, amp)` |
+| `setPositionTarget` | `vexDeviceMotorAbsoluteTargetSet` (built-in PID, 10 ms) | `motor_move_absolute` | `spinToPosition` |
+| `setVoltage` | `vexDeviceMotorVoltageSet` (mV) | `motor_move_voltage` | `spin(..., volt)` |
+| encoder position / velocity | `vexDeviceMotorPositionGet` / `ActualVelocityGet` | `motor_get_position` / `get_actual_velocity` | `position` / `velocity` |
+| `getOutputCurrent` | `vexDeviceMotorCurrentGet` (mA) | `motor_get_current_draw` | `current(amp)` |
+| `getMotorTemperature` | `vexDeviceMotorTemperatureGet` (°C, 5° steps) | `motor_get_temperature` | `temperature` |
+| `VexInertial.getAngle` | `vexDeviceImuHeadingGet` (unbounded, CW+) | `imu_get_rotation` | `rotation` |
+| `VexInertial` calibration | `vexDeviceImuReset` + status bit 0x01 | `imu_reset` (same 1 s / 3 s waits) | `calibrate` / `isCalibrating` |
+| follower | — (software: leader copies its command to followers) | `MotorGroup` | `motor_group` |
+
+Things the hardware does on its own that you should know about:
+
+- **Current:** 2.5 A is the motor's maximum and default. With **more than 8 motors**, VEXos
+  lowers every motor's limit so the battery isn't overloaded. Capping motors that don't need full
+  current (claws, intakes) leaves more for the drive.
+- **Heat:** a hot motor cuts its own current in steps (to 50%, 25%, 12.5%, then 0%).
+- **Encoders:** 1800 / 900 / 300 ticks per output revolution for red / green / blue. The
+  cartridge passed to `VexMotor` must match the one installed, or distances will be wrong.
+
 ## The Clawbot example
 
 Standard Clawbot wiring (change ports in `Constants.java` if yours differ):
