@@ -55,8 +55,8 @@ public class DriveSubsystem extends SubsystemBase implements TankDriveSubsystem 
 
     // Gains used by the library's auto commands (TurnToHeading, DriveToPoint, ...)
     private DriveGains m_gains = new DriveGains(
-            kTurnP, kTurnD, kDriveP, kDriveD, kS, kMaxAutoVolts,
-            kTurnToleranceDegrees, kDriveToleranceMeters);
+            kTurnP, kTurnD, kDriveP, kDriveD, kS, kV, kMaxAutoVolts,
+            kTurnToleranceDegrees, kDriveToleranceMeters).withKA(kA);
 
     // Odometry waits for the Inertial Sensor to finish calibrating
     private boolean m_odometryStarted = false;
@@ -212,6 +212,7 @@ public class DriveSubsystem extends SubsystemBase implements TankDriveSubsystem 
     }
 
     /** Tells odometry where the robot is. */
+    @Override
     public void resetOdometry(Pose2d pose) {
         if (!m_odometryStarted) {
             m_startPose = pose; // applied once the Inertial Sensor finishes calibrating
@@ -228,6 +229,11 @@ public class DriveSubsystem extends SubsystemBase implements TankDriveSubsystem 
     /** Field heading in degrees, -180..180, counter-clockwise positive. */
     public double getHeading() {
         return getPose().getRotation().getDegrees();
+    }
+
+    @Override
+    public double getTrackWidthMeters() {
+        return kTrackWidthMeters;
     }
 
     @Override

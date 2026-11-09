@@ -46,8 +46,8 @@ public class DriveSubsystem extends SubsystemBase implements TankDriveSubsystem 
 
     // Gains used by the library's auto commands (TurnToHeading, DriveToPoint, ...)
     private DriveGains m_gains = new DriveGains(
-            kTurnP, kTurnD, kDriveP, kDriveD, kS, kMaxAutoVolts,
-            kTurnToleranceDegrees, kDriveToleranceMeters);
+            kTurnP, kTurnD, kDriveP, kDriveD, kS, kV, kMaxAutoVolts,
+            kTurnToleranceDegrees, kDriveToleranceMeters).withKA(kA);
 
     private boolean m_odometryStarted = false;
     private Pose2d m_startPose = Pose2d.kZero;
@@ -187,6 +187,7 @@ public class DriveSubsystem extends SubsystemBase implements TankDriveSubsystem 
         return m_odometry.getPoseMeters();
     }
 
+    @Override
     public void resetOdometry(Pose2d pose) {
         if (!m_odometryStarted) {
             m_startPose = pose;
@@ -198,6 +199,11 @@ public class DriveSubsystem extends SubsystemBase implements TankDriveSubsystem 
     /** Heading in degrees, counter-clockwise positive. */
     public double getHeading() {
         return getPose().getRotation().getDegrees();
+    }
+
+    @Override
+    public double getTrackWidthMeters() {
+        return kTrackWidthMeters;
     }
 
     @Override

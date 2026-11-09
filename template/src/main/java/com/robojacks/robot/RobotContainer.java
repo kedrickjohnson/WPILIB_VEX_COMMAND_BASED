@@ -1,5 +1,6 @@
 package com.robojacks.robot;
 
+import com.robojacks.lib.auto.NamedCommands;
 import com.robojacks.lib.command.Command;
 import com.robojacks.lib.command.Commands;
 import com.robojacks.lib.drive.TuningCommands;
@@ -33,6 +34,10 @@ public class RobotContainer {
     private final VexController m_driverController = new VexController(HAL.get().primaryController());
 
     public RobotContainer() {
+        // Commands autos can use by name (path planner markers). Register before building autos.
+        NamedCommands.register("intake", m_intake::intakeCommand);
+        NamedCommands.register("outtake", m_intake::outtakeCommand);
+
         // Default command: tank drive. VEX sticks are already positive when pushed up.
         m_robotDrive.setDefaultCommand(new TankDrive(
                 m_robotDrive,

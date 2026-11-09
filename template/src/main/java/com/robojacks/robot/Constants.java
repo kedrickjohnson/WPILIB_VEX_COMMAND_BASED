@@ -50,6 +50,8 @@ public final class Constants {
         public static final double kTrackWidthMeters = kTrackWidthInches * 0.0254;
         /** Distance traveled per motor-output rotation (VEX reports position after the cartridge). */
         public static final double kMetersPerMotorRotation = kGearRatio * Math.PI * kWheelDiameterMeters;
+        /** Top speed at 12 V with no load. */
+        public static final double kMaxSpeedMetersPerSecond = kCartridge.freeRpm / 60.0 * kMetersPerMotorRotation;
 
         // ---- Gains: paste tuning results here ----
         public static final double kTurnP = 9.0;     // volts per radian (tuning test B)
@@ -58,7 +60,10 @@ public final class Constants {
         public static final double kDriveD = 1.0;
         /** Volts to overcome friction (tuning test A). With 0, small turn corrections stall. */
         public static final double kS = 0.5;
-        public static final double kV = 0.0;
+        /** Volts per m/s (tuning test A). Path following needs it; this default assumes a free-spinning motor. */
+        public static final double kV = (12.0 - kS) / kMaxSpeedMetersPerSecond;
+        /** Volts per m/s² (tuning test A). Helps path following keep up while speeding up. */
+        public static final double kA = 0.0;
         public static final double kMaxAutoVolts = 9.0;
         public static final double kTurnToleranceDegrees = 2.0;
         public static final double kDriveToleranceMeters = 0.025;

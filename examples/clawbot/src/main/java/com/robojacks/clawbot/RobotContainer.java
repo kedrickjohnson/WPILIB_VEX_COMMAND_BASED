@@ -5,6 +5,7 @@ import com.robojacks.clawbot.commands.ArcadeDrive;
 import com.robojacks.clawbot.subsystems.Arm;
 import com.robojacks.clawbot.subsystems.Claw;
 import com.robojacks.clawbot.subsystems.DriveSubsystem;
+import com.robojacks.lib.auto.NamedCommands;
 import com.robojacks.lib.command.Command;
 import com.robojacks.lib.command.Commands;
 import com.robojacks.lib.drive.TuningCommands;
@@ -38,6 +39,15 @@ public class RobotContainer {
     private final VexController m_driverController = new VexController(HAL.get().primaryController());
 
     public RobotContainer() {
+        // Commands autos can use by name (path planner markers). Register before building autos.
+        NamedCommands.register("openClaw", m_claw::openCommand);
+        NamedCommands.register("closeClaw", m_claw::closeCommand);
+        NamedCommands.register("armDown", m_arm::downCommand);
+        NamedCommands.register("armCarry", m_arm::carryCommand);
+        NamedCommands.register("armHigh", m_arm::highCommand);
+        NamedCommands.register("grab", this::grabCommand);
+        NamedCommands.register("place", this::placeCommand);
+
         // VEX stick up is already positive. Right stick right is +, but CCW (left) turn is +, so negate.
         m_robotDrive.setDefaultCommand(new ArcadeDrive(
                 m_robotDrive,

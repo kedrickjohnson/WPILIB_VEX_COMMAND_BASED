@@ -15,6 +15,9 @@ public interface TankDriveSubsystem extends Subsystem {
     /** Field pose from odometry (meters, CCW-positive heading). */
     Pose2d getPose();
 
+    /** Tells odometry where the robot is (e.g. its starting pose in auto). */
+    void resetOdometry(Pose2d pose);
+
     /** Average of left and right wheel travel, meters. */
     double getAverageEncoderDistance();
 
@@ -25,6 +28,9 @@ public interface TankDriveSubsystem extends Subsystem {
     double getRightEncoderRate();
 
     DriveGains getGains();
+
+    /** Distance between the left and right wheels, meters (used by path following). */
+    double getTrackWidthMeters();
 
     default void stop() {
         tankDriveVolts(0.0, 0.0);

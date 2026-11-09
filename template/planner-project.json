@@ -1,0 +1,127 @@
+{
+  "version": 2,
+  "robot": {
+    "width": 0.4572,
+    "length": 0.4572,
+    "trackWidth": 0.29209999999999997
+  },
+  "constraints": {
+    "maxVel": 1.2,
+    "maxAccel": 2,
+    "maxAngVel": 360
+  },
+  "commands": [
+    {
+      "name": "intake",
+      "seconds": 0
+    },
+    {
+      "name": "outtake",
+      "seconds": 0.8
+    },
+    {
+      "name": "closeClaw",
+      "seconds": 0.5
+    },
+    {
+      "name": "openClaw",
+      "seconds": 0.5
+    },
+    {
+      "name": "armCarry",
+      "seconds": 0.8
+    },
+    {
+      "name": "armDown",
+      "seconds": 0.8
+    }
+  ],
+  "paths": [
+    {
+      "name": "pickup",
+      "reversed": false,
+      "waypoints": [
+        {
+          "x": -1.5,
+          "y": 0.6,
+          "h": 0,
+          "lp": 0.3,
+          "ln": 0.45
+        },
+        {
+          "x": -0.75,
+          "y": 0.35,
+          "h": -45,
+          "lp": 0.3,
+          "ln": 0.3
+        },
+        {
+          "x": -0.55,
+          "y": -0.25,
+          "h": -90,
+          "lp": 0.3,
+          "ln": 0.3
+        }
+      ],
+      "markers": [
+        {
+          "name": "intake",
+          "pos": 0.9,
+          "duration": 0
+        }
+      ],
+      "zones": [
+        {
+          "start": 1.6,
+          "end": 2,
+          "maxVel": 0.5
+        }
+      ]
+    },
+    {
+      "name": "score",
+      "reversed": true,
+      "waypoints": [
+        {
+          "x": -0.55,
+          "y": -0.25,
+          "h": 90,
+          "lp": 0.3,
+          "ln": 0.35
+        },
+        {
+          "x": -1.25,
+          "y": 0.25,
+          "h": 180,
+          "lp": 0.4,
+          "ln": 0.3
+        }
+      ],
+      "markers": [],
+      "zones": []
+    }
+  ],
+  "autos": [
+    {
+      "name": "exampleAuto",
+      "steps": [
+        {
+          "type": "path",
+          "path": "pickup"
+        },
+        {
+          "type": "wait",
+          "seconds": 0.3
+        },
+        {
+          "type": "path",
+          "path": "score"
+        },
+        {
+          "type": "command",
+          "name": "outtake"
+        }
+      ]
+    }
+  ]
+}

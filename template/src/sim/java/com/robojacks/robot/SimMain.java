@@ -101,7 +101,7 @@ public final class SimMain {
         runUntilDone(hw, tune, 15.0);
 
         // Try the suggested gains, like pasting them into DriveConstants.
-        drive.setGains(drive.getGains().withTurn(tune.getKP(), tune.getKD()).withKS(ff.getKS()));
+        drive.setGains(drive.getGains().withTurn(tune.getKP(), tune.getKD()).withFeedforward(ff.getKS(), ff.getKV()).withKA(ff.getKA()));
         System.out.println("--- Checking tuned gains ---");
         runUntilDone(hw, TuningCommands.turnTest(drive), 20.0);
         runUntilDone(hw, TuningCommands.driveDistanceTest(drive, 1.0), 10.0);
