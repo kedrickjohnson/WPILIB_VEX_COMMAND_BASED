@@ -1,50 +1,62 @@
 package com.robojacks.robot;
 
 import com.robojacks.lib.command.Command;
+import com.robojacks.lib.drive.TankDrivetrain;
+import com.robojacks.lib.drive.TuningCommands;
 import com.robojacks.lib.hal.HAL;
 import com.robojacks.lib.input.VexController;
 import com.robojacks.lib.math.MathUtil;
-import com.robojacks.lib.math.Rotation2d;
 import com.robojacks.robot.autos.Autos;
-import com.robojacks.robot.commands.TurnToHeading;
-import com.robojacks.robot.subsystems.Drivetrain;
 import com.robojacks.robot.subsystems.Intake;
 
 import static com.robojacks.robot.Constants.OIConstants.DEADBAND;
 
 /** Creates subsystems, binds controls, picks the auto. Same role as in FRC command-based. */
 public class RobotContainer {
-    private final Drivetrain drivetrain = new Drivetrain();
+    private final TankDrivetrain drivetrain = new TankDrivetrain(Constants.DRIVE);
     private final Intake intake = new Intake();
 
     private final VexController driver = new VexController(HAL.get().primaryController());
 
     public RobotContainer() {
-        configureBindings();
-    }
-
-    private void configureBindings() {
         // Arcade drive: left stick forward/back, right stick turn.
         // VEX stick up is already positive. Right stick right is +, but CCW (left) is +, so negate.
         drivetrain.setDefaultCommand(drivetrain.arcadeDriveCommand(
                 () -> MathUtil.applyDeadband(driver.getLeftY(), DEADBAND),
                 () -> -MathUtil.applyDeadband(driver.getRightX(), DEADBAND)));
 
+        if (Constants.TUNING_MODE) {
+            configureTuningBindings();
+        } else {
+            configureBindings();
+        }
+    }
+
+    private void configureBindings() {
         driver.r1().whileTrue(intake.intakeCommand());
         driver.r2().whileTrue(intake.outtakeCommand());
 
         // Snap to field headings (handy for testing odometry + turn PID).
-        driver.up().onTrue(new TurnToHeading(drivetrain, Rotation2d.fromDegrees(0)));
-        driver.left().onTrue(new TurnToHeading(drivetrain, Rotation2d.fromDegrees(90)));
-        driver.down().onTrue(new TurnToHeading(drivetrain, Rotation2d.fromDegrees(180)));
-        driver.right().onTrue(new TurnToHeading(drivetrain, Rotation2d.fromDegrees(-90)));
+        driver.up().onTrue(drivetrain.turnToDegrees(0));
+        driver.left().onTrue(drivetrain.turnToDegrees(90));
+        driver.down().onTrue(drivetrain.turnToDegrees(180));
+        driver.right().onTrue(drivetrain.turnToDegrees(-90));
+    }
+
+    /** Press a button to start a test. L1 aborts it and hands control back to the sticks. */
+    private void configureTuningBindings() {
+        driver.a().onTrue(TuningCommands.characterize(drivetrain));
+        driver.b().onTrue(TuningCommands.autoTuneTurn(drivetrain));
+        driver.x().onTrue(TuningCommands.driveDistanceTest(drivetrain, 1.0));
+        driver.y().onTrue(TuningCommands.turnTest(drivetrain));
+        driver.l1().onTrue(drivetrain.stopCommand());
     }
 
     public Command getAutonomousCommand() {
         return Autos.exampleAuto(drivetrain, intake);
     }
 
-    public Drivetrain getDrivetrain() {
+    public TankDrivetrain getDrivetrain() {
         return drivetrain;
     }
 }

@@ -1,4 +1,4 @@
-package com.robojacks.robot.subsystems;
+package com.robojacks.lib.drive;
 
 import com.robojacks.lib.command.Command;
 import com.robojacks.lib.command.SubsystemBase;
@@ -9,33 +9,43 @@ import com.robojacks.lib.kinematics.DifferentialDriveOdometry;
 import com.robojacks.lib.math.MathUtil;
 import com.robojacks.lib.math.Pose2d;
 import com.robojacks.lib.math.Rotation2d;
+import com.robojacks.lib.math.Translation2d;
 import com.robojacks.lib.telemetry.Telemetry;
 import java.util.function.DoubleSupplier;
 
-import static com.robojacks.robot.Constants.DriveConstants.*;
-
-/** Tank drivetrain with IMU + encoder odometry. Reads the same as an FRC drive subsystem. */
-public class Drivetrain extends SubsystemBase {
-    private final MotorIO[] left = new MotorIO[LEFT_PORTS.length];
-    private final MotorIO[] right = new MotorIO[RIGHT_PORTS.length];
+/**
+ * Ready-made tank drivetrain with IMU + encoder odometry. Teams don't edit this file;
+ * everything team-specific comes from {@link DrivetrainConfig}.
+ */
+public class TankDrivetrain extends SubsystemBase {
+    private final DrivetrainConfig config;
+    private final MotorIO[] left;
+    private final MotorIO[] right;
     private final ImuIO imu;
     private final DifferentialDriveOdometry odometry;
     private boolean odometryReady;
     private Pose2d pendingReset = Pose2d.kZero;
 
-    public Drivetrain() {
+    public TankDrivetrain(DrivetrainConfig config) {
         super("Drivetrain");
-        for (int i = 0; i < LEFT_PORTS.length; i++) {
-            left[i] = HAL.get().motor(LEFT_PORTS[i], LEFT_REVERSED[i]);
-            left[i].setBrakeMode(true);
+        this.config = config;
+        left = new MotorIO[config.leftPorts.length];
+        right = new MotorIO[config.rightPorts.length];
+        for (int i = 0; i < left.length; i++) {
+            left[i] = HAL.get().motor(config.leftPorts[i], config.leftReversed[i]);
+            left[i].setBrakeMode(config.brakeMode);
         }
-        for (int i = 0; i < RIGHT_PORTS.length; i++) {
-            right[i] = HAL.get().motor(RIGHT_PORTS[i], RIGHT_REVERSED[i]);
-            right[i].setBrakeMode(true);
+        for (int i = 0; i < right.length; i++) {
+            right[i] = HAL.get().motor(config.rightPorts[i], config.rightReversed[i]);
+            right[i].setBrakeMode(config.brakeMode);
         }
-        imu = HAL.get().imu(IMU_PORT);
+        imu = HAL.get().imu(config.imuPort);
         imu.calibrate();
         odometry = new DifferentialDriveOdometry(Rotation2d.kZero, 0.0, 0.0);
+    }
+
+    public DrivetrainConfig getConfig() {
+        return config;
     }
 
     // ----- Output -----
@@ -62,13 +72,33 @@ public class Drivetrain extends SubsystemBase {
         tankDriveVolts(12.0 * l / max, 12.0 * r / max);
     }
 
+    /**
+     * Drive with auto-command style outputs: forward and CCW turn in volts, each capped at
+     * maxAutoVolts, with kS added so small corrections still overcome friction.
+     */
+    public void autoDriveVolts(double forwardVolts, double turnVolts) {
+        double cap = config.maxAutoVolts;
+        forwardVolts = MathUtil.clamp(forwardVolts, -cap, cap);
+        turnVolts = MathUtil.clamp(turnVolts, -cap, cap);
+        double l = withStatic(forwardVolts - turnVolts);
+        double r = withStatic(forwardVolts + turnVolts);
+        tankDriveVolts(l, r);
+    }
+
+    private double withStatic(double volts) {
+        if (Math.abs(volts) < 1e-3) {
+            return 0.0;
+        }
+        return volts + Math.signum(volts) * config.kS;
+    }
+
     public void stop() {
         tankDriveVolts(0.0, 0.0);
     }
 
     // ----- Sensors -----
 
-    private static double average(MotorIO[] motors) {
+    private static double averageRotations(MotorIO[] motors) {
         double sum = 0.0;
         for (MotorIO m : motors) {
             sum += m.getPositionRotations();
@@ -76,25 +106,42 @@ public class Drivetrain extends SubsystemBase {
         return sum / motors.length;
     }
 
-    private static double rotationsToMeters(double motorRotations) {
-        return motorRotations * GEAR_RATIO * Math.PI * WHEEL_DIAMETER_M;
+    private static double averageRpm(MotorIO[] motors) {
+        double sum = 0.0;
+        for (MotorIO m : motors) {
+            sum += m.getVelocityRpm();
+        }
+        return sum / motors.length;
     }
 
     public double getLeftDistanceMeters() {
-        return rotationsToMeters(average(left));
+        return averageRotations(left) * config.metersPerMotorRotation();
     }
 
     public double getRightDistanceMeters() {
-        return rotationsToMeters(average(right));
+        return averageRotations(right) * config.metersPerMotorRotation();
     }
 
     public double getAverageDistanceMeters() {
         return (getLeftDistanceMeters() + getRightDistanceMeters()) / 2.0;
     }
 
-    /** CCW-positive heading from the IMU (VEX reports CW-positive, so negate). */
+    public double getLeftVelocityMps() {
+        return averageRpm(left) / 60.0 * config.metersPerMotorRotation();
+    }
+
+    public double getRightVelocityMps() {
+        return averageRpm(right) / 60.0 * config.metersPerMotorRotation();
+    }
+
+    /** CCW-positive, unwrapped heading straight from the IMU (VEX reports CW-positive). */
     public Rotation2d getGyroAngle() {
         return Rotation2d.fromDegrees(-imu.getRotationDegreesCW());
+    }
+
+    /** Unwrapped IMU heading in degrees, CCW-positive. Useful for multi-turn tests. */
+    public double getGyroDegreesContinuous() {
+        return -imu.getRotationDegreesCW();
     }
 
     public boolean isImuCalibrating() {
@@ -113,7 +160,7 @@ public class Drivetrain extends SubsystemBase {
 
     /** Sets where the robot is on the field. Safe to call while the IMU is still calibrating. */
     public void resetPose(Pose2d pose) {
-        if (imu.isCalibrating()) {
+        if (imu.isCalibrating() || !odometryReady) {
             pendingReset = pose; // applied as soon as calibration finishes
             return;
         }
@@ -140,10 +187,9 @@ public class Drivetrain extends SubsystemBase {
 
     // ----- Command factories -----
 
-    /** Arcade drive from suppliers (forward, CCW turn), used as the default command. */
+    /** Arcade drive from suppliers (forward, CCW turn), the usual default command. */
     public Command arcadeDriveCommand(DoubleSupplier forward, DoubleSupplier turn) {
-        return run(() -> arcadeDrive(forward.getAsDouble(), turn.getAsDouble()))
-                .withName("ArcadeDrive");
+        return run(() -> arcadeDrive(forward.getAsDouble(), turn.getAsDouble())).withName("ArcadeDrive");
     }
 
     public Command tankDriveCommand(DoubleSupplier leftPct, DoubleSupplier rightPct) {
@@ -157,5 +203,30 @@ public class Drivetrain extends SubsystemBase {
 
     public Command stopCommand() {
         return runOnce(this::stop).withName("StopDrive");
+    }
+
+    public Command turnTo(Rotation2d fieldHeading) {
+        return new TurnToHeading(this, fieldHeading);
+    }
+
+    public Command turnToDegrees(double fieldHeadingDeg) {
+        return turnTo(Rotation2d.fromDegrees(fieldHeadingDeg));
+    }
+
+    public Command driveTo(Translation2d fieldPoint) {
+        return new DriveToPoint(this, fieldPoint, false);
+    }
+
+    public Command driveTo(double xMeters, double yMeters) {
+        return driveTo(new Translation2d(xMeters, yMeters));
+    }
+
+    public Command backTo(double xMeters, double yMeters) {
+        return new DriveToPoint(this, new Translation2d(xMeters, yMeters), true);
+    }
+
+    /** Straight line forward (negative = backward), holding the starting heading. */
+    public Command driveDistance(double meters) {
+        return new DriveDistance(this, meters);
     }
 }

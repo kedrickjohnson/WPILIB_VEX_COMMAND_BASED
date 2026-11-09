@@ -1,24 +1,22 @@
-package com.robojacks.robot.commands;
+package com.robojacks.lib.drive;
 
 import com.robojacks.lib.command.Command;
 import com.robojacks.lib.controller.PIDController;
-import com.robojacks.lib.math.MathUtil;
 import com.robojacks.lib.math.Rotation2d;
-import com.robojacks.robot.subsystems.Drivetrain;
 
-import static com.robojacks.robot.Constants.DriveConstants.*;
-
-/** Turns in place to a FIELD heading (CCW-positive, 0 = +X). */
+/** Turns in place to a FIELD heading (CCW-positive, 0 = +X). Gains come from DrivetrainConfig. */
 public class TurnToHeading extends Command {
-    private final Drivetrain drive;
+    private final TankDrivetrain drive;
     private final Rotation2d target;
-    private final PIDController pid = new PIDController(TURN_KP, 0.0, TURN_KD);
+    private final PIDController pid;
 
-    public TurnToHeading(Drivetrain drive, Rotation2d target) {
+    public TurnToHeading(TankDrivetrain drive, Rotation2d target) {
         this.drive = drive;
         this.target = target;
+        DrivetrainConfig c = drive.getConfig();
+        pid = new PIDController(c.turnKP, 0.0, c.turnKD);
         pid.enableContinuousInput(-Math.PI, Math.PI);
-        pid.setTolerance(TURN_TOLERANCE_RAD, Math.toRadians(20.0)); // also nearly stopped
+        pid.setTolerance(c.turnToleranceRad, Math.toRadians(20.0)); // also nearly stopped
         addRequirements(drive);
         setName("TurnTo(" + Math.round(target.getDegrees()) + ")");
     }
@@ -31,9 +29,11 @@ public class TurnToHeading extends Command {
 
     @Override
     public void execute() {
-        double volts = pid.calculate(drive.getHeading().getRadians());
-        volts = MathUtil.clamp(volts, -AUTO_MAX_VOLTS, AUTO_MAX_VOLTS);
-        drive.tankDriveVolts(-volts, volts); // positive = CCW
+        double turnVolts = pid.calculate(drive.getHeading().getRadians());
+        if (Math.abs(pid.getError()) < drive.getConfig().turnToleranceRad) {
+            turnVolts = 0.0; // don't let kS buzz the motors once we're there
+        }
+        drive.autoDriveVolts(0.0, turnVolts);
     }
 
     @Override

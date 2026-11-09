@@ -21,7 +21,7 @@ public final class FieldConstants {
     private FieldConstants() {}
 
     /** VEX field is 12 ft (about 3.66 m) square. */
-    public static final double FIELD_SIZE_M = 12 * 12 * Constants.INCH;
+    public static final double FIELD_SIZE_M = 12 * 12 * 0.0254;
     public static final double HALF_FIELD_M = FIELD_SIZE_M / 2.0;
 
     /**

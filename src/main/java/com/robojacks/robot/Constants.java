@@ -1,50 +1,42 @@
 package com.robojacks.robot;
 
-/** All the numbers you tune live here, like an FRC Constants.java. Units: meters, seconds, volts. */
+import com.robojacks.lib.drive.Cartridge;
+import com.robojacks.lib.drive.DrivetrainConfig;
+
+/**
+ * THE file teams edit. Set up the drivetrain below and you have a driving robot with
+ * odometry, turn-to-heading and drive-to-point.
+ */
 public final class Constants {
     private Constants() {}
 
-    public static final double INCH = 0.0254;
+    /**
+     * true = controller buttons run tuning tests instead of match controls:
+     * A = feedforward characterization, B = turn PID auto-tune,
+     * X = drive 1 m test, Y = turn test (4 x 90 deg).
+     * Results print over USB serial with a line to paste below. Set back to false for matches!
+     */
+    public static final boolean TUNING_MODE = false;
 
-    public static final class DriveConstants {
-        // Smart ports. Flip a "reversed" flag if that side drives backwards.
-        public static final int[] LEFT_PORTS = {1, 2, 3};
-        public static final boolean[] LEFT_REVERSED = {true, true, true};
-        public static final int[] RIGHT_PORTS = {4, 5, 6};
-        public static final boolean[] RIGHT_REVERSED = {false, false, false};
+    public static final DrivetrainConfig DRIVE = DrivetrainConfig.builder()
+            // ---- Hardware: REQUIRED ----
+            .leftMotors(-1, -2, -3)      // smart ports; negative = reversed
+            .rightMotors(4, 5, 6)
+            .imuPort(10)
+            .cartridge(Cartridge.BLUE)   // RED 100 / GREEN 200 / BLUE 600 rpm
+            .gearRatio(36, 48)           // motor gear teeth, wheel gear teeth (or .directDrive())
+            .wheelDiameterInches(3.25)
+            .trackWidthInches(11.5)      // center of left wheels to center of right wheels
 
-        public static final int IMU_PORT = 10;
-
-        /**
-         * Wheel rotations per motor-output rotation. VEX reports position AFTER the cartridge,
-         * so only external gearing goes here. Example: 36T on motor driving 48T on wheel = 36/48.
-         */
-        public static final double GEAR_RATIO = 36.0 / 48.0;
-
-        /** Cartridge free speed: red 100, green 200, blue 600 rpm. Used for max speed / sim. */
-        public static final double CARTRIDGE_RPM = 600.0;
-
-        public static final double WHEEL_DIAMETER_M = 3.25 * INCH;
-
-        /** Distance between left and right wheel contact patches. Measure it, then tune it. */
-        public static final double TRACK_WIDTH_M = 11.5 * INCH;
-
-        public static final double MAX_SPEED_MPS =
-                CARTRIDGE_RPM / 60.0 * GEAR_RATIO * Math.PI * WHEEL_DIAMETER_M;
-
-        // Heading PID: output volts per radian of error.
-        public static final double TURN_KP = 9.0;
-        public static final double TURN_KD = 0.5;
-        public static final double TURN_TOLERANCE_RAD = Math.toRadians(2.0);
-
-        // Distance PID: output volts per meter of error.
-        public static final double DRIVE_KP = 25.0;
-        public static final double DRIVE_KD = 1.0;
-        public static final double DRIVE_TOLERANCE_M = 0.03;
-
-        /** Cap autonomous drive voltage so the robot doesn't wheelie or slip. */
-        public static final double AUTO_MAX_VOLTS = 9.0;
-    }
+            // ---- Tuning: optional, paste results from the tuning tests ----
+            .turnPID(9.0, 0.5)           // from TurnAutoTune (B)
+            .drivePID(25.0, 1.0)
+            .feedforward(0.5, 0.0)       // from characterization (A). kS matters: with 0, small
+                                         // turn corrections can't beat friction and turns stall.
+            .maxAutoVolts(9.0)
+            .turnToleranceDegrees(2.0)
+            .driveToleranceInches(1.0)
+            .build();
 
     public static final class IntakeConstants {
         public static final int PORT = 7;

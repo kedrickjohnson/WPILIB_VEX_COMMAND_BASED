@@ -5,16 +5,73 @@ FRC-style command-based programming for VEX V5, in Java, running on the brain th
 you already know how to use this: `Robot`, `RobotContainer`, subsystems, commands, triggers,
 `Pose2d`, odometry.
 
-> **Status:** the framework, odometry and robot template compile and run in the desktop
+**Teams get a working tank drive by editing one block in `Constants.java`.** The drivetrain,
+odometry, turn-to-heading, drive-to-point and tuning tests are all built in.
+
+> **Status:** the framework, drivetrain and tuning tools compile and run in the desktop
 > simulator. The Hydrozoa hardware layer (`HydrozoaHardware.java`) is **stubbed** and must be
 > filled in against the Hydrozoa SDK before this runs on a real brain. Hydrozoa itself is
 > experimental (alpha), so expect some rough edges there.
+
+## Setting up a drivetrain
+
+Everything team-specific is in `Constants.DRIVE`:
+
+```java
+public static final DrivetrainConfig DRIVE = DrivetrainConfig.builder()
+        .leftMotors(-1, -2, -3)      // smart ports; negative = reversed
+        .rightMotors(4, 5, 6)
+        .imuPort(10)
+        .cartridge(Cartridge.BLUE)   // RED / GREEN / BLUE
+        .gearRatio(36, 48)           // motor gear teeth, wheel gear teeth (or .directDrive())
+        .wheelDiameterInches(3.25)
+        .trackWidthInches(11.5)
+        // optional tuning, filled in from the tests below
+        .turnPID(9.0, 0.5)
+        .drivePID(25.0, 1.0)
+        .feedforward(0.5, 0.0)
+        .build();
+```
+
+`build()` checks the config at startup: ports must be 1-21, no port used twice, IMU not on a
+motor port, and track width set. Mistakes fail with a message that names the problem.
+
+In autos, the drivetrain gives you commands directly:
+
+```java
+Commands.sequence(
+    drive.resetPoseCommand(StartPoses.LEFT_START),
+    drive.driveTo(-0.9, 0.6),               // field point, meters
+    drive.turnToDegrees(180),               // field heading
+    drive.backTo(-1.2, 0.0),                // reverse into a point
+    drive.driveDistance(0.3));              // straight, holding heading
+```
+
+## Tuning without writing code
+
+Set `TUNING_MODE = true` in `Constants.java`, upload, enable in driver control and press:
+
+| Button | Test | What it gives you |
+| --- | --- | --- |
+| **A** | Feedforward characterization (needs ~1.5 m clear) | `.feedforward(kS, kV)` |
+| **B** | Turn auto-tune (rocks back and forth in place) | `.turnPID(kP, kD)` |
+| **X** | Drive 1 m test (measure with a tape) | corrected `.wheelDiameterInches(...)` |
+| **Y** | Turn test, 4 × 90° | error at each stop |
+| **L1** | Abort the current test | |
+
+Each test prints a ready-to-paste line over USB serial. Recommended order: **A → B → X → Y**.
+Set `TUNING_MODE` back to `false` before competing.
+
+**Why kS matters:** it's the voltage needed to beat friction. With kS = 0, small end-of-turn
+corrections can't move the robot and turns stall a few degrees short. Run test A first.
 
 ## Layout
 
 ```
 src/main/java/com/robojacks/
-├── lib/                         # "WPILib-lite" — reusable, hardware-independent
+├── lib/                         # "WPILib-lite" — teams don't edit this
+│   ├── drive/                   # DrivetrainConfig, TankDrivetrain, TurnToHeading, DriveToPoint,
+│   │                            # DriveDistance, TuningCommands (+ auto-tune, characterization)
 │   ├── command/                 # Command, Subsystem, CommandScheduler, Trigger, groups, Commands
 │   ├── math/                    # Pose2d, Rotation2d, Translation2d, Twist2d, MathUtil
 │   ├── controller/              # PIDController, SimpleMotorFeedforward
@@ -23,14 +80,13 @@ src/main/java/com/robojacks/
 │   ├── input/                   # VexController (CommandXboxController equivalent)
 │   ├── telemetry/               # Telemetry (SmartDashboard stand-in, prints over serial)
 │   └── hal/                     # Hardware interfaces + hydrozoa/HydrozoaHardware (TODO)
-└── robot/                       # Your team code — edit this
+└── robot/                       # Team code — edit this
     ├── Main.java                # Brain entry point
     ├── Robot.java
-    ├── RobotContainer.java
-    ├── Constants.java
-    ├── FieldConstants.java      # Field coordinate convention lives here
-    ├── subsystems/              # Drivetrain (with odometry), Intake (example)
-    ├── commands/                # TurnToHeading, DriveToPoint
+    ├── RobotContainer.java      # Bindings (match or tuning mode)
+    ├── Constants.java           # ← the drivetrain config lives here
+    ├── FieldConstants.java      # Field coordinate convention + start poses
+    ├── subsystems/              # Intake (example mechanism to copy)
     └── autos/                   # Autos.exampleAuto
 
 src/sim/java/com/robojacks/sim/  # Desktop simulator (not uploaded)
@@ -59,8 +115,12 @@ src/sim/java/com/robojacks/sim/  # Desktop simulator (not uploaded)
 Simulator (no robot needed):
 
 ```
-./gradlew simulate
+./gradlew simulate                 # match: disabled -> 15 s auto -> teleop
+./gradlew simulate --args=tune     # runs the tuning tests and checks the gains they suggest
 ```
+
+The simulator models motor lag and static friction, but not wheel slip or backlash, so real
+tuning numbers will differ. Use it to check logic, not final gains.
 
 On the brain (after finishing `HydrozoaHardware`): install the Hydrozoa CLI, then use the
 Hydrozoa Gradle plugin's upload task (see the Hydrozoa template's README for the exact task name).
@@ -68,10 +128,9 @@ Hydrozoa Gradle plugin's upload task (see the Hydrozoa template's README for the
 ## Next steps
 
 1. Fill in `lib/hal/hydrozoa/HydrozoaHardware.java` using the Hydrozoa SDK.
-2. Set ports, gear ratio, wheel size and track width in `Constants.java`.
-3. Drive straight 1 m and check `drive/x` in telemetry; fix `WHEEL_DIAMETER_M` / `GEAR_RATIO`.
-4. Spin 10 turns in place by hand and check `drive/deg` returns to 0 (IMU drift check). Heading
-   comes from the IMU, so track width only matters for the simulator.
-5. Tune `TURN_KP` and `DRIVE_KP`, then build autos.
+2. Set up `Constants.DRIVE` for your robot.
+3. Turn on `TUNING_MODE` and run tests A → B → X → Y.
+4. Spin the robot 10 turns by hand and check `drive/deg` returns to 0 (IMU drift check).
+5. Build autos.
 
 Keep loops light: Hydrozoa interprets WebAssembly, so it's slower than native PROS/vexide code.

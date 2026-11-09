@@ -92,6 +92,7 @@ public class SimHardware implements Hardware {
 
     public static class SimMotor implements MotorIO {
         private static final double TIME_CONSTANT = 0.08; // s, how fast speed follows voltage
+        private static final double STATIC_VOLTS = 0.6;   // voltage needed to start moving
         private final double freeRpm;
         private double volts;
         private double rpm;
@@ -102,7 +103,9 @@ public class SimHardware implements Hardware {
         }
 
         void step(double dt) {
-            double target = volts / 12.0 * freeRpm;
+            // Static friction: the first STATIC_VOLTS do nothing, like a real drivetrain.
+            double effective = Math.abs(volts) <= STATIC_VOLTS ? 0.0 : volts - Math.signum(volts) * STATIC_VOLTS;
+            double target = effective / (12.0 - STATIC_VOLTS) * freeRpm;
             rpm += (target - rpm) * Math.min(1.0, dt / TIME_CONSTANT);
             rotations += rpm / 60.0 * dt;
         }
