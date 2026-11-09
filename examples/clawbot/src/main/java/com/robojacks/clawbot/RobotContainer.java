@@ -1,0 +1,100 @@
+package com.robojacks.clawbot;
+
+import com.robojacks.clawbot.autos.Autos;
+import com.robojacks.clawbot.subsystems.Arm;
+import com.robojacks.clawbot.subsystems.Claw;
+import com.robojacks.clawbot.subsystems.Drivetrain;
+import com.robojacks.lib.command.Command;
+import com.robojacks.lib.command.Commands;
+import com.robojacks.lib.drive.TuningCommands;
+import com.robojacks.lib.hal.HAL;
+import com.robojacks.lib.input.VexController;
+import com.robojacks.lib.math.MathUtil;
+
+import static com.robojacks.clawbot.Constants.OIConstants.kDriveDeadband;
+
+/**
+ * Subsystems, controls and autos.
+ *
+ * <pre>
+ * Left stick  up/down     drive forward/back
+ * Right stick left/right  turn
+ * L1 / L2 (hold)          arm up / down
+ * R1 / R2                 open / close claw
+ * D-pad up / right / down arm high / carry / down
+ * A                       grab: close claw, lift to carry
+ * B                       place: lower arm, open claw
+ * Y (hold)                slow drive
+ * </pre>
+ */
+public class RobotContainer {
+    private final Drivetrain m_drivetrain = new Drivetrain();
+    private final Arm m_arm = new Arm();
+    private final Claw m_claw = new Claw();
+
+    private final VexController m_driverController = new VexController(HAL.get().primaryController());
+
+    public RobotContainer() {
+        // VEX stick up is already positive. Right stick right is +, but CCW (left) turn is +, so negate.
+        m_drivetrain.setDefaultCommand(m_drivetrain.arcadeDriveCommand(
+                () -> MathUtil.applyDeadband(m_driverController.getLeftY(), kDriveDeadband),
+                () -> -MathUtil.applyDeadband(m_driverController.getRightX(), kDriveDeadband)));
+
+        if (Constants.kTuningMode) {
+            configureTuningBindings();
+        } else {
+            configureButtonBindings();
+        }
+    }
+
+    private void configureButtonBindings() {
+        m_driverController.l1().whileTrue(m_arm.raiseCommand());
+        m_driverController.l2().whileTrue(m_arm.lowerCommand());
+
+        m_driverController.r1().onTrue(m_claw.openCommand());
+        m_driverController.r2().onTrue(m_claw.closeCommand());
+
+        m_driverController.up().onTrue(m_arm.highCommand());
+        m_driverController.right().onTrue(m_arm.carryCommand());
+        m_driverController.down().onTrue(m_arm.downCommand());
+
+        m_driverController.a().onTrue(grabCommand());
+        m_driverController.b().onTrue(placeCommand());
+
+        m_driverController.y().whileTrue(m_drivetrain.slowModeCommand());
+    }
+
+    private void configureTuningBindings() {
+        m_driverController.a().onTrue(TuningCommands.characterize(m_drivetrain));
+        m_driverController.b().onTrue(TuningCommands.autoTuneTurn(m_drivetrain));
+        m_driverController.x().onTrue(TuningCommands.driveDistanceTest(m_drivetrain, 1.0));
+        m_driverController.y().onTrue(TuningCommands.turnTest(m_drivetrain));
+        m_driverController.l1().onTrue(m_drivetrain.stopCommand());
+    }
+
+    /** Close the claw on an object, then lift it to carry height. */
+    public Command grabCommand() {
+        return Commands.sequence(m_claw.closeCommand(), m_arm.carryCommand()).withName("Grab");
+    }
+
+    /** Lower the arm, then let go. */
+    public Command placeCommand() {
+        return Commands.sequence(m_arm.downCommand(), m_claw.openCommand()).withName("Place");
+    }
+
+    public Command getAutonomousCommand() {
+        return Autos.pickUpAndMove(m_drivetrain, m_arm, m_claw);
+    }
+
+    public Drivetrain getDrivetrain() {
+        return m_drivetrain;
+    }
+
+    public Arm getArm() {
+        return m_arm;
+    }
+
+    public Claw getClaw() {
+        return m_claw;
+    }
+}
