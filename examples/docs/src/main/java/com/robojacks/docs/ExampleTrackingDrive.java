@@ -12,6 +12,7 @@ import com.robojacks.lib.hardware.VexMotorConfig;
 import com.robojacks.lib.hardware.VexMotorConfig.IdleMode;
 import com.robojacks.lib.hardware.VexRotationSensor;
 import com.robojacks.lib.math.Pose2d;
+import com.robojacks.lib.math.Translation2d;
 import com.robojacks.lib.math.Vector3;
 import com.robojacks.lib.math.util.Units;
 import com.robojacks.lib.telemetry.Telemetry;
@@ -29,12 +30,13 @@ public class ExampleTrackingDrive extends SubsystemBase implements TankDriveSubs
     private static final double kTrackWidthMeters = Units.inchesToMeters(11.5);
     private static final double kMetersPerMotorRotation = kGearRatio * Math.PI * kWheelDiameterMeters;
 
-    // Tracking wheels: 2" omni wheels on Rotation Sensors
+    // Tracking wheels: 2" omni wheels on Rotation Sensors. Locations are where each wheel touches
+    // the floor, from the robot's center, in WPILib robot coordinates (+X forward, +Y left).
     private static final double kTrackingWheelDiameter = Units.inchesToMeters(2.0);
-    /** The forward-rolling wheel is 1.25" LEFT of the robot's turning center. */
-    private static final double kForwardWheelLeftOffset = Units.inchesToMeters(1.25);
-    /** The sideways-rolling wheel is 2.5" BEHIND the turning center. */
-    private static final double kSidewaysWheelForwardOffset = Units.inchesToMeters(-2.5);
+    /** The forward-rolling wheel: 1.25" LEFT of center. */
+    private static final Translation2d kForwardWheelLocation = new Translation2d(0.0, Units.inchesToMeters(1.25));
+    /** The sideways-rolling wheel: 2.5" BEHIND center. */
+    private static final Translation2d kSidewaysWheelLocation = new Translation2d(Units.inchesToMeters(-2.5), 0.0);
     // [/tracking-constants]
 
     private final VexMotor m_leftLeader = new VexMotor(1, Cartridge.BLUE);
@@ -71,7 +73,7 @@ public class ExampleTrackingDrive extends SubsystemBase implements TankDriveSubs
         m_sidewaysWheel.reset();
 
         m_poseEstimator = new TrackingWheelPoseEstimator(
-                kForwardWheelLeftOffset, kSidewaysWheelForwardOffset,
+                kForwardWheelLocation, kSidewaysWheelLocation,
                 m_gyro.getRotation2d(), m_forwardWheel.getPosition(), m_sidewaysWheel.getPosition(),
                 Pose2d.kZero);
         // [/tracking-setup]

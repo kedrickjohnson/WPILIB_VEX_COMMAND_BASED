@@ -25,7 +25,7 @@
   <li><strong>Origin</strong> at the center of the field. Each axis runs from about −1.83 m to +1.83 m (6 tiles of 24 in each way).</li>
   <li><strong>Axes</strong> match the GPS Sensor's, so GPS x and y map straight in. Decide once which wall is +X for your team and stick to it; the path planner and every auto use the same frame.</li>
   <li><strong>Heading</strong> is WPILib-style: 0 points along +X and counter-clockwise is positive, in a <code>Rotation2d</code>.</li>
-  <li><strong>Robot frame</strong>: +X is the robot's front, +Y its left (WPILib's convention). Offsets like "the GPS is 10 cm behind center" use it.</li>
+  <li><strong>Robot frame</strong>: WPILib's robot coordinate system, from the robot's center: +X toward the front, +Y to the left, rotation counter-clockwise. Everything mounted on the robot is described in it: the GPS as a <code>Transform2d</code> (like PhotonVision's robot-to-camera), tracking wheels as <code>Translation2d</code> locations (like swerve modules).</li>
 </ul>
 <p>Why the center and not a corner? It's what the GPS Sensor reports and what FTC uses, autos for the two starting sides are mirror images about it, and VEX field layouts change every season while the center stays put.</p>
 

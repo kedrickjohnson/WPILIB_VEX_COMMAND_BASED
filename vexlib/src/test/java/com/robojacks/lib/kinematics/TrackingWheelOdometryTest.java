@@ -9,6 +9,7 @@ import com.robojacks.lib.hardware.VexRotationSensor;
 import com.robojacks.lib.hal.Cartridge;
 import com.robojacks.lib.math.Pose2d;
 import com.robojacks.lib.math.Rotation2d;
+import com.robojacks.lib.math.Translation2d;
 import org.junit.Test;
 
 public class TrackingWheelOdometryTest extends SimTestBase {
@@ -43,11 +44,14 @@ public class TrackingWheelOdometryTest extends SimTestBase {
         fwd.setPositionConversionFactor(Math.PI * wheel);
         side.setPositionConversionFactor(Math.PI * wheel);
         sim.simulateTankDrive(new int[] {1}, new int[] {2}, Math.PI * 0.1, 0.3);
-        sim.simulateTrackingWheel(4, true, 0.04, wheel);
-        sim.simulateTrackingWheel(5, false, -0.06, wheel);
+        // Wheel locations from robot center, WPILib robot frame: forward wheel 4 cm left, sideways wheel 6 cm behind
+        Translation2d fwdLoc = new Translation2d(0.0, 0.04);
+        Translation2d sideLoc = new Translation2d(-0.06, 0.0);
+        sim.simulateTrackingWheel(4, true, fwdLoc, wheel);
+        sim.simulateTrackingWheel(5, false, sideLoc, wheel);
         run(2.1); // IMU calibration
 
-        TrackingWheelOdometry odo = new TrackingWheelOdometry(0.04, -0.06, imu.getRotation2d(), fwd.getPosition(), side.getPosition());
+        TrackingWheelOdometry odo = new TrackingWheelOdometry(fwdLoc, sideLoc, imu.getRotation2d(), fwd.getPosition(), side.getPosition());
         // Drive an arc, then spin
         left.setVoltage(4);
         right.setVoltage(8);

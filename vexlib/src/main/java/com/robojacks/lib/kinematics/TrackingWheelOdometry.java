@@ -2,6 +2,7 @@ package com.robojacks.lib.kinematics;
 
 import com.robojacks.lib.math.Pose2d;
 import com.robojacks.lib.math.Rotation2d;
+import com.robojacks.lib.math.Translation2d;
 import com.robojacks.lib.math.Twist2d;
 
 /**
@@ -11,13 +12,17 @@ import com.robojacks.lib.math.Twist2d;
  * setup for competitive VEX autonomous.
  *
  * <p>Typical layout: one wheel that rolls forward/back ({@code forward}) and one that rolls
- * sideways ({@code sideways}). Each wheel's offset from the robot's turning center corrects for
- * the motion it sees when the robot spins in place.
+ * sideways ({@code sideways}). Each wheel's location relative to the robot's center corrects for
+ * the motion it sees when the robot spins in place. Locations use WPILib's robot coordinate
+ * system, like swerve module locations: +X toward the robot's front, +Y to its left, meters.
  *
  * <pre>{@code
- * // Forward wheel 1.5" left of center, sideways wheel 3" behind center
+ * // Forward wheel 1.5" left of center; sideways wheel 3" behind center
+ * Translation2d kForwardWheelLocation = new Translation2d(0.0, Units.inchesToMeters(1.5));
+ * Translation2d kSidewaysWheelLocation = new Translation2d(Units.inchesToMeters(-3.0), 0.0);
+ *
  * TrackingWheelOdometry m_odometry = new TrackingWheelOdometry(
- *         Units.inchesToMeters(1.5), Units.inchesToMeters(-3.0),
+ *         kForwardWheelLocation, kSidewaysWheelLocation,
  *         m_gyro.getRotation2d(), m_forwardWheel.getPosition(), m_sidewaysWheel.getPosition());
  *
  * // in periodic():
@@ -54,6 +59,24 @@ public class TrackingWheelOdometry {
         resetPosition(gyroAngle, forwardDistance, sidewaysDistance, initialPose);
     }
 
+    /**
+     * @param forwardWheelLocation  where the forward-rolling wheel touches the floor, from the robot's
+     *                              center (+X forward, +Y left). Only its Y (left-right) matters.
+     * @param sidewaysWheelLocation where the sideways-rolling wheel touches the floor. Only its X
+     *                              (front-back) matters.
+     */
+    public TrackingWheelOdometry(Translation2d forwardWheelLocation, Translation2d sidewaysWheelLocation,
+                                 Rotation2d gyroAngle, double forwardDistance, double sidewaysDistance,
+                                 Pose2d initialPose) {
+        this(forwardWheelLocation.getY(), sidewaysWheelLocation.getX(), gyroAngle, forwardDistance, sidewaysDistance, initialPose);
+    }
+
+    /** Wheel locations from robot center, starting at the field origin. */
+    public TrackingWheelOdometry(Translation2d forwardWheelLocation, Translation2d sidewaysWheelLocation,
+                                 Rotation2d gyroAngle, double forwardDistance, double sidewaysDistance) {
+        this(forwardWheelLocation, sidewaysWheelLocation, gyroAngle, forwardDistance, sidewaysDistance, Pose2d.kZero);
+    }
+
     /** Starts at the field origin. */
     public TrackingWheelOdometry(double forwardWheelLeftOffset, double sidewaysWheelForwardOffset,
                                  Rotation2d gyroAngle, double forwardDistance, double sidewaysDistance) {
@@ -67,6 +90,16 @@ public class TrackingWheelOdometry {
         gyroOffset = pose.getRotation().minus(gyroAngle);
         prevForward = forwardDistance;
         prevSideways = sidewaysDistance;
+    }
+
+    /** Left offset of the forward wheel, meters (robot frame Y). */
+    public double getForwardWheelLeftOffset() {
+        return forwardWheelLeftOffset;
+    }
+
+    /** Forward offset of the sideways wheel, meters (robot frame X). */
+    public double getSidewaysWheelForwardOffset() {
+        return sidewaysWheelForwardOffset;
     }
 
     public Pose2d getPoseMeters() {

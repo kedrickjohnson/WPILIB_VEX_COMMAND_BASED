@@ -14,7 +14,7 @@
     <tr><td><code>CANcoder</code>, Through Bore</td><td><code>VexRotationSensor</code></td><td>Absolute angle, kept through power cycles.</td></tr>
     <tr><td><code>Pigeon2</code>, <code>AHRS</code></td><td><code>VexInertial</code></td><td><code>getAngle()</code> clockwise, <code>getRotation2d()</code> counter-clockwise.</td></tr>
     <tr><td><code>DigitalInput</code>, <code>Solenoid</code>, <code>DoubleSolenoid</code>, <code>AnalogPotentiometer</code>, <code>Encoder</code></td><td>Same names (<code>AdiEncoder</code> for Encoder)</td><td>On 3-wire ports <code>'A'</code>–<code>'H'</code>. <code>DigitalInput.get()</code> is true when pressed.</td></tr>
-    <tr><td><code>PhotonCamera</code> + <code>PhotonPoseEstimator</code></td><td><code>VexGps</code> + <code>GpsPoseEstimator</code></td><td>Same <code>Vision</code> subsystem pattern; see <a href="#vision">Vision</a>.</td></tr>
+    <tr><td><code>PhotonCamera</code> + <code>PhotonPoseEstimator</code></td><td><code>VexGps</code> + <code>GpsPoseEstimator</code></td><td>Same <code>Vision</code> subsystem pattern and a <code>robotToGps</code> <code>Transform2d</code> from robot center; see <a href="#vision">Vision</a>.</td></tr>
     <tr><td><code>DifferentialDrive</code>, <code>DifferentialDriveOdometry</code>, <code>DifferentialDrivePoseEstimator</code></td><td>Same names</td><td>Odometry takes the gyro angle and wheel distances.</td></tr>
     <tr><td><code>PIDController</code>, <code>ProfiledPIDController</code>, <code>TrapezoidProfile</code></td><td>Same names</td><td></td></tr>
     <tr><td><code>SimpleMotorFeedforward</code>, <code>ArmFeedforward</code>, <code>ElevatorFeedforward</code></td><td>Same names</td><td></td></tr>

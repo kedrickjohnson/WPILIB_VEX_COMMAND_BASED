@@ -3,6 +3,7 @@ package com.robojacks.lib.vision;
 import com.robojacks.lib.hal.HAL;
 import com.robojacks.lib.hardware.VexGps;
 import com.robojacks.lib.math.Pose2d;
+import com.robojacks.lib.math.Transform2d;
 import com.robojacks.lib.math.VecBuilder;
 import com.robojacks.lib.math.Vector3;
 import java.util.Optional;
@@ -13,8 +14,12 @@ import java.util.Optional;
  * repeats, corrects for latency, and says how much to trust each estimate.
  *
  * <pre>{@code
- * private final VexGps m_gps = new VexGps(kGpsPort, kGpsLeftOffset, kGpsForwardOffset);
- * private final GpsPoseEstimator m_estimator = new GpsPoseEstimator(m_gps);
+ * // GPS 10 cm behind center, camera facing out the back (WPILib robot frame, from robot center)
+ * public static final Transform2d kRobotToGps =
+ *         new Transform2d(new Translation2d(-0.10, 0.0), Rotation2d.fromDegrees(180));
+ *
+ * private final VexGps m_gps = new VexGps(kGpsPort);
+ * private final GpsPoseEstimator m_estimator = new GpsPoseEstimator(m_gps, kRobotToGps);
  *
  * public void periodic() {
  *     m_estimator.update().ifPresent(est ->
@@ -39,8 +44,39 @@ public class GpsPoseEstimator {
     private double lastUpdate = Double.NEGATIVE_INFINITY;
     private Vector3 currentStdDevs = VecBuilder.fill(1.0, 1.0, 1e6);
 
+    /** Uses whatever mounting the {@code VexGps} was given (center, facing forward by default). */
     public GpsPoseEstimator(VexGps gps) {
         this.gps = gps;
+    }
+
+    /**
+     * Like {@code new PhotonPoseEstimator(layout, strategy, robotToCamera)}.
+     *
+     * @param robotToGps where the GPS is mounted, from the robot's center: +X forward, +Y left,
+     *                   rotation = which way its camera faces, counter-clockwise from the robot's front
+     */
+    public GpsPoseEstimator(VexGps gps, Transform2d robotToGps) {
+        this(gps);
+        gps.setRobotToGps(robotToGps);
+    }
+
+    /** Changes the mounting transform (robot center to GPS). */
+    public void setRobotToGpsTransform(Transform2d robotToGps) {
+        gps.setRobotToGps(robotToGps);
+    }
+
+    public Transform2d getRobotToGpsTransform() {
+        return gps.getRobotToGps();
+    }
+
+    /** PhotonVision's name for {@link #setRobotToGpsTransform}. */
+    public void setRobotToCameraTransform(Transform2d robotToCamera) {
+        setRobotToGpsTransform(robotToCamera);
+    }
+
+    /** PhotonVision's name for {@link #getRobotToGpsTransform}. */
+    public Transform2d getRobotToCameraTransform() {
+        return getRobotToGpsTransform();
     }
 
     /**

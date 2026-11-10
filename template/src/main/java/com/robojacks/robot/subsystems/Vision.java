@@ -14,7 +14,9 @@ import static com.robojacks.robot.Constants.VisionConstants.*;
 /**
  * Vision, the way FRC robots do it with PhotonVision: the GPS Sensor is the "camera", a
  * {@link GpsPoseEstimator} turns its readings into pose estimates, and each estimate goes to
- * the drive subsystem's pose estimator through the consumer passed in.
+ * the drive subsystem's pose estimator through the consumer passed in. The GPS's mounting is
+ * {@code VisionConstants.kRobotToGps}: a robot-to-camera transform from the robot's center in
+ * WPILib's robot coordinates.
  *
  * <pre>{@code
  * private final Vision m_vision = new Vision(m_robotDrive::addVisionMeasurement);
@@ -30,8 +32,9 @@ public class Vision extends SubsystemBase {
     public Vision(EstimateConsumer estimateConsumer) {
         super("Vision");
         m_estimateConsumer = estimateConsumer;
-        m_gps = new VexGps(kGpsPort, kGpsLeftOffsetMeters, kGpsForwardOffsetMeters);
-        m_photonEstimator = new GpsPoseEstimator(m_gps);
+        m_gps = new VexGps(kGpsPort);
+        // Where the GPS is on the robot (robot-to-camera, from robot center), like PhotonPoseEstimator
+        m_photonEstimator = new GpsPoseEstimator(m_gps, kRobotToGps);
         m_photonEstimator.setMaxError(kMaxErrorMeters);
     }
 

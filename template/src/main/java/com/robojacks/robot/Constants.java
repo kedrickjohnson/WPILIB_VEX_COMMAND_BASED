@@ -2,6 +2,9 @@ package com.robojacks.robot;
 
 import com.robojacks.lib.math.util.Units;
 import com.robojacks.lib.hal.Cartridge;
+import com.robojacks.lib.math.Rotation2d;
+import com.robojacks.lib.math.Transform2d;
+import com.robojacks.lib.math.Translation2d;
 
 /**
  * Robot-wide constants, organized like an FRC Constants.java.
@@ -83,9 +86,17 @@ public final class Constants {
     public static final class VisionConstants {
         /** GPS Sensor port, or 0 if the robot has no GPS. */
         public static final int kGpsPort = 0;
-        /** Where the GPS sits relative to the robot's center, meters (+ = left / + = forward). */
-        public static final double kGpsLeftOffsetMeters = 0.0;
-        public static final double kGpsForwardOffsetMeters = 0.0;
+        /**
+         * Where the GPS is mounted, from the robot's center, in WPILib's robot coordinates (like
+         * PhotonVision's robotToCamera): +X toward the robot's front, +Y to its left, meters; the
+         * rotation is which way the GPS camera faces, counter-clockwise from the robot's front
+         * (180 = facing backward, 90 = facing left, -90 = facing right).
+         *
+         * <p>Example: 10 cm behind center, 5 cm right, facing backward:
+         * {@code new Transform2d(new Translation2d(-0.10, -0.05), Rotation2d.fromDegrees(180))}
+         */
+        public static final Transform2d kRobotToGps =
+                new Transform2d(new Translation2d(0.0, 0.0), Rotation2d.fromDegrees(0));
         /** Ignore readings whose reported error is bigger than this, meters. */
         public static final double kMaxErrorMeters = 0.05;
     }

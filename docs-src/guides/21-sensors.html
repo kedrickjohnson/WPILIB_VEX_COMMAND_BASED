@@ -87,7 +87,9 @@ boolean blue = m_color.isColor(VexOpticalSensor.kBlueHue, 25);</code></pre>
 
 <h2>GPS Sensor</h2>
 <p>The GPS Sensor reads the code strip around the field perimeter with a camera and reports where the robot is. It works best as a correction for odometry rather than on its own, exactly like a PhotonVision camera in FRC. The <a href="#vision">Vision</a> page covers it.</p>
-<pre class="code"><code class="lang-java">VexGps gps = new VexGps(kGpsPort, 0.0, -0.10); // 10 cm behind the robot's center
-Pose2d where = gps.getPose();                    // library frame: meters, CCW heading
-boolean trustworthy = gps.isReliable();          // reported error under 5 cm</code></pre>
+<pre class="code"><code class="lang-java">// Robot-to-GPS transform from the robot's center (WPILib robot frame): 10 cm behind, facing back
+VexGps gps = new VexGps(kGpsPort,
+        new Transform2d(new Translation2d(-0.10, 0.0), Rotation2d.fromDegrees(180)));
+Pose2d robot = gps.getPose();             // the robot's center on the field
+boolean trustworthy = gps.isReliable();   // reported error under 5 cm</code></pre>
 <div class="api-links">{{API:com.robojacks.lib.hardware.VexInertial}} {{API:com.robojacks.lib.hardware.VexRotationSensor}} {{API:com.robojacks.lib.hardware.VexDistanceSensor}} {{API:com.robojacks.lib.hardware.VexOpticalSensor}} {{API:com.robojacks.lib.hardware.VexGps}}</div>

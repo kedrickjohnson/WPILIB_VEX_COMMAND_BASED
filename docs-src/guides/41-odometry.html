@@ -36,15 +36,15 @@ m_poseEstimator.update(m_gyro.getRotation2d(), getLeftEncoderDistance(), getRigh
     <g font-family="IBM Plex Mono, monospace" font-size="10.5" fill="var(--ink)">
       <text x="156" y="44">front</text>
       <text x="66" y="84">forward wheel</text>
-      <text x="66" y="134">left offset</text>
+      <text x="66" y="134">+Y (left)</text>
       <text x="172" y="168">sideways wheel</text>
-      <text x="156" y="138">fwd offset (−)</text>
+      <text x="156" y="138">−X (behind)</text>
       <text x="156" y="122">center</text>
     </g>
   </svg>
-  <figcaption>Top view. Offsets are measured from the robot's turning center: the forward wheel's distance to the left, the sideways wheel's distance to the front (negative if behind).</figcaption>
+  <figcaption>Top view. Each wheel's location is a <code>Translation2d</code> from the robot's turning center in WPILib's robot frame (+X forward, +Y left), like swerve module locations. Only the forward wheel's y and the sideways wheel's x affect the math.</figcaption>
 </figure>
-<p>When the robot spins in place, a wheel that's off-center rolls even though the robot's center didn't move. <code>TrackingWheelOdometry</code> subtracts that using each wheel's offset, so measure them carefully (an error here shows up as the robot appearing to move when it turns).</p>
+<p>When the robot spins in place, a wheel that's off-center rolls even though the robot's center didn't move. <code>TrackingWheelOdometry</code> subtracts that using each wheel's location, so measure them carefully (an error here shows up as the robot appearing to move when it turns). Measure to where the wheel touches the floor.</p>
 <p>A complete drive subsystem with tracking wheels and vision correction:</p>
 <pre class="code"><code class="lang-java">{{SNIP:examples/docs/src/main/java/com/robojacks/docs/ExampleTrackingDrive.java#tracking-constants}}
 

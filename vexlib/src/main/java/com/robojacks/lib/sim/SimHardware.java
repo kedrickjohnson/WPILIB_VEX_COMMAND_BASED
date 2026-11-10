@@ -16,6 +16,8 @@ import com.robojacks.lib.hal.RotationSensorIO;
 import com.robojacks.lib.hal.ScreenIO;
 import com.robojacks.lib.math.Pose2d;
 import com.robojacks.lib.math.Rotation2d;
+import com.robojacks.lib.math.Transform2d;
+import com.robojacks.lib.math.Translation2d;
 import java.awt.Color;
 import java.awt.Font;
 import java.awt.Graphics2D;
@@ -256,11 +258,19 @@ public class SimHardware implements Hardware {
     /**
      * Makes a Rotation Sensor act as an unpowered tracking wheel on the simulated robot.
      *
-     * @param port            the Rotation Sensor's port
-     * @param forward         true for a wheel that rolls forward/back, false for one that rolls sideways
-     * @param offsetMeters    for a forward wheel: how far left of center (+) it is; for a sideways
-     *                        wheel: how far in front of center (+) it is
+     * @param port                the Rotation Sensor's port
+     * @param forward             true for a wheel that rolls forward/back, false for one that rolls sideways
+     * @param robotToWheel        where the wheel touches the floor, from the robot's center
+     *                            (WPILib robot frame: +X forward, +Y left)
      * @param wheelDiameterMeters tracking wheel diameter
+     */
+    public void simulateTrackingWheel(int port, boolean forward, Translation2d robotToWheel, double wheelDiameterMeters) {
+        simulateTrackingWheel(port, forward, forward ? robotToWheel.getY() : robotToWheel.getX(), wheelDiameterMeters);
+    }
+
+    /**
+     * Same, with the wheel's offset as a single number: for a forward wheel, how far LEFT of
+     * center it is; for a sideways wheel, how far IN FRONT of center.
      */
     public void simulateTrackingWheel(int port, boolean forward, double offsetMeters, double wheelDiameterMeters) {
         SimRotationSensor sensor = rotationSensors.get(port);
@@ -500,7 +510,12 @@ public class SimHardware implements Hardware {
         @Override public boolean isConnected() { return true; }
     }
 
-    /** GPS that reads the simulated robot's true pose, converted to the sensor's compass frame. */
+    /**
+     * GPS that reads the simulated robot's true pose, as seen by a sensor mounted on it, in the
+     * sensor's compass frame. The mounting is whatever the robot code declares with
+     * {@code VexGps(port, robotToGps)}, unless the sim script sets one with {@link #setMounting}
+     * (e.g. to test what happens when the code's transform is wrong).
+     */
     public static class SimGps implements GpsIO {
         private final Supplier<Pose2d> pose;
         /** Reported error, meters. Set it high to simulate the sensor losing sight of the field strip. */
@@ -508,27 +523,48 @@ public class SimHardware implements Hardware {
         /** Adds this much random noise (meters) to each position reading. */
         public double noiseMeters;
         private final java.util.Random random = new java.util.Random(1);
-        private double offsetX;
-        private double offsetY;
+        private Transform2d mounting = new Transform2d(0.0, 0.0, Rotation2d.kZero);
+        private boolean mountingFromScript;
 
         SimGps(Supplier<Pose2d> pose) {
             this.pose = pose;
+        }
+
+        /** The sensor's real mounting on the simulated robot (robot-to-GPS, WPILib robot frame). */
+        public void setMounting(Transform2d robotToGps) {
+            mounting = robotToGps;
+            mountingFromScript = true;
+        }
+
+        public Transform2d getMounting() {
+            return mounting;
+        }
+
+        @Override
+        public void declareMounting(Transform2d robotToGps) {
+            if (!mountingFromScript) {
+                mounting = robotToGps;
+            }
+        }
+
+        private Pose2d sensorPose() {
+            return pose.get().plus(mounting);
         }
 
         private double noise() {
             return noiseMeters == 0 ? 0 : random.nextGaussian() * noiseMeters;
         }
 
-        @Override public double getXMeters() { return pose.get().getX() + noise(); }
-        @Override public double getYMeters() { return pose.get().getY() + noise(); }
+        @Override public double getXMeters() { return sensorPose().getX() + noise(); }
+        @Override public double getYMeters() { return sensorPose().getY() + noise(); }
         @Override public double getHeadingDegreesCW() {
-            // Library heading: CCW from +X. GPS heading: CW from +Y.
-            double h = 90.0 - pose.get().getRotation().getDegrees();
+            // Library heading: CCW from +X. GPS heading: CW from +Y, the way the sensor faces.
+            double h = 90.0 - sensorPose().getRotation().getDegrees();
             h %= 360.0;
             return h < 0 ? h + 360.0 : h;
         }
         @Override public double getErrorMeters() { return errorMeters; }
-        @Override public void setOffset(double x, double y) { offsetX = x; offsetY = y; }
+        @Override public void setOffset(double x, double y) {}
         @Override public void setInitialPose(double x, double y, double headingCW) {}
         @Override public boolean isConnected() { return true; }
     }

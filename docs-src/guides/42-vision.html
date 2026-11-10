@@ -16,11 +16,13 @@
 <h2>Turning it on</h2>
 <p>The template includes the <code>Vision</code> subsystem; it's created only when a GPS port is set. In <code>Constants.java</code>:</p>
 <pre class="code"><code class="lang-java">public static final class VisionConstants {
-    public static final int kGpsPort = 14;                   // 0 = no GPS
-    public static final double kGpsLeftOffsetMeters = 0.0;   // where the sensor is on the robot
-    public static final double kGpsForwardOffsetMeters = -0.10;  // 10 cm behind center
+    public static final int kGpsPort = 14;   // 0 = no GPS
+    /** Robot center to GPS: 10 cm behind center, camera facing out the back. */
+    public static final Transform2d kRobotToGps =
+            new Transform2d(new Translation2d(-0.10, 0.0), Rotation2d.fromDegrees(180));
     public static final double kMaxErrorMeters = 0.05;
 }</code></pre>
+<p><code>kRobotToGps</code> is the same idea as PhotonVision's <code>kRobotToCam</code>; <a href="#vision-mounting">Mounting the GPS</a> shows how to measure it.</p>
 <p>That's all. <code>RobotContainer</code> creates it with the drive's method as the consumer, exactly like PhotonVision's example:</p>
 <pre class="code"><code class="lang-java">private final Vision m_vision = Constants.VisionConstants.kGpsPort > 0
         ? new Vision(m_robotDrive::addVisionMeasurement) : null;</code></pre>
@@ -48,16 +50,50 @@
 </ul>
 <p>The odometry side is set when the pose estimator is created: WPILib's defaults (0.02 m, 0.02 m, 0.01 rad) for drive encoders, 0.01 m for tracking wheels. Lower means "trust odometry more", so GPS corrections are gentler.</p>
 
-<h2>Mounting the GPS</h2>
-<ul>
-  <li>Mount it 10 to 25 cm above the floor (it must see the strip on the field walls), facing out the back or side, with a clear view.</li>
-  <li>Measure where it is relative to the robot's turning center and set the offsets: <code>kGpsLeftOffsetMeters</code> (+ left) and <code>kGpsForwardOffsetMeters</code> (+ forward).</li>
-  <li>Check the heading direction once on a real field: point the robot along +X and the GPS's pose should read 0°. If not, adjust with <code>VexGps.setHeadingOffset</code>.</li>
-</ul>
+<h2 id="vision-mounting">Mounting the GPS</h2>
+<p>Mount it 10 to 25 cm above the floor (it must see the strip on the field walls), with a clear view out the back or a side. Then describe where it is with a <strong>robot-to-GPS transform</strong>, measured from the robot's center in <a href="https://docs.wpilib.org/en/stable/docs/software/basic-programming/coordinate-system.html">WPILib's robot coordinate system</a>, exactly as you would a PhotonVision camera:</p>
+<figure>
+  <svg viewBox="0 0 340 250" role="img" aria-label="Top view of a robot: +X points to the robot's front, +Y to its left, rotation counter-clockwise. A GPS behind center faces backward." style="width:100%;max-width:420px;height:auto">
+    <rect x="80" y="40" width="180" height="180" rx="10" fill="var(--panel)" stroke="var(--wall)" stroke-width="3"/>
+    <text x="150" y="32" font-family="IBM Plex Mono, monospace" font-size="11" fill="var(--muted)">robot front</text>
+    <path d="M170 130 L170 62" stroke="var(--accent)" stroke-width="3"/><path d="M164 68 l6 -12 6 12z" fill="var(--accent)"/>
+    <path d="M170 130 L102 130" stroke="var(--accent)" stroke-width="3"/><path d="M108 124 l-12 6 12 6z" fill="var(--accent)"/>
+    <path d="M196 130 A26 26 0 0 0 188.4 111.6" fill="none" stroke="var(--signal)" stroke-width="2.5"/><path d="M185 115 l3 -8 6 5z" fill="var(--signal)"/>
+    <circle cx="170" cy="130" r="5" fill="var(--ink)"/>
+    <rect x="160" y="166" width="20" height="16" rx="3" fill="var(--signal)"/>
+    <path d="M170 182 L170 206" stroke="var(--ink)" stroke-width="2"/><path d="M165 200 l5 10 5 -10z" fill="var(--ink)"/>
+    <path d="M170 130 L170 166" stroke="var(--muted)" stroke-dasharray="3 3"/>
+    <g font-family="IBM Plex Mono, monospace" font-size="11" fill="var(--ink)">
+      <text x="176" y="72">+X</text><text x="98" y="122">+Y</text><text x="198" y="112" fill="var(--warn)">+θ</text>
+      <text x="178" y="126">center</text>
+      <text x="186" y="178">GPS</text>
+      <text x="186" y="206" fill="var(--muted)">camera faces back</text>
+      <text x="16" y="156" fill="var(--muted)">x = −0.10 m</text>
+      <text x="16" y="172" fill="var(--muted)">θ = 180°</text>
+    </g>
+  </svg>
+  <figcaption>Top view. +X is the robot's front, +Y its left, rotation counter-clockwise. This GPS is 10 cm behind center (x = −0.10) with its camera facing backward (180°).</figcaption>
+</figure>
+<div class="table-wrap"><table>
+  <thead><tr><th>Part</th><th>Measure</th></tr></thead>
+  <tbody>
+    <tr><td>Translation x</td><td>How far in front of the robot's center the sensor is (negative = behind).</td></tr>
+    <tr><td>Translation y</td><td>How far left of center (negative = right).</td></tr>
+    <tr><td>Rotation</td><td>Which way the camera faces, counter-clockwise from the robot's front: 0 forward, 90 left, 180 back, −90 right.</td></tr>
+  </tbody>
+</table></div>
+<pre class="code"><code class="lang-java">// 10 cm behind center, camera facing backward
+new Transform2d(new Translation2d(-0.10, 0.0), Rotation2d.fromDegrees(180));
+// On the right side: 5 cm forward, 13 cm right of center, camera facing right
+new Transform2d(new Translation2d(0.05, -0.13), Rotation2d.fromDegrees(-90));</code></pre>
+<p>"Center" is the robot's turning center, the same point odometry tracks: for a tank drive, halfway between the left and right wheels and halfway along the wheelbase. Measure to the middle of the GPS sensor.</p>
+<p>With the transform set, <code>VexGps.getPose()</code> returns the <em>robot's</em> pose, and <code>getSensorPose()</code> returns where the sensor itself is. Change it later with <code>VexGps.setRobotToGps(...)</code> or, PhotonVision-style, <code>GpsPoseEstimator.setRobotToCameraTransform(...)</code>.</p>
+<h3>One check on a real field</h3>
+<p>Which wall is +X is a field convention, separate from mounting. With the GPS facing forward (or the transform set), point the robot along +X: <code>getRotation2d()</code> should read 0°. If it doesn't, set <code>VexGps.setFieldHeadingOffset(...)</code> once (default 90).</p>
 <div class="note"><span class="note-title">On a real field</span>
 <p>The GPS is read with the same V5 SDK calls PROS uses, but this hasn't been checked on a physical field yet. Do the +X heading check above before trusting it in a match.</p></div>
 
 <h2>Seeing it work</h2>
 <p><code>Vision</code> sends <code>vision/pose</code> to telemetry next to the drive's <code>drive/pose</code>. On the <a href="#dashboard">dashboard</a>'s field view, the two robots should overlap; if vision's robot jumps around, lower <code>kMaxErrorMeters</code> or raise the standard deviation scale.</p>
-<p>In the simulator, the GPS reads the simulated robot's true position. Set <code>sim.getGps(port).noiseMeters</code> or <code>errorMeters</code> to test how your code handles a noisy or blind GPS.</p>
+<p>In the simulator, the GPS reads the simulated robot's true position as seen from where your code says it's mounted. Set <code>sim.getGps(port).noiseMeters</code> or <code>errorMeters</code> to test a noisy or blind GPS, and <code>sim.getGps(port).setMounting(...)</code> to put the simulated sensor somewhere other than your code says, to see what a mis-measured transform does.</p>
 <div class="api-links">{{API:com.robojacks.lib.vision.GpsPoseEstimator}} {{API:com.robojacks.lib.vision.EstimatedRobotPose}} {{API:com.robojacks.lib.vision.EstimateConsumer}} {{API:com.robojacks.lib.hardware.VexGps}} {{API:com.robojacks.lib.estimator.PoseEstimator}}</div>

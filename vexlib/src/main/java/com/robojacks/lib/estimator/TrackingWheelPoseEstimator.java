@@ -4,13 +4,16 @@ import com.robojacks.lib.hal.HAL;
 import com.robojacks.lib.kinematics.TrackingWheelOdometry;
 import com.robojacks.lib.math.Pose2d;
 import com.robojacks.lib.math.Rotation2d;
+import com.robojacks.lib.math.Translation2d;
 
 /**
  * Tracking-wheel odometry ({@link TrackingWheelOdometry}) corrected by GPS readings.
  *
+ * <p>Wheel locations are from the robot's center in WPILib's robot frame (+X forward, +Y left).
+ *
  * <pre>{@code
  * m_poseEstimator = new TrackingWheelPoseEstimator(
- *         kForwardWheelLeftOffset, kSidewaysWheelForwardOffset,
+ *         kForwardWheelLocation, kSidewaysWheelLocation,
  *         m_gyro.getRotation2d(), m_forwardWheel.getPosition(), m_sidewaysWheel.getPosition(), startPose);
  *
  * // periodic():
@@ -34,6 +37,20 @@ public class TrackingWheelPoseEstimator extends PoseEstimator {
         super(initialPose, stateStdDevs, measurementStdDevs);
         odometry = new TrackingWheelOdometry(forwardWheelLeftOffset, sidewaysWheelForwardOffset,
                 gyroAngle, forwardDistance, sidewaysDistance, initialPose);
+    }
+
+    /** Wheel locations as robot-frame translations (see {@link TrackingWheelOdometry}). */
+    public TrackingWheelPoseEstimator(Translation2d forwardWheelLocation, Translation2d sidewaysWheelLocation,
+                                      Rotation2d gyroAngle, double forwardDistance, double sidewaysDistance,
+                                      Pose2d initialPose) {
+        this(forwardWheelLocation.getY(), sidewaysWheelLocation.getX(), gyroAngle, forwardDistance, sidewaysDistance, initialPose);
+    }
+
+    public TrackingWheelPoseEstimator(Translation2d forwardWheelLocation, Translation2d sidewaysWheelLocation,
+                                      Rotation2d gyroAngle, double forwardDistance, double sidewaysDistance,
+                                      Pose2d initialPose, double[] stateStdDevs, double[] measurementStdDevs) {
+        this(forwardWheelLocation.getY(), sidewaysWheelLocation.getX(), gyroAngle, forwardDistance, sidewaysDistance,
+                initialPose, stateStdDevs, measurementStdDevs);
     }
 
     public Pose2d update(Rotation2d gyroAngle, double forwardDistance, double sidewaysDistance) {

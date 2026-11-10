@@ -12,7 +12,7 @@ import com.robojacks.lib.math.Rotation2d;
  * <pre>{@code
  * private final DifferentialDrivePoseEstimator m_poseEstimator = new DifferentialDrivePoseEstimator(
  *         m_gyro.getRotation2d(), getLeftEncoderDistance(), getRightEncoderDistance(), new Pose2d());
- * private final VexGps m_gps = new VexGps(kGpsPort);
+ * private final VexGps m_gps = new VexGps(kGpsPort, kRobotToGps); // mounting from robot center
  *
  * public void periodic() {
  *     m_poseEstimator.update(m_gyro.getRotation2d(), getLeftEncoderDistance(), getRightEncoderDistance());
