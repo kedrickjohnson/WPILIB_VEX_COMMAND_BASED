@@ -46,4 +46,19 @@ public interface Subsystem {
     default Command runEnd(Runnable run, Runnable end) {
         return Commands.runEnd(run, end, this);
     }
+
+    /** Runs {@code start} once, then {@code run} every loop until interrupted. */
+    default Command startRun(Runnable start, Runnable run) {
+        return new FunctionalCommand(start, run, interrupted -> {}, () -> false, this);
+    }
+
+    /** Builds the command when it's scheduled, not when this is called (WPILib {@code defer}). */
+    default Command defer(java.util.function.Supplier<Command> supplier) {
+        return Commands.defer(supplier, this);
+    }
+
+    /** Holds the subsystem and does nothing, so no other command (or the default) runs on it. */
+    default Command idle() {
+        return Commands.idle(this);
+    }
 }

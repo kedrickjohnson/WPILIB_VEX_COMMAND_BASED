@@ -1,0 +1,70 @@
+<!-- page: start | Start | Getting started | Install the tools, create a robot project, run it in the simulator and upload it to a V5 brain. -->
+<p class="lede">From nothing to a robot program running on a V5 brain: install three tools, create a project, check it in the simulator, upload it.</p>
+
+<div class="note is-info"><span class="note-title">What this is</span>
+<p>A Java library that brings FRC's command-based programming to VEX V5: <code>Robot</code>, <code>RobotContainer</code>, subsystems, commands, triggers, odometry and path following, with WPILib's names. It runs on the brain through <a href="https://github.com/vexide/Hydrozoa-Java">Hydrozoa</a>, which turns Java into WebAssembly. If you've written an FRC robot, most of this will look familiar; <a href="#coming-from-frc">Coming from FRC</a> lists the differences.</p></div>
+
+<h2>What you need</h2>
+<div class="table-wrap"><table>
+  <thead><tr><th>Tool</th><th>Why</th><th>Get it</th></tr></thead>
+  <tbody>
+    <tr><td>JDK 21</td><td>Compiles your code (Hydrozoa needs Java 21)</td><td><a href="https://adoptium.net/temurin/releases/?version=21">Eclipse Temurin 21</a></td></tr>
+    <tr><td>VS Code</td><td>Editor, with the VEX Command-Based extension</td><td><a href="https://code.visualstudio.com/">code.visualstudio.com</a>, then the <a href="#vscode">extension</a> and the Extension Pack for Java</td></tr>
+    <tr><td>Hydrozoa CLI</td><td>Uploads programs to the brain over USB</td><td>Install <a href="https://rustup.rs">Rust</a>, then run the command below</td></tr>
+  </tbody>
+</table></div>
+<pre class="code"><code class="lang-shell">cargo install --git https://github.com/vexide/hydrozoa-cli.git</code></pre>
+<p>You don't need to install Gradle: every project has a Gradle wrapper (<code>gradlew</code>) that downloads the right version the first time. That first build needs internet; after that it works offline.</p>
+
+<h2>Create a project</h2>
+<p><strong>In VS Code</strong> (recommended): open the Command Palette (<kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>P</kbd>), run <strong>VEX: Create a New Project</strong>, and answer four questions:</p>
+<ol class="steps">
+  <li><strong>Start from</strong>: the <em>command-based template</em> (a 6-motor tank drive with an intake, ready for your robot) or the <em>V5 Clawbot</em> (a complete example robot).</li>
+  <li><strong>Where</strong>: the folder the project goes in.</li>
+  <li><strong>Name</strong>: e.g. <code>Team1234Bot</code>. It's the folder name and the name on the brain's screen.</li>
+  <li><strong>Package</strong>: your Java package, e.g. <code>com.team1234.robot</code>.</li>
+</ol>
+<p><strong>Without VS Code</strong>: clone the repository and work in its <code>template/</code> folder. It's the same code; it uses the library from source instead of as a vendor library.</p>
+<pre class="code"><code class="lang-shell">git clone https://github.com/kedrickjohnson/vex-command-template.git
+cd vex-command-template</code></pre>
+
+<h2>What's in a project</h2>
+<div class="table-wrap"><table>
+  <thead><tr><th>File</th><th>What it's for</th></tr></thead>
+  <tbody>
+    <tr><td><code>Main.java</code></td><td>Starts the program. You won't edit it.</td></tr>
+    <tr><td><code>Robot.java</code></td><td>The robot's lifecycle: runs the scheduler, starts the auto. Like FRC's <code>Robot.java</code>.</td></tr>
+    <tr><td><code>RobotContainer.java</code></td><td>Creates subsystems, binds buttons, lists the autos. Where most of your setup goes.</td></tr>
+    <tr><td><code>Constants.java</code></td><td>Ports, gear ratios, gains. Change these to match your robot.</td></tr>
+    <tr><td><code>subsystems/</code></td><td>One class per mechanism: drive, intake, arm…</td></tr>
+    <tr><td><code>commands/</code></td><td>Command classes (most commands are short factory methods in subsystems instead).</td></tr>
+    <tr><td><code>autos/</code></td><td>Autonomous routines, including ones exported from the <a href="#planner">path planner</a>.</td></tr>
+    <tr><td><code>src/sim/java/…/SimMain.java</code></td><td>Runs the robot code in the <a href="#simulator">simulator</a>.</td></tr>
+    <tr><td><code>vendordeps/VexLib.json</code></td><td>The library, installed like an FRC vendordep (<a href="#vendordeps">details</a>).</td></tr>
+  </tbody>
+</table></div>
+
+<h2>Run it in the simulator</h2>
+<p>Click <strong>Simulate</strong> in VS Code's status bar, or run:</p>
+<pre class="code"><code class="lang-shell">./gradlew simulate</code></pre>
+<p>The simulator runs your real robot code against simulated motors and sensors, faster than real time. The template's script waits 3 seconds while the Inertial Sensor "calibrates", runs the autonomous for 15 seconds, then drives for a few seconds of driver control, printing the robot's position once a second. You should see <code>Auto done</code>. Add <code>--args=log</code> to also write a log you can replay on the <a href="#dashboard">dashboard</a>.</p>
+
+<h2>Run it on a robot</h2>
+<ol class="steps">
+  <li>Wire the robot to match <code>Constants.java</code>, or change the ports in <code>Constants.java</code> to match your robot. At minimum check the drive motor ports, which way each motor spins (<code>k…Reversed</code>), the cartridge color, and the Inertial Sensor port.</li>
+  <li>Plug the brain (or a controller tethered to it) into your computer with USB.</li>
+  <li>Click <strong>Upload</strong> in VS Code, or run <code>./gradlew hydrozoaUpload</code>. The program lands in slot 1 (set in <code>build.gradle.kts</code>).</li>
+  <li>Run it from the brain's screen. Keep the robot still for the first two seconds while the Inertial Sensor calibrates.</li>
+</ol>
+<div class="note"><span class="note-title">Status</span>
+<p>Everything compiles against Hydrozoa's SDK and runs in the simulator, but the library hasn't been run on a physical brain yet, and Hydrozoa itself is experimental. If something misbehaves on hardware, check <a href="#deploy">Deploying &amp; troubleshooting</a> and report what you see.</p></div>
+
+<h2>Make it your robot</h2>
+<div class="cards">
+  <a href="#robot-program"><strong>Understand the structure</strong><span>How Robot, RobotContainer and the scheduler fit together.</span></a>
+  <a href="#motors"><strong>Set up the drive</strong><span>Ports, directions, gear ratio and current limits.</span></a>
+  <a href="#subsystems"><strong>Add a mechanism</strong><span>Write a subsystem and its commands.</span></a>
+  <a href="#triggers"><strong>Bind the controller</strong><span>Buttons, sticks, combos and rumble.</span></a>
+  <a href="#tuning"><strong>Tune the drive</strong><span>Built-in tests measure your gains.</span></a>
+  <a href="#autos"><strong>Write an auto</strong><span>Drive to field points or follow planner paths.</span></a>
+</div>

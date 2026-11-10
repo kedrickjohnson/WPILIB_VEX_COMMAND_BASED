@@ -1,0 +1,43 @@
+<!-- page: vendordeps | Start | Vendor libraries | How VexLib is delivered like an FRC vendordep, and how to install, update or publish libraries. -->
+<p class="lede">VexLib is delivered the way FRC teams get REVLib or Phoenix: a JSON file in <code>vendordeps/</code> that points at a Maven repository.</p>
+
+  <h2>How it works</h2>
+  <p>Each library is one file in your project's <code>vendordeps/</code> folder. The build reads every <code>.json</code> there, adds its Maven repositories, and adds its Java artifacts as dependencies. Gradle downloads them on the next build, along with sources so VS Code can show the library's docs and jump into its code.</p>
+<pre class="code"><code class="lang-json">{
+  "fileName": "VexLib.json",
+  "name": "VexLib",
+  "version": "0.1.0",
+  "uuid": "d6eb81fc-0c7e-4aa7-8b70-7d890ccc2d6e",
+  "hydrozoaVersion": "0.1.0-alpha.1",
+  "mavenUrls": ["https://kedrickjohnson.github.io/vex-command-template/maven"],
+  "jsonUrl": "https://kedrickjohnson.github.io/vex-command-template/vendordeps/VexLib.json",
+  "javaDependencies": [
+    { "groupId": "io.github.kedrickjohnson", "artifactId": "vexlib", "version": "0.1.0" }
+  ]
+}</code></pre>
+  <p>The format is WPILib's, trimmed to what a Java-only VEX robot needs: no native libraries and no FRC year. <code>uuid</code> stays the same across versions so an update replaces the old file, and <code>jsonUrl</code> is where updates are checked.</p>
+
+  <h2>Installing</h2>
+  <div class="table-wrap"><table>
+    <thead><tr><th>How</th><th>Steps</th></tr></thead>
+    <tbody>
+      <tr><td>VS Code</td><td><strong>VEX: Manage Vendor Libraries</strong> → <strong>Install new library (online)</strong>, then paste the library's JSON URL. VexLib also comes with the extension and installs offline.</td></tr>
+      <tr><td>By hand</td><td>Download the JSON into <code>vendordeps/</code> and build.</td></tr>
+    </tbody>
+  </table></div>
+  <p>VexLib's URL: <code>https://kedrickjohnson.github.io/vex-command-template/vendordeps/VexLib.json</code></p>
+  <p>The extension copies its bundled VexLib into <code>~/.vex-command/maven</code>, a local repository every project checks first. That's what lets a new project build at a competition with no internet, the same idea as WPILib's offline vendordep folder.</p>
+
+  <h2>The build code</h2>
+  <p>Projects made by the extension already have this in <code>build.gradle.kts</code>. To add vendor libraries to an older project, paste it above the <code>hydrozoa { }</code> block, or let the manager add it.</p>
+<pre class="code"><code>{{SRC_BLOCK}}</code></pre>
+
+  <h2>Publishing a library</h2>
+  <p>A vendor library is a Maven repository plus the JSON. GitHub Pages can host both. For VexLib, the version lives in <code>gradle.properties</code>:</p>
+  <ol class="steps">
+    <li>Change <code>vexlibVersion</code> in <code>gradle.properties</code>.</li>
+    <li>Run <code>./gradlew :vexlib:publish</code>. It writes the jars and pom to <code>docs/maven/</code> and the JSON to <code>docs/vendordeps/VexLib.json</code>. (Without Gradle: <code>python3 tools/release_vexlib.py --classpath &lt;hydrozoa jar&gt;</code> does the same.)</li>
+    <li>Commit and push. GitHub Pages serves the new version, and teams see it under <strong>Check for updates</strong>.</li>
+    <li>Run <code>node scripts/bundle.js</code> in <code>vscode-extension/</code> and package the extension so new projects start on that version.</li>
+  </ol>
+  <p>Old versions stay in <code>docs/maven/</code>, so a team that hasn't updated keeps building.</p>

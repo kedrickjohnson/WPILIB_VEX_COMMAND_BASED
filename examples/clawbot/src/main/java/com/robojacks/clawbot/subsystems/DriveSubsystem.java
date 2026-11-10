@@ -106,9 +106,7 @@ public class DriveSubsystem extends SubsystemBase implements TankDriveSubsystem 
         m_odometry.update(getGyroRotation(), getLeftEncoderDistance(), getRightEncoderDistance());
 
         Pose2d pose = getPose();
-        Telemetry.put("drive/x", pose.getX());
-        Telemetry.put("drive/y", pose.getY());
-        Telemetry.put("drive/deg", pose.getRotation().getDegrees());
+        Telemetry.putPose("drive/pose", pose);
     }
 
     // =====================================================================

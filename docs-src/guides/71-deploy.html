@@ -1,0 +1,64 @@
+<!-- page: deploy | Examples & help | Deploying & troubleshooting | Uploading, reading output, error messages and their fixes, performance, and common questions. -->
+<p class="lede">Hydrozoa compiles your Java to WebAssembly and runs it on the brain in an interpreter. This page covers getting it there, seeing what it prints, and fixing what goes wrong.</p>
+
+<h2>Uploading</h2>
+<pre class="code"><code class="lang-shell">./gradlew hydrozoaUpload                     # a project from the VS Code extension
+./gradlew :template:hydrozoaUpload           # in the library's repository (slot 1)
+./gradlew :examples:clawbot:hydrozoaUpload   # slot 2</code></pre>
+<p>Each robot's <code>build.gradle.kts</code> sets the program's name, slot (1–8) and icon in its <code>hydrozoa { }</code> block. <code>hydrozoa.bin</code> is the Hydrozoa runtime, uploaded with your program (from vexide/Hydrozoa-Java, MIT license). Upload over USB to the brain, or to a controller tethered or radio-linked to it.</p>
+
+<h2>Reading output</h2>
+<p><code>System.out.println</code> and <code>Telemetry</code> go to the brain's USB serial port. Watch them on the <a href="#dashboard">dashboard</a> (Chrome or Edge), or with any serial terminal. An uncaught exception prints over serial and shows on the brain's screen.</p>
+
+<h2>Messages you might see</h2>
+<div class="table-wrap"><table>
+  <thead><tr><th>Message</th><th>Meaning and fix</th></tr></thead>
+  <tbody>
+    <tr><td><code>[HAL] motor on port N: …</code></td><td>The motor isn't plugged in, or something else is on that port. Printed once; commands to it are skipped. Check the cable and <code>Constants.java</code>.</td></tr>
+    <tr><td><code>[HAL] no Inertial Sensor found on port N</code></td><td>Wrong port or loose cable. Heading reads 0 until it's found.</td></tr>
+    <tr><td><code>[HAL] Inertial Sensor … reports an error</code> / <code>never started calibrating</code> / <code>calibration timed out</code></td><td>Re-seat the cable; make sure the robot is still at startup. A sensor that keeps failing may be damaged.</td></tr>
+    <tr><td><code>[HAL] no Rotation Sensor / Distance Sensor / Optical Sensor / GPS Sensor found on port N</code></td><td>Same: port or cable. Reads return a safe value (0, NaN or the last reading).</td></tr>
+    <tr><td><code>Port N has already been used</code></td><td>Two devices are set to the same smart port. Thrown at startup so it can't go unnoticed.</td></tr>
+    <tr><td><code>3-wire port X has already been used</code></td><td>Same for 3-wire ports. Note that an <code>AdiEncoder</code> uses two ports.</td></tr>
+    <tr><td><code>[VexMotor] port N: current limit … outside 0-2.5 A</code></td><td>The config asked for more than a V5 motor allows; 2.5 A was used.</td></tr>
+    <tr><td><code>[NamedCommands] no command registered as '…'</code></td><td>An auto used a name you didn't register (or registered after building the auto). That step does nothing.</td></tr>
+    <tr><td><code>HAL.set(...) must be called before creating the robot</code></td><td>Something created hardware before <code>Main</code> or <code>SimMain</code> set up the hardware layer; e.g. a <code>static</code> field holding a motor. Make it an instance field.</td></tr>
+    <tr><td>Uploading: <code>hydrozoa: command not found</code></td><td>Install the Hydrozoa CLI (<code>cargo install --git https://github.com/vexide/hydrozoa-cli.git</code>) and make sure <code>~/.cargo/bin</code> is on your PATH. The VS Code extension finds it there automatically.</td></tr>
+    <tr><td>Build: <code>Could not resolve io.github.kedrickjohnson:vexlib</code></td><td>Gradle can't reach the library's site and has no offline copy. Open the project once in VS Code with the extension installed (it installs the offline copy), or connect to the internet.</td></tr>
+  </tbody>
+</table></div>
+
+<h2>The robot does something odd</h2>
+<div class="table-wrap"><table>
+  <thead><tr><th>Symptom</th><th>Likely cause</th></tr></thead>
+  <tbody>
+    <tr><td>Drives in circles when going straight</td><td>One side's motors are reversed wrong, or a follower's direction is wrong. Prop the robot up and check each wheel.</td></tr>
+    <tr><td>Turns stop a few degrees short</td><td>kS is too low: run tuning test A.</td></tr>
+    <tr><td>Turns oscillate</td><td>kTurnP too high or kTurnD too low: run tuning test B.</td></tr>
+    <tr><td>Odometry distance is off by a constant factor</td><td>Wrong wheel diameter, gear ratio or cartridge. Run tuning test X.</td></tr>
+    <tr><td>Odometry position drifts while turning in place</td><td>Track width (drive odometry) or tracking-wheel offsets are off. See <a href="#odometry">Odometry</a>.</td></tr>
+    <tr><td>Heading drifts all match</td><td>The robot moved during IMU calibration. Keep it still for 2 s after the program starts.</td></tr>
+    <tr><td>A mechanism gets weak during a match</td><td>Motor overheating (check temperature in telemetry), or too many motors sharing current.</td></tr>
+    <tr><td>Auto worked yesterday, falls short today</td><td>Battery charge. Swap batteries below about 70%.</td></tr>
+    <tr><td>Controller screen text doesn't change</td><td>Text is sent every 50 ms per line in turn; very frequent changes on all lines show with a delay. Write only what changed.</td></tr>
+  </tbody>
+</table></div>
+
+<h2 id="deploy-performance">Performance</h2>
+<p>The interpreter is slower than native PROS or vexide code. To keep the 10 ms loop on time:</p>
+<ul>
+  <li>Keep <code>periodic()</code> methods light; don't create objects (new <code>Pose2d</code>s, strings) every loop when you can avoid it.</li>
+  <li>Draw on the brain screen only when something changes.</li>
+  <li>Send telemetry only for what you're debugging; it's printed at most four times a second for this reason.</li>
+  <li>Let the path planner pre-compute trajectories on your computer (it does) and prefer the motor's built-in position control for simple moves.</li>
+</ul>
+
+<h2>Questions</h2>
+<h3>Can I use this with PROS or VEXcode?</h3>
+<p>No: it's Java, running on Hydrozoa. It replaces PROS/VEXcode for your program, and uses the same V5 SDK underneath.</p>
+<h3>Is it competition-legal?</h3>
+<p>Hydrozoa programs are uploaded and run like any other user program, through VEXos, and respond to field control. As always, check the current game manual for programming rules.</p>
+<h3>Does it work on VEX IQ or EXP?</h3>
+<p>No, only the V5 brain (Hydrozoa targets V5).</p>
+<h3>Where's the source for a library class?</h3>
+<p>Every class has a page in the <a href="api/index.html">API reference</a>, and in VS Code, Ctrl/Cmd-click a library class to open its source (the vendor library ships a sources jar).</p>

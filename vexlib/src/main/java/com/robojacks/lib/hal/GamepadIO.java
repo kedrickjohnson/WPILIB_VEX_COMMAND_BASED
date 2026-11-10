@@ -27,4 +27,13 @@ public interface GamepadIO {
     default boolean isConnected() {
         return true;
     }
+
+    /**
+     * Shows text on the controller's screen: line 0-2, column 0-18. VEXos accepts one screen
+     * update about every 50 ms, so the hardware layer queues updates and sends the latest.
+     */
+    default void setText(int line, int column, String text) {}
+
+    /** Rumbles the controller: '.' short, '-' long, ' ' pause, e.g. ".-." (up to 8 symbols). */
+    default void rumble(String pattern) {}
 }

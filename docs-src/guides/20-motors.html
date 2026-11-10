@@ -1,0 +1,77 @@
+<!-- page: motors | Hardware | Motors | VexMotor and VexMotorConfig: cartridges, directions, idle modes, current limits, followers, encoders and built-in position control. -->
+<p class="lede">A V5 motor is a smart motor: encoder, current limit and position control built in. Configure it the way REVLib configures a SPARK MAX: build a config, then call <code>configure()</code>.</p>
+
+  <h2>VexMotor</h2>
+<pre class="code"><code class="lang-java">private final VexMotor m_armMotor = new VexMotor(8, Cartridge.GREEN);
+private final VexEncoder m_armEncoder = m_armMotor.getEncoder();</code></pre>
+  <p>The cartridge goes in the constructor because it's hardware, like a SPARK's motor type. It must match the cartridge installed: it sets the encoder scaling (1800 / 900 / 300 ticks per output revolution for red / green / blue).</p>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Method</th><th>Does</th></tr></thead>
+    <tbody>
+      <tr><td><code>set(speed)</code></td><td>Percent output, -1 to 1.</td></tr>
+      <tr><td><code>setVoltage(volts)</code></td><td>-12 to 12 V. Exactly 0 applies the idle mode.</td></tr>
+      <tr><td><code>stopMotor()</code></td><td>0 V (so the idle mode applies).</td></tr>
+      <tr><td><code>setPositionTarget(position, maxRpm)</code></td><td>Moves to a position with the motor's built-in PID, in encoder units.</td></tr>
+      <tr><td><code>getEncoder()</code></td><td>The built-in encoder (position and velocity).</td></tr>
+      <tr><td><code>getOutputCurrent()</code>, <code>getMotorTemperature()</code></td><td>Amps and °C (5° steps).</td></tr>
+      <tr><td><code>getAppliedVoltage()</code>, <code>isConnected()</code>, <code>isFollower()</code></td><td>Status.</td></tr>
+    </tbody>
+  </table></div>
+
+  <h2>VexMotorConfig</h2>
+<pre class="code"><code class="lang-java">VexMotorConfig config = new VexMotorConfig();
+config.inverted(false)
+      .idleMode(IdleMode.kHold)
+      .smartCurrentLimit(2.5);
+config.encoder
+      .positionConversionFactor(360.0 * kGearRatio)   // arm degrees
+      .velocityConversionFactor(360.0 * kGearRatio / 60.0);
+m_armMotor.configure(config);</code></pre>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Setting</th><th>Values</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr><td><code>inverted(b)</code></td><td>true / false</td><td>Reverses output and readings.</td></tr>
+      <tr><td><code>idleMode(m)</code></td><td><code>kCoast</code>, <code>kBrake</code>, <code>kHold</code></td><td>What happens at 0 V. <code>kHold</code> actively holds position: use it for arms and lifts.</td></tr>
+      <tr><td><code>smartCurrentLimit(amps)</code></td><td>0 to 2.5</td><td>2.5 A is the V5 11 W motor's maximum and default.</td></tr>
+      <tr><td><code>follow(leader[, invert])</code></td><td>another <code>VexMotor</code></td><td>Copies the leader's voltage and position commands.</td></tr>
+      <tr><td><code>disableFollowerMode()</code></td><td></td><td>Stops following.</td></tr>
+      <tr><td><code>encoder.positionConversionFactor(f)</code></td><td>units per motor rotation</td><td>Position reads <code>rotations × f</code>.</td></tr>
+      <tr><td><code>encoder.velocityConversionFactor(f)</code></td><td>units per RPM</td><td>Velocity reads <code>rpm × f</code>.</td></tr>
+      <tr><td><code>apply(other)</code></td><td>another config</td><td>Copies every setting <code>other</code> set.</td></tr>
+    </tbody>
+  </table></div>
+  <p>Only settings you call are applied, so you can build a shared config and layer per-motor changes on top:</p>
+<pre class="code"><code class="lang-java">leftFollowerConfig.apply(globalConfig).inverted(kLeftRearMotorReversed).follow(m_leftLeader);</code></pre>
+  <p>Two differences from a SPARK MAX. V5 motors don't store settings, so there's no persist or reset mode. And a follower's own <code>inverted</code> still applies, because VEX gearboxes often mount motors facing opposite ways. Set each motor's direction for how it's mounted.</p>
+
+  <h2>Followers and groups</h2>
+  <p>VEX drives usually have two to four motors per side. Make one the leader and the rest followers, configured with <code>follow(leader)</code>: commands to the leader are copied to them, and you only use the leader in code (the drive's <code>DifferentialDrive</code> takes the two leaders). Alternatively, <code>new VexMotorGroup(m1, m2, m3)</code> treats several motors as one, like WPILib's old <code>MotorControllerGroup</code>.</p>
+
+  <h2>Encoders</h2>
+  <p><code>VexEncoder</code> works like REVLib's <code>RelativeEncoder</code>: <code>getPosition()</code>, <code>getVelocity()</code> and <code>setPosition(value)</code>, all in your converted units. VEX reports position after the cartridge, so the conversion factor needs only your external gearing. <code>setPositionTarget</code> uses the same units: with a degrees factor, <code>setPositionTarget(85, 120)</code> moves an arm to 85°.</p>
+
+  <h2>Moving to a position</h2>
+  <p><code>setPositionTarget(position, maxRpm)</code> hands the move to the motor's own PID controller, which runs inside the motor every 10 ms regardless of how busy the brain is. It's the simplest way to put an arm at an angle and hold it there, and it's what the Clawbot's arm does. For smooth, tunable motion with gravity compensation, use a <a href="#motion-profiles">ProfiledPIDController</a> and <code>setVoltage</code> instead.</p>
+
+  <h2>Health</h2>
+  <p>Read <code>getOutputCurrent()</code> and <code>getMotorTemperature()</code> in a subsystem's <code>periodic()</code> and send them to <a href="#dashboard-guide">telemetry</a>. A motor at its current limit for long gets hot, and a hot motor cuts its own power (see below). A claw that squeezes forever is the classic cause: limit its current, and stop it once it stalls.</p>
+
+  <h2>What the hardware actually does</h2>
+  <p>Every setting above maps to a V5 SDK call that PROS and VEXcode C++ also use. Nothing is emulated in software except followers.</p>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Here</th><th>V5 SDK</th><th>PROS</th><th>VEXcode C++</th></tr></thead>
+    <tbody>
+      <tr><td><code>inverted</code></td><td><code>vexDeviceMotorReverseFlagSet</code></td><td><code>motor_set_reversed</code></td><td><code>setReversed</code></td></tr>
+      <tr><td><code>idleMode</code></td><td><code>vexDeviceMotorBrakeModeSet</code></td><td><code>motor_set_brake_mode</code></td><td><code>setStopping</code></td></tr>
+      <tr><td><code>smartCurrentLimit</code></td><td><code>vexDeviceMotorCurrentLimitSet</code> (mA)</td><td><code>motor_set_current_limit</code></td><td><code>setMaxTorque(x, amp)</code></td></tr>
+      <tr><td><code>setPositionTarget</code></td><td><code>vexDeviceMotorAbsoluteTargetSet</code></td><td><code>motor_move_absolute</code></td><td><code>spinToPosition</code></td></tr>
+      <tr><td>current / temperature</td><td><code>vexDeviceMotorCurrentGet</code> / <code>TemperatureGet</code></td><td><code>motor_get_current_draw</code> / <code>get_temperature</code></td><td><code>current</code> / <code>temperature</code></td></tr>
+      <tr><td><code>VexInertial.getAngle</code></td><td><code>vexDeviceImuHeadingGet</code></td><td><code>imu_get_rotation</code></td><td><code>rotation</code></td></tr>
+      <tr><td>followers</td><td>(software)</td><td><code>MotorGroup</code></td><td><code>motor_group</code></td></tr>
+    </tbody>
+  </table></div>
+  <ul>
+    <li><strong>More than 8 motors:</strong> VEXos lowers every motor's current limit so the battery isn't overloaded. Capping motors that don't need full current (claws, intakes) leaves more for the drive.</li>
+    <li><strong>Heat:</strong> a hot motor cuts its own current in steps: to 50%, 25%, 12.5%, then 0%.</li>
+  </ul>
+  <div class="api-links">{{API:com.robojacks.lib.hardware.VexMotor}} {{API:com.robojacks.lib.hardware.VexMotorConfig}} {{API:com.robojacks.lib.hardware.VexEncoder}} {{API:com.robojacks.lib.hardware.VexMotorGroup}}</div>

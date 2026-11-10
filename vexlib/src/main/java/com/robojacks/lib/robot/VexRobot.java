@@ -89,6 +89,7 @@ public abstract class VexRobot {
             case TELEOP: teleopPeriodic(); break;
         }
         robotPeriodic();
+        HAL.get().periodic(); // e.g. sends queued controller-screen text
     }
 
     /**

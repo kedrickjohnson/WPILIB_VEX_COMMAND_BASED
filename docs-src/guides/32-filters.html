@@ -1,0 +1,38 @@
+<!-- page: filters | Control | Filters | SlewRateLimiter, Debouncer, LinearFilter and MedianFilter for smoother driving and cleaner sensor readings. -->
+<p class="lede">Four small classes, with WPILib's names, for taming signals: limit how fast a value changes, ignore blips, smooth noise, and reject glitches.</p>
+
+<div class="table-wrap"><table>
+  <thead><tr><th>Class</th><th>Use it to</th></tr></thead>
+  <tbody>
+    <tr><td><code>SlewRateLimiter</code></td><td>Limit acceleration from the sticks so the robot doesn't tip or spin its wheels</td></tr>
+    <tr><td><code>Debouncer</code></td><td>Ignore on/off changes that don't last (bouncing switches, flickering sensors)</td></tr>
+    <tr><td><code>LinearFilter</code></td><td>Smooth a noisy number (moving average, exponential smoothing)</td></tr>
+    <tr><td><code>MedianFilter</code></td><td>Reject single wild readings</td></tr>
+  </tbody>
+</table></div>
+<p>All of them keep state, so create one per signal as a field, and call it once per loop.</p>
+
+<h2>SlewRateLimiter</h2>
+<p>Limits how fast a value can change, in units per second. On stick input, it turns a slammed stick into a quick but controlled ramp:</p>
+<pre class="code"><code class="lang-java">{{SNIP:examples/docs/src/main/java/com/robojacks/docs/ExampleDriverAssist.java#slew}}</code></pre>
+<p>A rate of 1/0.3 means full speed (1.0) takes at least 0.3 s. Use two different rates (<code>new SlewRateLimiter(up, down, initial)</code>) to accelerate gently but stop quickly. Reset it in <code>initialize()</code> so a new command starts from zero.</p>
+
+<h2>Debouncer</h2>
+<pre class="code"><code class="lang-java">private final Debouncer m_pieceDebouncer = new Debouncer(0.1, Debouncer.DebounceType.kBoth);
+
+boolean hasPiece = m_pieceDebouncer.calculate(m_distance.isWithin(0.05));</code></pre>
+<p><code>kRising</code> (the default) delays only false→true, <code>kFalling</code> only true→false, <code>kBoth</code> both. For triggers, <code>trigger.debounce(seconds)</code> does this for you (<a href="#triggers">Controllers &amp; triggers</a>).</p>
+
+<h2>LinearFilter</h2>
+<pre class="code"><code class="lang-java">private final LinearFilter m_currentFilter = LinearFilter.movingAverage(10);  // last 10 readings
+private final LinearFilter m_smooth = LinearFilter.singlePoleIIR(0.1, 0.010); // 0.1 s time constant
+
+double amps = m_currentFilter.calculate(m_motor.getOutputCurrent());</code></pre>
+<p>Smoothing adds delay: a 10-sample moving average at 10 ms lags by about 50 ms. Use the smallest amount that does the job. A typical use is detecting a stall: when the filtered current stays high and the velocity is near zero, the claw has closed on something.</p>
+
+<h2>MedianFilter</h2>
+<pre class="code"><code class="lang-java">private final MedianFilter m_distanceFilter = new MedianFilter(5);
+
+double d = m_distanceFilter.calculate(m_distance.getDistanceMeters());</code></pre>
+<p>The median of the last few readings. One glitch (a reflection, a sensor hiccup) doesn't move it at all, where it would drag an average.</p>
+<div class="api-links">{{API:com.robojacks.lib.math.filter.SlewRateLimiter}} {{API:com.robojacks.lib.math.filter.Debouncer}} {{API:com.robojacks.lib.math.filter.LinearFilter}} {{API:com.robojacks.lib.math.filter.MedianFilter}}</div>

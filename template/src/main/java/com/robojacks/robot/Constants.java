@@ -79,6 +79,17 @@ public final class Constants {
         public static final double kOuttakeVolts = -10.0;
     }
 
+    /** The GPS Sensor, used like a PhotonVision camera (see subsystems/Vision). */
+    public static final class VisionConstants {
+        /** GPS Sensor port, or 0 if the robot has no GPS. */
+        public static final int kGpsPort = 0;
+        /** Where the GPS sits relative to the robot's center, meters (+ = left / + = forward). */
+        public static final double kGpsLeftOffsetMeters = 0.0;
+        public static final double kGpsForwardOffsetMeters = 0.0;
+        /** Ignore readings whose reported error is bigger than this, meters. */
+        public static final double kMaxErrorMeters = 0.05;
+    }
+
     public static final class OIConstants {
         public static final double kDriveDeadband = 0.05;
     }

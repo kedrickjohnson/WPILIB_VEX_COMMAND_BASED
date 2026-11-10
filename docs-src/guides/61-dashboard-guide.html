@@ -1,0 +1,25 @@
+<!-- page: dashboard-guide | Tools | Dashboard & telemetry | Send values with Telemetry and watch them live over USB or replay a simulator log on the dashboard page. -->
+<p class="lede"><code>Telemetry</code> is the library's SmartDashboard: put numbers, booleans and poses from your code, and they print over USB. The <a href="#dashboard">dashboard</a> page reads them, live from the robot or from a log, graphs them, and draws poses on the field.</p>
+
+<h2>Sending values</h2>
+<pre class="code"><code class="lang-java">// in any subsystem's periodic():
+Telemetry.put("arm/degrees", getAngleDegrees());
+Telemetry.put("intake/hasPiece", hasPiece());
+Telemetry.put("auto/name", m_autoSelector.getSelectedName());
+Telemetry.putPose("drive/pose", getPose());</code></pre>
+<p>Values are collected during the loop and printed as one line, at most every 0.25 s by default (<code>Telemetry.setPeriod(seconds)</code> to change it). The template's <code>Robot.robotPeriodic()</code> calls <code>Telemetry.flush()</code> after the scheduler runs. Each line looks like:</p>
+<pre class="code" data-nocopy><code class="lang-shell">[t=12.34] arm/degrees=45.0 intake/hasPiece=true drive/pose=-1.2,0.6,90.0</code></pre>
+<p>Keys can't contain spaces or <code>=</code>; use slashes to group them. Printing over USB costs time on the brain, so send what you're debugging and remove the rest, or turn it off with <code>Telemetry.setEnabled(false)</code> for matches.</p>
+
+<h2>Live from the robot</h2>
+<ol class="steps">
+  <li>Plug the brain (or the controller tethered to it) into your computer with USB and run your program.</li>
+  <li>Open the <a href="#dashboard">dashboard</a> in <strong>Chrome or Edge</strong> on a computer (live connection uses Web Serial, which other browsers don't have).</li>
+  <li>Click <strong>Connect to robot</strong> and pick the brain's <em>user</em> serial port (on Windows it's usually the higher-numbered of the two VEX COM ports).</li>
+</ol>
+<p>Numbers appear in the Graph list (tick the ones to plot), every value shows in the Values table, poses are drawn on the field with a 15-second trail, and anything else your program prints (errors, <code>System.out</code>) shows under Output. If the program restarts, the dashboard notices the clock going back and starts fresh.</p>
+
+<h2>Replaying a log</h2>
+<p>The simulator writes a log with <code>./gradlew simulate --args=log</code> (or call <code>SimLog.start(path, period)</code> in your own sim script). Click <strong>Open log file</strong> and press <strong>Play</strong>, or drag the time slider. <strong>Load a sample run</strong> replays the template's auto so you can see what it looks like.</p>
+<p>You can also log the real robot: save the serial output to a text file with any serial terminal, and open that.</p>
+<div class="api-links">{{API:com.robojacks.lib.telemetry.Telemetry}} {{API:com.robojacks.lib.sim.SimLog}}</div>

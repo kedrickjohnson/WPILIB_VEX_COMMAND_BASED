@@ -1,0 +1,69 @@
+# Push a tag like v0.2.0 to release that version of VexLib:
+#   1. bump vexlibVersion in gradle.properties (and the extension's version), commit, push
+#   2. git tag v0.2.0 && git push origin v0.2.0
+# This publishes the library into docs/maven, regenerates the vendordep JSON and the API docs,
+# commits them to main (GitHub Pages serves them), and attaches the VS Code extension to a release.
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Check the tag matches gradle.properties
+        run: |
+          version=$(grep '^vexlibVersion=' gradle.properties | cut -d= -f2)
+          if [ "v$version" != "${GITHUB_REF_NAME}" ]; then
+            echo "Tag ${GITHUB_REF_NAME} doesn't match vexlibVersion=$version"; exit 1
+          fi
+
+      - name: Test
+        run: ./gradlew build
+
+      - name: Publish VexLib to docs/maven and write the vendordep
+        run: ./gradlew :vexlib:publish
+
+      - name: Rebuild the docs site and API reference
+        run: python3 docs-src/build.py --javadoc --classpath "$(./gradlew -q :vexlib:printClasspath)"
+
+      - name: Package the VS Code extension
+        working-directory: vscode-extension
+        run: |
+          node scripts/bundle.js
+          node test/run.js
+          npx --yes @vscode/vsce package --no-dependencies
+
+      - name: Commit the published files
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs
+          git commit -m "Publish VexLib ${GITHUB_REF_NAME}" || echo "Nothing to commit"
+          git push origin HEAD:main
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: vscode-extension/*.vsix
+          generate_release_notes: true

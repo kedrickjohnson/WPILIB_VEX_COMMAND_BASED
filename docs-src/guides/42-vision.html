@@ -1,0 +1,63 @@
+<!-- page: vision | Driving | Vision (GPS) | Use the GPS Sensor like a PhotonVision camera: a Vision subsystem sends pose estimates to the drive's pose estimator. -->
+<p class="lede">In FRC, a PhotonVision camera sees AprilTags and corrects the robot's odometry. On VEX, the GPS Sensor sees the field's code strip and does the same job, so this library sets it up the same way: a <code>Vision</code> subsystem, a pose estimator, and estimates handed to the drive.</p>
+
+<h2>The pieces</h2>
+<div class="table-wrap"><table>
+  <thead><tr><th>PhotonVision (FRC)</th><th>Here</th><th>Job</th></tr></thead>
+  <tbody>
+    <tr><td><code>PhotonCamera</code></td><td><code>VexGps</code></td><td>The sensor: raw readings in the field frame.</td></tr>
+    <tr><td><code>PhotonPoseEstimator</code></td><td><code>GpsPoseEstimator</code></td><td>Turns readings into estimates: filters bad ones, corrects for latency, says how much to trust each.</td></tr>
+    <tr><td><code>EstimatedRobotPose</code></td><td><code>EstimatedRobotPose</code></td><td>One estimate: pose and timestamp.</td></tr>
+    <tr><td>Example <code>Vision</code> class</td><td><code>subsystems/Vision.java</code></td><td>The subsystem that runs the estimator each loop and sends results on.</td></tr>
+    <tr><td><code>drive::addVisionMeasurement</code></td><td>Same</td><td>Where estimates go: the drive's pose estimator.</td></tr>
+  </tbody>
+</table></div>
+
+<h2>Turning it on</h2>
+<p>The template includes the <code>Vision</code> subsystem; it's created only when a GPS port is set. In <code>Constants.java</code>:</p>
+<pre class="code"><code class="lang-java">public static final class VisionConstants {
+    public static final int kGpsPort = 14;                   // 0 = no GPS
+    public static final double kGpsLeftOffsetMeters = 0.0;   // where the sensor is on the robot
+    public static final double kGpsForwardOffsetMeters = -0.10;  // 10 cm behind center
+    public static final double kMaxErrorMeters = 0.05;
+}</code></pre>
+<p>That's all. <code>RobotContainer</code> creates it with the drive's method as the consumer, exactly like PhotonVision's example:</p>
+<pre class="code"><code class="lang-java">private final Vision m_vision = Constants.VisionConstants.kGpsPort > 0
+        ? new Vision(m_robotDrive::addVisionMeasurement) : null;</code></pre>
+
+<h2>The Vision subsystem</h2>
+<pre class="code"><code class="lang-java">{{SRC:template/src/main/java/com/robojacks/robot/subsystems/Vision.java}}</code></pre>
+<p>Each loop, <code>update()</code> returns an estimate or nothing. It returns nothing when:</p>
+<ul>
+  <li>the GPS's reported error is above <code>kMaxErrorMeters</code> (it can't see enough of the strip: blocked, tilted, or too close to the wall);</li>
+  <li>the reading is off the field;</li>
+  <li>less than 50 ms has passed since the last estimate (the GPS updates slower than the loop, so repeats would count the same reading twice).</li>
+</ul>
+
+<h2>On the drive side</h2>
+<pre class="code"><code class="lang-java">public void addVisionMeasurement(Pose2d visionPose, double timestampSeconds, Vector3 stdDevs) {
+    m_poseEstimator.addVisionMeasurement(visionPose, timestampSeconds, stdDevs);
+}</code></pre>
+<p>The pose estimator doesn't jump to the GPS reading. It moves part way, by an amount set by how much it trusts odometry versus the measurement (standard deviations, below). Readings carry the time they were taken, so the estimator corrects the pose the robot had <em>then</em> and replays the odometry since, which keeps a moving robot from being dragged backward by a slightly old reading.</p>
+
+<h2>Trust: standard deviations</h2>
+<p>Each estimate comes with three standard deviations, x, y (meters) and heading (radians), as a <code>Vector3</code> (WPILib: <code>VecBuilder.fill(x, y, theta)</code>). Bigger means "trust this less".</p>
+<ul>
+  <li><strong>Position</strong>: <code>GpsPoseEstimator</code> uses twice the GPS's reported error, at least 2 cm. A clear view of the strip pulls hard; a doubtful one barely nudges. Change it with <code>setStdDevModel(minimum, scale)</code>.</li>
+  <li><strong>Heading</strong>: ignored by default (a huge value), because the Inertial Sensor is better at heading. Call <code>useHeading(stdDevRadians)</code> to let the GPS correct it too, e.g. if your IMU drifts.</li>
+</ul>
+<p>The odometry side is set when the pose estimator is created: WPILib's defaults (0.02 m, 0.02 m, 0.01 rad) for drive encoders, 0.01 m for tracking wheels. Lower means "trust odometry more", so GPS corrections are gentler.</p>
+
+<h2>Mounting the GPS</h2>
+<ul>
+  <li>Mount it 10 to 25 cm above the floor (it must see the strip on the field walls), facing out the back or side, with a clear view.</li>
+  <li>Measure where it is relative to the robot's turning center and set the offsets: <code>kGpsLeftOffsetMeters</code> (+ left) and <code>kGpsForwardOffsetMeters</code> (+ forward).</li>
+  <li>Check the heading direction once on a real field: point the robot along +X and the GPS's pose should read 0°. If not, adjust with <code>VexGps.setHeadingOffset</code>.</li>
+</ul>
+<div class="note"><span class="note-title">On a real field</span>
+<p>The GPS is read with the same V5 SDK calls PROS uses, but this hasn't been checked on a physical field yet. Do the +X heading check above before trusting it in a match.</p></div>
+
+<h2>Seeing it work</h2>
+<p><code>Vision</code> sends <code>vision/pose</code> to telemetry next to the drive's <code>drive/pose</code>. On the <a href="#dashboard">dashboard</a>'s field view, the two robots should overlap; if vision's robot jumps around, lower <code>kMaxErrorMeters</code> or raise the standard deviation scale.</p>
+<p>In the simulator, the GPS reads the simulated robot's true position. Set <code>sim.getGps(port).noiseMeters</code> or <code>errorMeters</code> to test how your code handles a noisy or blind GPS.</p>
+<div class="api-links">{{API:com.robojacks.lib.vision.GpsPoseEstimator}} {{API:com.robojacks.lib.vision.EstimatedRobotPose}} {{API:com.robojacks.lib.vision.EstimateConsumer}} {{API:com.robojacks.lib.hardware.VexGps}} {{API:com.robojacks.lib.estimator.PoseEstimator}}</div>

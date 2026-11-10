@@ -1,0 +1,33 @@
+<!-- page: tuning | Driving | Tuning the drive | Measure kS, kV, kA and the turn PID with built-in tests, no code needed. -->
+<p class="lede">Four tests measure the numbers the drive commands need. No code changes, just buttons.</p>
+
+  <h2>Run the tests</h2>
+  <ol class="steps">
+    <li>Set <code>kTuningMode = true</code> in <code>Constants.java</code> and upload.</li>
+    <li>Put the robot on the field with room to move, plug the brain into your computer, and open a serial terminal to see the results.</li>
+    <li>Enable driver control and press a button. <kbd>L1</kbd> aborts a test.</li>
+    <li>Paste each printed line into <code>DriveConstants</code>.</li>
+    <li>Set <code>kTuningMode</code> back to <code>false</code> before competing.</li>
+  </ol>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Button</th><th>Test</th><th>Space</th><th>Gives you</th></tr></thead>
+    <tbody>
+      <tr><td><kbd>A</kbd></td><td>Feedforward characterization</td><td>1.5 m in front</td><td><code>kS</code>, <code>kV</code>, <code>kA</code></td></tr>
+      <tr><td><kbd>B</kbd></td><td>Turn PID auto-tune</td><td>Spot to rotate</td><td><code>kTurnP</code>, <code>kTurnD</code></td></tr>
+      <tr><td><kbd>X</kbd></td><td>Drive 1 m, then measure</td><td>1.2 m in front</td><td>Corrected <code>kWheelDiameterInches</code></td></tr>
+      <tr><td><kbd>Y</kbd></td><td>Four 90° turns</td><td>Spot to rotate</td><td>Error at each stop</td></tr>
+    </tbody>
+  </table></div>
+  <p><strong>Run A first.</strong> <code>kS</code> is the voltage needed to beat friction. With too little, small end-of-turn corrections can't move the robot and turns stall a few degrees short. Path following needs <code>kV</code> and <code>kA</code>.</p>
+
+  <h2>What each test does</h2>
+  <h3>A: feedforward</h3>
+  <p>The robot ramps voltage up slowly while driving forward. At such low acceleration nearly all the voltage goes to friction and speed, so a straight-line fit of voltage against speed gives <code>kS</code> (the intercept) and <code>kV</code> (the slope). Then it pauses and backs up with a sudden 6 V step. Whatever voltage <code>kS</code> and <code>kV</code> don't explain went into accelerating, which gives <code>kA</code>.</p>
+  <h3>B: turn auto-tune</h3>
+  <p>The robot rocks back and forth around its heading with a fixed voltage (a relay test). How far and how fast it swings gives the system's ultimate gain and period. The test then uses the Ziegler–Nichols "no overshoot" rule, because overshooting a turn costs more in VEX than arriving a little slower. If turns still overshoot, lower <code>kTurnP</code> about 20% or raise <code>kTurnD</code>.</p>
+  <h3>X: wheel diameter</h3>
+  <p>The robot drives 1 m by its encoders and prints how far it thinks it went. Measure the real distance with a tape, then multiply <code>kWheelDiameterInches</code> by <em>real ÷ reported</em>. Wheels wear and compress, so this beats the nominal size.</p>
+  <h3>Y: turn check</h3>
+  <p>Four 90° turns, printing the error after each. Use it to check test B's numbers.</p>
+
+  <div class="note is-info"><strong>Try it in the simulator first.</strong> <code>./gradlew :template:simulate --args=tune</code> runs tests A and B, applies the results, and runs Y and X with them. The simulator has no wheel slip or backlash, so its numbers differ from a real robot's. Use it to learn the process.</div>

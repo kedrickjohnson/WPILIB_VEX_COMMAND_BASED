@@ -22,6 +22,14 @@ public final class CommandScheduler {
         return instance;
     }
 
+    /**
+     * Throws away the scheduler and everything registered with it (subsystems, bindings, running
+     * commands). For unit tests and simulator scripts that build a fresh robot each time.
+     */
+    public static void resetInstance() {
+        instance = null;
+    }
+
     private final Set<Subsystem> subsystems = new LinkedHashSet<>();
     private final Map<Subsystem, Command> defaultCommands = new LinkedHashMap<>();
     private final Map<Subsystem, Command> requirements = new HashMap<>();

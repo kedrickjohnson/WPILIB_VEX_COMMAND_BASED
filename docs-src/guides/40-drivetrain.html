@@ -1,0 +1,96 @@
+<!-- page: drivetrain | Driving | The drivetrain | DriveSubsystem, TankDriveSubsystem, DriveGains and the library drive commands. -->
+<p class="lede"><code>DriveSubsystem</code> is laid out like an FRC tank drive: named motors, a leader and followers per side, <code>DifferentialDrive</code>, a gyro, and a pose estimator that vision can correct.</p>
+
+  <h2>Anatomy</h2>
+<pre class="code"><code class="lang-java">public class DriveSubsystem extends SubsystemBase implements TankDriveSubsystem {
+    // Left side: the front motor leads, the others follow it
+    private final VexMotor m_leftLeader = new VexMotor(kLeftFrontMotorPort, kCartridge);
+    private final VexMotor m_leftFollower1 = new VexMotor(kLeftMiddleMotorPort, kCartridge);
+    private final VexMotor m_leftFollower2 = new VexMotor(kLeftRearMotorPort, kCartridge);
+    // ...right side the same...
+
+    private final VexEncoder m_leftEncoder = m_leftLeader.getEncoder();   // meters
+    private final DifferentialDrive m_drive = new DifferentialDrive(m_leftLeader, m_rightLeader);
+    private final VexInertial m_gyro = new VexInertial(kImuPort);
+    private final DifferentialDrivePoseEstimator m_poseEstimator;
+
+    public void tankDrive(double leftSpeed, double rightSpeed) { m_drive.tankDrive(leftSpeed, rightSpeed); }
+    public void arcadeDrive(double forward, double rotation) { m_drive.arcadeDrive(forward, rotation); }
+    public void setMaxOutput(double maxOutput) { m_drive.setMaxOutput(maxOutput); }
+    public Pose2d getPose() { return m_poseEstimator.getEstimatedPosition(); }
+    public void addVisionMeasurement(Pose2d pose, double timestamp, Vector3 stdDevs) { ... }
+    // ...
+}</code></pre>
+  <details class="source">
+    <summary>Full source: <code>template/…/subsystems/DriveSubsystem.java</code></summary>
+<pre class="code"><code class="lang-java">{{SRC:template/src/main/java/com/robojacks/robot/subsystems/DriveSubsystem.java}}</code></pre>
+  </details>
+  <details class="source">
+    <summary>Full source: <code>template/…/commands/TankDrive.java</code></summary>
+<pre class="code"><code class="lang-java">{{SRC:template/src/main/java/com/robojacks/robot/commands/TankDrive.java}}</code></pre>
+  </details>
+  <details class="source">
+    <summary>Full source: the Clawbot's two-motor <code>DriveSubsystem.java</code></summary>
+<pre class="code"><code class="lang-java">{{SRC:examples/clawbot/src/main/java/com/robojacks/clawbot/subsystems/DriveSubsystem.java}}</code></pre>
+  </details>
+  <p>Every class also has a page in the <a href="api/index.html">API reference</a>, under <em>Template robot</em> and <em>Clawbot example</em>.</p>
+  <p><code>DifferentialDrive</code> matches WPILib: <code>arcadeDrive(xSpeed, zRotation)</code> and <code>tankDrive(left, right)</code>, with a 0.02 deadband and squared inputs (pass <code>false</code> as a third argument to turn squaring off), plus <code>setMaxOutput</code> for a slow mode.</p>
+
+  <h2>TankDriveSubsystem</h2>
+  <p>Implement this small interface and the library's auto commands, path follower and tuning tests all work with your drivetrain.</p>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Method</th><th>Returns</th></tr></thead>
+    <tbody>
+      <tr><td><code>tankDriveVolts(left, right)</code></td><td>Sets each side's voltage.</td></tr>
+      <tr><td><code>getPose()</code>, <code>resetOdometry(pose)</code></td><td>Field pose from odometry, and setting it.</td></tr>
+      <tr><td><code>getAverageEncoderDistance()</code></td><td>Meters.</td></tr>
+      <tr><td><code>getLeftEncoderRate()</code>, <code>getRightEncoderRate()</code></td><td>Meters per second.</td></tr>
+      <tr><td><code>getTrackWidthMeters()</code></td><td>Left-to-right wheel distance.</td></tr>
+      <tr><td><code>getGains()</code></td><td>The <code>DriveGains</code> below.</td></tr>
+    </tbody>
+  </table></div>
+
+  <h2>DriveGains</h2>
+<pre class="code"><code class="lang-java">private DriveGains m_gains = new DriveGains(
+        kTurnP, kTurnD, kDriveP, kDriveD, kS, kV, kMaxAutoVolts,
+        kTurnToleranceDegrees, kDriveToleranceMeters).withKA(kA);</code></pre>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Gain</th><th>Unit</th><th>Used by</th></tr></thead>
+    <tbody>
+      <tr><td><code>kTurnP</code>, <code>kTurnD</code></td><td>V per radian</td><td>Turning to a heading.</td></tr>
+      <tr><td><code>kDriveP</code>, <code>kDriveD</code></td><td>V per meter</td><td>Driving a distance or to a point.</td></tr>
+      <tr><td><code>kS</code></td><td>V</td><td>Everything: the voltage needed to start moving.</td></tr>
+      <tr><td><code>kV</code></td><td>V per m/s</td><td>Path following.</td></tr>
+      <tr><td><code>kA</code></td><td>V per m/s²</td><td>Path following, while speeding up and slowing down.</td></tr>
+      <tr><td><code>pathKP</code> (default 3)</td><td>V per m/s of error</td><td>Path following feedback.</td></tr>
+    </tbody>
+  </table></div>
+  <p>The <a href="#tuning">tuning tests</a> measure all of these. Templates start with kV from the motor's free speed and kA at 0, which works but tracks paths a few centimeters loosely.</p>
+
+  <h2>Drive commands</h2>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Command</th><th>Does</th></tr></thead>
+    <tbody>
+      <tr><td><code>new TankDrive(drive, left, right)</code></td><td>Driver control, tank style. The template's default command.</td></tr>
+      <tr><td><code>new ArcadeDrive(drive, fwd, rot)</code></td><td>Driver control, arcade style. The Clawbot's default.</td></tr>
+      <tr><td><code>driveDistanceCommand(m)</code></td><td>Straight line, holding heading. Negative drives backward.</td></tr>
+      <tr><td><code>turnToAngleCommand(deg)</code></td><td>Turns in place to a field heading.</td></tr>
+      <tr><td><code>driveToPointCommand(x, y)</code></td><td>Drives to a field point, steering as it goes.</td></tr>
+      <tr><td><code>backToPointCommand(x, y)</code></td><td>Same, backing up.</td></tr>
+      <tr><td><code>AutoBuilder.followPath(drive, path, markers...)</code></td><td>Follows a curved path. See <a href="#autos">Autos</a>.</td></tr>
+    </tbody>
+  </table></div>
+
+  <h2>Setting up your drive</h2>
+  <ol class="steps">
+    <li><strong>Ports and directions.</strong> Set each motor's port in <code>DriveConstants</code>. Prop the robot up, push both sticks forward, and flip <code>k…Reversed</code> for any wheel spinning backward. Motors on one side usually face the other way, so one side is often all reversed.</li>
+    <li><strong>Cartridge and gearing.</strong> <code>kCartridge</code> must match the cartridge inside the motors. <code>kGearRatio</code> is motor gear teeth ÷ wheel gear teeth (36:48 → 0.75); 1.0 for direct drive.</li>
+    <li><strong>Wheel size and track width.</strong> Measure the wheel diameter and the distance between the left and right wheels' centers. These set odometry's scale, so measure carefully; the drive-1-meter test refines the wheel size.</li>
+    <li><strong>Inertial Sensor port.</strong> Then run the <a href="#tuning">tuning tests</a>.</li>
+  </ol>
+
+  <h2>Position: odometry and vision</h2>
+  <p>The drive tracks where it is with a <code>DifferentialDrivePoseEstimator</code>: odometry from the wheel encoders and the Inertial Sensor, pulled toward GPS readings when the robot has a GPS. <a href="#odometry">Odometry</a> explains how it works and how to switch to tracking wheels; <a href="#vision">Vision</a> covers the GPS.</p>
+
+  <h2>No Inertial Sensor?</h2>
+  <p>The kit Clawbot doesn't have one, so its drive computes heading from the wheels: <code>(right distance − left distance) / track width</code>. That drifts whenever a wheel slips, so measure the track width carefully, and add a sensor if you can.</p>

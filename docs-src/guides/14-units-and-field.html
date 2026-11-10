@@ -1,0 +1,70 @@
+<!-- page: units-and-field | Concepts | Units & field coordinates | Meters from the field center, counter-clockwise heading, unit conversions and mirroring for the other side. -->
+<p class="lede">Every position in the library is in meters from the center of the field, and every heading is counter-clockwise from +X. Measure in whatever units are convenient and convert once, in <code>Constants</code>.</p>
+
+<h2>The field</h2>
+<figure style="margin: 1.6em 0; max-width: 420px;">
+    <svg viewBox="0 0 300 300" role="img" aria-label="V5RC field: origin at the center, +X to the right, +Y up, 6 by 6 tiles of 24 inches, corners at plus and minus 1.83 meters" style="width: 100%; height: auto; display: block;">
+      <rect x="10" y="10" width="280" height="280" fill="var(--tile-b)" stroke="var(--wall)" stroke-width="4"/>
+      <g stroke="var(--tile-seam)" stroke-width="1">
+        <path d="M56.7 10v280M103.3 10v280M196.7 10v280M243.3 10v280M10 56.7h280M10 103.3h280M10 196.7h280M10 243.3h280"/>
+      </g>
+      <g stroke="var(--muted)" stroke-dasharray="3 4"><path d="M150 10v280M10 150h280"/></g>
+      <path d="M150 150h88" stroke="var(--accent)" stroke-width="3"/><path d="M238 144l10 6-10 6z" fill="var(--accent)"/>
+      <path d="M150 150v-88" stroke="var(--accent)" stroke-width="3"/><path d="M144 62l6-10 6 10z" fill="var(--accent)"/>
+      <path d="M186 150 A36 36 0 0 0 175.5 124.5" fill="none" stroke="var(--signal)" stroke-width="2.5"/><path d="M171 128l4-8 6 6z" fill="var(--signal)"/>
+      <circle cx="150" cy="150" r="4" fill="var(--ink)"/>
+      <g font-family="IBM Plex Mono, monospace" font-size="11" fill="var(--ink)">
+        <text x="252" y="141">+X</text><text x="158" y="58">+Y</text><text x="156" y="166">(0, 0)</text>
+        <text x="190" y="128" fill="var(--warn)">+θ</text>
+        <text x="16" y="282" fill="var(--muted)">(−1.83, −1.83)</text><text x="196" y="26" fill="var(--muted)">(1.83, 1.83)</text>
+      </g>
+    </svg>
+    <figcaption style="font-size: 13px; color: var(--muted); margin-top: 6px;">The V5RC field: 12 ft (3.66 m) square, 6 × 6 foam tiles of 24 in.</figcaption>
+  </figure>
+<ul>
+  <li><strong>Origin</strong> at the center of the field. Each axis runs from about −1.83 m to +1.83 m (6 tiles of 24 in each way).</li>
+  <li><strong>Axes</strong> match the GPS Sensor's, so GPS x and y map straight in. Decide once which wall is +X for your team and stick to it; the path planner and every auto use the same frame.</li>
+  <li><strong>Heading</strong> is WPILib-style: 0 points along +X and counter-clockwise is positive, in a <code>Rotation2d</code>.</li>
+  <li><strong>Robot frame</strong>: +X is the robot's front, +Y its left (WPILib's convention). Offsets like "the GPS is 10 cm behind center" use it.</li>
+</ul>
+<p>Why the center and not a corner? It's what the GPS Sensor reports and what FTC uses, autos for the two starting sides are mirror images about it, and VEX field layouts change every season while the center stays put.</p>
+
+<h2>Poses and geometry</h2>
+<div class="table-wrap"><table>
+  <thead><tr><th>Class</th><th>Is</th><th>Useful methods</th></tr></thead>
+  <tbody>
+    <tr><td><code>Translation2d</code></td><td>A point (x, y)</td><td><code>getDistance</code>, <code>plus</code>, <code>minus</code>, <code>rotateBy</code>, <code>getAngle</code></td></tr>
+    <tr><td><code>Rotation2d</code></td><td>An angle</td><td><code>fromDegrees</code>, <code>getDegrees</code>, <code>plus</code>, <code>minus</code></td></tr>
+    <tr><td><code>Pose2d</code></td><td>Position plus heading</td><td><code>relativeTo</code>, <code>plus(Transform2d)</code>, <code>exp</code>, <code>log</code>, <code>interpolate</code></td></tr>
+    <tr><td><code>Transform2d</code></td><td>A move in the robot's frame</td><td><code>inverse</code>; sensor mounting offsets</td></tr>
+    <tr><td><code>Twist2d</code></td><td>A small arc (dx, dy, dθ)</td><td>What odometry integrates</td></tr>
+  </tbody>
+</table></div>
+<pre class="code"><code class="lang-java">Pose2d start = new Pose2d(-1.5, 0.6, Rotation2d.fromDegrees(0));
+Translation2d goal = new Translation2d(0.0, 1.2);
+double meters = start.getTranslation().getDistance(goal);            // how far
+Rotation2d bearing = goal.minus(start.getTranslation()).getAngle(); // which way to face</code></pre>
+
+<h2>Unit conversions</h2>
+  <p><code>Units</code> (in <code>com.robojacks.lib.math.util</code>, same name and methods as WPILib's) converts what you measured into the units the library uses. Convert once, in <code>Constants</code>:</p>
+<pre class="code"><code class="lang-java">import com.robojacks.lib.math.util.Units;
+
+public static final double kWheelDiameterMeters = Units.inchesToMeters(3.25);
+public static final double kTurnToleranceRad = Units.degreesToRadians(2.0);
+public static final double kStartX = Units.tilesToMeters(-2.5);   // 2.5 tiles left of center</code></pre>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Kind</th><th>Methods</th></tr></thead>
+    <tbody>
+      <tr><td>Length</td><td><code>inchesToMeters</code>, <code>metersToInches</code>, <code>feetToMeters</code>, <code>metersToFeet</code>, <code>millimetersToMeters</code> (GPS), <code>metersToMillimeters</code>, <code>tilesToMeters</code>, <code>metersToTiles</code> (24 in tiles)</td></tr>
+      <tr><td>Angle</td><td><code>degreesToRadians</code>, <code>radiansToDegrees</code>, <code>rotationsToRadians</code>, <code>radiansToRotations</code>, <code>rotationsToDegrees</code>, <code>degreesToRotations</code></td></tr>
+      <tr><td>Angular speed</td><td><code>rotationsPerMinuteToRadiansPerSecond</code>, <code>radiansPerSecondToRotationsPerMinute</code></td></tr>
+      <tr><td>Time</td><td><code>millisecondsToSeconds</code>, <code>secondsToMilliseconds</code></td></tr>
+      <tr><td>Mass</td><td><code>kilogramsToLbs</code>, <code>lbsToKilograms</code></td></tr>
+      <tr><td>Electrical</td><td><code>voltsToMillivolts</code>, <code>millivoltsToVolts</code>, <code>ampsToMilliamps</code>, <code>milliampsToAmps</code> (the V5 SDK's units)</td></tr>
+    </tbody>
+  </table></div>
+<p>WPILib's newer <code>Measure</code> types (<code>Inches.of(3.25)</code>) aren't included: plain doubles keep the brain's interpreter fast, while <code>Measure</code> types create objects, which it handles slowly.</p>
+
+<h2>Mirroring</h2>
+  <p>Most V5RC fields are rotationally symmetric, so the other starting side is a 180° turn about the center: <code>(x, y, θ) → (−x, −y, θ + 180°)</code>. Use <code>FieldConstants.mirror(pose)</code> in code, or <em>Mirror to other side</em> in the path planner.</p>
+<div class="api-links">{{API:com.robojacks.lib.math.util.Units}} {{API:com.robojacks.lib.math.Pose2d}} {{API:com.robojacks.lib.math.Rotation2d}} {{API:com.robojacks.lib.math.Transform2d}}</div>

@@ -21,4 +21,31 @@ public interface Hardware {
     GamepadIO partnerController();
 
     CompetitionIO competition();
+
+    // ---- Smart sensors (each takes its smart port, 1-21) ----
+
+    RotationSensorIO rotationSensor(int port);
+
+    DistanceSensorIO distanceSensor(int port);
+
+    OpticalSensorIO opticalSensor(int port);
+
+    GpsIO gps(int port);
+
+    // ---- 3-wire ports ----
+
+    /**
+     * @param expanderPort 0 for the brain's own 3-wire ports, or the smart port of a 3-Wire Expander
+     * @param adiPort      1-8 for ports A-H
+     */
+    AdiPortIO adiPort(int expanderPort, int adiPort);
+
+    // ---- Brain ----
+
+    ScreenIO screen();
+
+    PowerIO power();
+
+    /** Called once per robot loop, after the robot code runs. Lets the hardware layer do housekeeping. */
+    default void periodic() {}
 }

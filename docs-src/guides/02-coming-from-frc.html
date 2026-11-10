@@ -1,0 +1,46 @@
+<!-- page: coming-from-frc | Start | Coming from FRC | What's the same as WPILib, what's different on VEX, and the class-by-class mapping. -->
+<p class="lede">The names and patterns are WPILib's. What changes is the hardware underneath: smart motors on a brain instead of CAN controllers on a roboRIO, no Driver Station, and a much smaller CPU.</p>
+
+<h2>Class by class</h2>
+<div class="table-wrap"><table>
+  <thead><tr><th>FRC / WPILib</th><th>Here</th><th>Notes</th></tr></thead>
+  <tbody>
+    <tr><td><code>TimedRobot</code></td><td><code>VexRobot</code></td><td>Same lifecycle methods; 10 ms loop.</td></tr>
+    <tr><td><code>Command</code>, <code>Commands</code>, <code>SubsystemBase</code>, <code>Trigger</code>, <code>CommandScheduler</code></td><td>Same names</td><td>Same decorators: <code>withTimeout</code>, <code>until</code>, <code>andThen</code>, <code>alongWith</code>, <code>repeatedly</code>, <code>unless</code>…</td></tr>
+    <tr><td><code>CommandXboxController</code></td><td><code>VexController</code></td><td><code>new VexController(0)</code> primary, <code>(1)</code> partner. <strong>Stick up is positive.</strong></td></tr>
+    <tr><td><code>RobotModeTriggers</code></td><td>Same name</td><td><code>autonomous()</code>, <code>teleop()</code>, <code>disabled()</code>.</td></tr>
+    <tr><td><code>SparkMax</code> + <code>SparkMaxConfig</code></td><td><code>VexMotor</code> + <code>VexMotorConfig</code></td><td>Same config style; no persist/reset modes.</td></tr>
+    <tr><td><code>RelativeEncoder</code></td><td><code>VexEncoder</code></td><td>From <code>motor.getEncoder()</code>; conversion factors in the config.</td></tr>
+    <tr><td><code>CANcoder</code>, Through Bore</td><td><code>VexRotationSensor</code></td><td>Absolute angle, kept through power cycles.</td></tr>
+    <tr><td><code>Pigeon2</code>, <code>AHRS</code></td><td><code>VexInertial</code></td><td><code>getAngle()</code> clockwise, <code>getRotation2d()</code> counter-clockwise.</td></tr>
+    <tr><td><code>DigitalInput</code>, <code>Solenoid</code>, <code>DoubleSolenoid</code>, <code>AnalogPotentiometer</code>, <code>Encoder</code></td><td>Same names (<code>AdiEncoder</code> for Encoder)</td><td>On 3-wire ports <code>'A'</code>–<code>'H'</code>. <code>DigitalInput.get()</code> is true when pressed.</td></tr>
+    <tr><td><code>PhotonCamera</code> + <code>PhotonPoseEstimator</code></td><td><code>VexGps</code> + <code>GpsPoseEstimator</code></td><td>Same <code>Vision</code> subsystem pattern; see <a href="#vision">Vision</a>.</td></tr>
+    <tr><td><code>DifferentialDrive</code>, <code>DifferentialDriveOdometry</code>, <code>DifferentialDrivePoseEstimator</code></td><td>Same names</td><td>Odometry takes the gyro angle and wheel distances.</td></tr>
+    <tr><td><code>PIDController</code>, <code>ProfiledPIDController</code>, <code>TrapezoidProfile</code></td><td>Same names</td><td></td></tr>
+    <tr><td><code>SimpleMotorFeedforward</code>, <code>ArmFeedforward</code>, <code>ElevatorFeedforward</code></td><td>Same names</td><td></td></tr>
+    <tr><td><code>SlewRateLimiter</code>, <code>Debouncer</code>, <code>LinearFilter</code>, <code>MedianFilter</code></td><td>Same names</td><td></td></tr>
+    <tr><td><code>Pose2d</code>, <code>Rotation2d</code>, <code>Translation2d</code>, <code>Transform2d</code>, <code>Twist2d</code></td><td>Same names</td><td>2D only.</td></tr>
+    <tr><td><code>Units</code></td><td>Same name</td><td>Plus tiles, millimeters, millivolts, milliamps.</td></tr>
+    <tr><td><code>SendableChooser&lt;Command&gt;</code></td><td><code>AutoSelector</code></td><td>A touch menu on the brain's screen.</td></tr>
+    <tr><td><code>SmartDashboard</code></td><td><code>Telemetry</code> + the <a href="#dashboard">dashboard</a></td><td>Over USB serial.</td></tr>
+    <tr><td><code>RobotController</code>, <code>Timer</code></td><td>Same names</td><td><code>Timer.getFPGATimestamp()</code> is seconds since start.</td></tr>
+    <tr><td>PathPlanner <code>AutoBuilder</code>, <code>NamedCommands</code></td><td>Same names</td><td>Paths come from the <a href="#planner">path planner</a> here.</td></tr>
+    <tr><td>Vendordeps</td><td>Vendordeps</td><td>Same JSON idea; see <a href="#vendordeps">Vendor libraries</a>.</td></tr>
+  </tbody>
+</table></div>
+
+<h2>Things that are different</h2>
+<h3>Sticks: up is positive</h3>
+<p>FRC joysticks report <em>negative</em> when pushed forward, so FRC code writes <code>-controller.getLeftY()</code>. The V5 controller reports positive, so here it's just <code>controller.getLeftY()</code>. Copying FRC drive code? Remove the minus signs on Y axes.</p>
+<h3>No Driver Station</h3>
+<p>The robot's mode comes from field control (or a competition switch): disabled, autonomous, then driver control (WPILib's "teleop"). With nothing plugged in, a V5 program runs straight into driver control. There's no dashboard to pick the auto from, so it's picked on the brain's screen with an <a href="#auto-selector">AutoSelector</a>.</p>
+<h3>Motors are smart, and there's no CAN bus</h3>
+<p>Each V5 motor plugs into its own smart port (1–21) and has its own encoder, current limit and position control built in. "Follower" motors are done in software: the leader copies its command to them each time you set it. The motor's built-in encoder counts after the gear cartridge, so tell <code>VexMotor</code> which cartridge is installed.</p>
+<h3>Current is limited, and shared</h3>
+<p>A V5 motor tops out at 2.5 A. With more than 8 motors, VEXos lowers every motor's limit so the battery isn't overloaded, which is why capping motors that don't need full current (a claw, an intake) helps the drive.</p>
+<h3>The brain is slow</h3>
+<p>Hydrozoa runs your Java as interpreted WebAssembly on a small ARM processor. Keep each loop light: avoid creating objects every loop, don't redraw the screen every loop, and prefer the motor's built-in position control over a fast software PID where it's good enough.</p>
+<h3>Field coordinates</h3>
+<p>The origin is the <strong>center</strong> of the field (like the GPS Sensor and FTC), not a corner. Meters, heading counter-clockwise from +X, like WPILib. See <a href="#units-and-field">Units &amp; field coordinates</a>.</p>
+<h3>Pneumatics</h3>
+<p>No PCM or PH: solenoid valves plug into 3-wire ports, and air comes from a pre-charged tank (no compressor on the robot), so you have a limited number of actuations per match.</p>

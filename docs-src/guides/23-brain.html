@@ -1,0 +1,40 @@
+<!-- page: brain | Hardware | Brain screen & battery | Drawing on the brain's touch screen, reading touches, and battery voltage and charge. -->
+<p class="lede">The brain's 480 × 240 touch screen is your dashboard at the field: the <a href="#auto-selector">auto selector</a> lives there, and you can draw your own status displays. <code>RobotController</code> reports the battery.</p>
+
+<h2>Drawing</h2>
+<p><code>BrainScreen</code> has static methods: rectangles, circles and text, with colors as <code>0xRRGGBB</code>. (0, 0) is the top-left corner of the area below VEXos's status bar.</p>
+<pre class="code"><code class="lang-java">{{SNIP:examples/docs/src/main/java/com/robojacks/docs/ExampleScreen.java#screen}}</code></pre>
+<div class="table-wrap"><table>
+  <thead><tr><th>Method</th><th>Draws</th></tr></thead>
+  <tbody>
+    <tr><td><code>clear(color)</code></td><td>The whole screen in one color.</td></tr>
+    <tr><td><code>fillRect</code>, <code>drawRect(x, y, w, h, color)</code></td><td>A filled or outlined rectangle.</td></tr>
+    <tr><td><code>fillCircle(x, y, r, color)</code></td><td>A filled circle.</td></tr>
+    <tr><td><code>drawText(x, y, text, size, color, background)</code></td><td>Text at its top-left corner. Sizes: <code>SMALL</code>, <code>MEDIUM</code>, <code>LARGE</code>.</td></tr>
+    <tr><td><code>print(line, text)</code></td><td>White-on-black text on line 0–9, the quick way to show a value.</td></tr>
+    <tr><td><code>textWidth(text, size)</code></td><td>Width in pixels, for centering.</td></tr>
+  </tbody>
+</table></div>
+<div class="note"><span class="note-title">Draw only on change</span>
+<p>Drawing is slow in Hydrozoa's interpreter. Redrawing every loop can stretch the 10 ms loop and make the robot feel laggy. Keep the last value you drew and redraw only when it changes, as the example does.</p></div>
+<p>The screen is shared: if you use an <code>AutoSelector</code>, it owns the screen while the robot is disabled. Call <code>m_autoSelector.setScreenEnabled(false)</code> in <code>autonomousInit()</code> before drawing your own match display.</p>
+
+<h2>Touch</h2>
+<pre class="code"><code class="lang-java">ScreenIO.TouchState touch = BrainScreen.getTouch();
+if (touch.pressed &amp;&amp; touch.x &lt; 240) {
+    // left half of the screen is being pressed
+}</code></pre>
+<p><code>pressCount</code> goes up by one on every new press, which is how to react to a tap once instead of every loop while the finger is down.</p>
+
+<h2>Battery</h2>
+<div class="table-wrap"><table>
+  <thead><tr><th>Method</th><th>Returns</th></tr></thead>
+  <tbody>
+    <tr><td><code>RobotController.getBatteryVoltage()</code></td><td>Volts: about 12.8 full, 12 nearly empty.</td></tr>
+    <tr><td><code>RobotController.getBatteryPercent()</code></td><td>Charge, 0–100, as the brain shows it.</td></tr>
+    <tr><td><code>RobotController.getBatteryCurrent()</code></td><td>Amps the whole robot draws.</td></tr>
+    <tr><td><code>RobotController.getBatteryTemperature()</code></td><td>°C.</td></tr>
+  </tbody>
+</table></div>
+<p>A tired battery is the most common reason an auto that worked yesterday falls short today: motors are slower at lower voltage. Show the charge on the controller screen (<a href="#triggers">Controllers &amp; triggers</a>) and swap below about 70% before a match.</p>
+<div class="api-links">{{API:com.robojacks.lib.hardware.BrainScreen}} {{API:com.robojacks.lib.robot.RobotController}} {{API:com.robojacks.lib.hal.ScreenIO}}</div>

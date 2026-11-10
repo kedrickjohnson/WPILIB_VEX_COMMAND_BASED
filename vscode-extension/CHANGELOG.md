@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.3.0
+
+- New projects include the latest VexLib: smart sensors, 3-wire and pneumatics, GPS vision,
+  auto selector, motion profiles, filters, and the dashboard telemetry format
+- The template's RobotContainer has an AutoSelector and a Vision subsystem (turned on by setting
+  a GPS port)
+
 ## 0.2.0
 
 - VexLib is now a vendor library: new projects list it in `vendordeps/VexLib.json` instead of

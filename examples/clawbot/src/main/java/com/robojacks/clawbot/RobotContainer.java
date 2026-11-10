@@ -5,11 +5,11 @@ import com.robojacks.clawbot.commands.ArcadeDrive;
 import com.robojacks.clawbot.subsystems.Arm;
 import com.robojacks.clawbot.subsystems.Claw;
 import com.robojacks.clawbot.subsystems.DriveSubsystem;
+import com.robojacks.lib.auto.AutoSelector;
 import com.robojacks.lib.auto.NamedCommands;
 import com.robojacks.lib.command.Command;
 import com.robojacks.lib.command.Commands;
 import com.robojacks.lib.drive.TuningCommands;
-import com.robojacks.lib.hal.HAL;
 import com.robojacks.lib.input.VexController;
 import com.robojacks.lib.math.MathUtil;
 
@@ -28,6 +28,8 @@ import static com.robojacks.clawbot.Constants.OIConstants.kDriveDeadband;
  * B                       place: lower arm, open claw
  * Y (hold)                slow drive
  * </pre>
+ *
+ * <p>Choose the auto on the brain's screen before the match.
  */
 public class RobotContainer {
     // The robot's subsystems
@@ -36,7 +38,10 @@ public class RobotContainer {
     private final Claw m_claw = new Claw();
 
     // The driver's controller
-    private final VexController m_driverController = new VexController(HAL.get().primaryController());
+    private final VexController m_driverController = new VexController(0);
+
+    // Auto chooser on the brain's screen
+    private final AutoSelector m_autoSelector = new AutoSelector("Clawbot auto");
 
     public RobotContainer() {
         // Commands autos can use by name (path planner markers). Register before building autos.
@@ -53,6 +58,10 @@ public class RobotContainer {
                 m_robotDrive,
                 () -> MathUtil.applyDeadband(m_driverController.getLeftY(), kDriveDeadband),
                 () -> -MathUtil.applyDeadband(m_driverController.getRightX(), kDriveDeadband)));
+
+        m_autoSelector.setDefaultOption("Pick up and move", Autos.pickUpAndMove(m_robotDrive, m_arm, m_claw));
+        m_autoSelector.addOption("Drive a square", Autos.square(m_robotDrive));
+        m_autoSelector.addOption("Do nothing", Commands.none());
 
         if (Constants.kTuningMode) {
             configureTuningBindings();
@@ -99,7 +108,11 @@ public class RobotContainer {
     }
 
     public Command getAutonomousCommand() {
-        return Autos.pickUpAndMove(m_robotDrive, m_arm, m_claw);
+        return m_autoSelector.getSelected();
+    }
+
+    public AutoSelector getAutoSelector() {
+        return m_autoSelector;
     }
 
     public DriveSubsystem getDriveSubsystem() {

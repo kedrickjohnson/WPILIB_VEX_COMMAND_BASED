@@ -13,6 +13,11 @@ public class Timer {
         return HAL.now();
     }
 
+    /** Same as {@link #getTimestamp()}, under WPILib's name, so FRC code reads the same. */
+    public static double getFPGATimestamp() {
+        return HAL.now();
+    }
+
     public double get() {
         return running ? accumulated + (getTimestamp() - startTime) : accumulated;
     }

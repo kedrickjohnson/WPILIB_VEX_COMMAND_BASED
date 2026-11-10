@@ -157,6 +157,112 @@ public abstract class Command {
         return wrapped;
     }
 
+    /** Runs this command again every time it finishes, until interrupted (WPILib {@code repeatedly}). */
+    public Command repeatedly() {
+        Command self = this;
+        CommandGroupUtil.markComposed(self);
+        Command wrapped = new Command() {
+            @Override public void initialize() { self.initialize(); }
+            @Override public void execute() {
+                self.execute();
+                if (self.isFinished()) {
+                    self.end(false);
+                    self.initialize();
+                }
+            }
+            @Override public boolean isFinished() { return false; }
+            @Override public void end(boolean interrupted) { self.end(interrupted); }
+            @Override public boolean runsWhenDisabled() { return self.runsWhenDisabled(); }
+            @Override public InterruptionBehavior getInterruptionBehavior() { return self.getInterruptionBehavior(); }
+        };
+        wrapped.addRequirements(getRequirements());
+        wrapped.setName(getName());
+        return wrapped;
+    }
+
+    /** Runs only if {@code condition} is true when scheduled; otherwise ends immediately. */
+    public Command onlyIf(BooleanSupplier condition) {
+        return unless(() -> !condition.getAsBoolean());
+    }
+
+    /** Skipped (ends immediately) if {@code condition} is true when scheduled. */
+    public Command unless(BooleanSupplier condition) {
+        Command self = this;
+        CommandGroupUtil.markComposed(self);
+        Command wrapped = new Command() {
+            private boolean skip;
+            @Override public void initialize() {
+                skip = condition.getAsBoolean();
+                if (!skip) {
+                    self.initialize();
+                }
+            }
+            @Override public void execute() {
+                if (!skip) {
+                    self.execute();
+                }
+            }
+            @Override public boolean isFinished() { return skip || self.isFinished(); }
+            @Override public void end(boolean interrupted) {
+                if (!skip) {
+                    self.end(interrupted);
+                }
+            }
+            @Override public boolean runsWhenDisabled() { return self.runsWhenDisabled(); }
+            @Override public InterruptionBehavior getInterruptionBehavior() { return self.getInterruptionBehavior(); }
+        };
+        wrapped.addRequirements(getRequirements());
+        wrapped.setName(getName());
+        return wrapped;
+    }
+
+    /**
+     * What happens when another command needs this one's subsystems: {@code kCancelSelf} (the
+     * default) lets the new command take over; {@code kCancelIncoming} keeps this one running.
+     */
+    public Command withInterruptBehavior(InterruptionBehavior behavior) {
+        Command self = this;
+        CommandGroupUtil.markComposed(self);
+        Command wrapped = new Command() {
+            @Override public void initialize() { self.initialize(); }
+            @Override public void execute() { self.execute(); }
+            @Override public boolean isFinished() { return self.isFinished(); }
+            @Override public void end(boolean interrupted) { self.end(interrupted); }
+            @Override public boolean runsWhenDisabled() { return self.runsWhenDisabled(); }
+            @Override public InterruptionBehavior getInterruptionBehavior() { return behavior; }
+        };
+        wrapped.addRequirements(getRequirements());
+        wrapped.setName(getName());
+        return wrapped;
+    }
+
+    /** Runs {@code action} only if this command is interrupted (not when it finishes normally). */
+    public Command handleInterrupt(Runnable action) {
+        Command self = this;
+        CommandGroupUtil.markComposed(self);
+        Command wrapped = new Command() {
+            @Override public void initialize() { self.initialize(); }
+            @Override public void execute() { self.execute(); }
+            @Override public boolean isFinished() { return self.isFinished(); }
+            @Override public void end(boolean interrupted) {
+                self.end(interrupted);
+                if (interrupted) {
+                    action.run();
+                }
+            }
+            @Override public boolean runsWhenDisabled() { return self.runsWhenDisabled(); }
+            @Override public InterruptionBehavior getInterruptionBehavior() { return self.getInterruptionBehavior(); }
+        };
+        wrapped.addRequirements(getRequirements());
+        wrapped.setName(getName());
+        return wrapped;
+    }
+
+    /** Older WPILib name for {@link #deadlineFor}. */
+    public Command deadlineWith(Command... parallel) {
+        return deadlineFor(parallel);
+    }
+
     public Command ignoringDisable(boolean run) {
         Command self = this;
         CommandGroupUtil.markComposed(self);

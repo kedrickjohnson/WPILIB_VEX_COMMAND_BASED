@@ -1,0 +1,53 @@
+<!-- page: planner-guide | Autonomous | Using the path planner | Draw paths, add markers and speed zones, build autos and export Java. -->
+<p class="lede">Draw curved paths on the field, build autos from them, and export a Java class your robot follows.</p>
+
+  <p><a class="btn is-primary" href="#planner" style="display:inline-flex">Open the path planner</a></p>
+
+  <h2>Paths</h2>
+  <ol class="steps">
+    <li><strong>New path</strong>, then tap the field to add points. Each tap adds a point at the end of the path. If a path is selected, the new path starts where that one ends, facing the same way.</li>
+    <li>Drag the round points to move them. Drag the square handles to aim the curve and set how wide it bends: longer handles make gentler curves.</li>
+    <li>Tap a point to edit its position, direction and handle lengths exactly, add a point after it, or delete it.</li>
+    <li>Tick <strong>Drive backward</strong> for a path the robot drives in reverse. The line shows dashed.</li>
+  </ol>
+  <p>The line's color shows planned speed, from orange (slow) to blue (full speed). The robot outlines show where it starts (filled) and ends.</p>
+
+  <h3>Event markers</h3>
+  <p>A marker starts a named command partway along a path, such as an intake as the robot reaches a game piece. Pick the command, slide it along the path (the planner shows the time it fires), and set <em>Run for</em> to stop it after a time. 0 means it runs until it finishes or the path ends.</p>
+
+  <h3>Slow zones</h3>
+  <p>A zone lowers the speed limit between two points, for lining up or picking something up. Point numbers can be fractional: 1.5 is halfway from point 1 to point 2.</p>
+
+  <h2>Speed limits</h2>
+  <p>Under <strong>Settings</strong>, set the robot's size and three limits for every path:</p>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Limit</th><th>Effect</th></tr></thead>
+    <tbody>
+      <tr><td>Max speed (m/s)</td><td>Top speed. Keep it below your robot's real top speed under load (about 80%) so feedback has room to correct.</td></tr>
+      <tr><td>Max acceleration (m/s²)</td><td>How quickly it speeds up and slows down. Lower it if the wheels slip or the robot tips.</td></tr>
+      <tr><td>Max turn rate (°/s)</td><td>Slows the robot through tight curves: speed ≤ turn rate ÷ curvature.</td></tr>
+    </tbody>
+  </table></div>
+  <p>The planner warns about bends tighter than 4 cm in radius, where the robot would nearly stop, and about any spot where the robot's corners would hit the field wall.</p>
+
+  <h2>Autos</h2>
+  <p>An auto is a list of steps run in order: <strong>Path</strong>, <strong>Turn to</strong> (in place, to a field heading), <strong>Run</strong> a named command, or <strong>Wait</strong>. The robot starts wherever the first path starts. The bar shows the estimated time against the 15-second autonomous period.</p>
+  <p>The planner checks that each path starts where the robot is. If a path starts more than 5 cm away or facing more than 10° differently, it says so. Add a turn step, or start the path at the previous path's end.</p>
+  <p>A <strong>Run</strong> step waits for its command to finish. Each command's time under Settings → Commands works as a time limit there, so a run-while-held command like an intake can't stall the auto. 0 means wait until it finishes on its own.</p>
+
+  <h2>Exporting</h2>
+  <ol class="steps">
+    <li>Set the package and class name under <strong>Settings → Export</strong> to match your project.</li>
+    <li>Copy the <strong>Java</strong> tab into <code>autos/PlannerAutos.java</code>. It holds every path as a <code>Trajectory</code> and every auto as a method.</li>
+    <li>Return the auto from <code>getAutonomousCommand()</code>: <code>PlannerAutos.exampleAuto(m_robotDrive)</code>.</li>
+    <li>Register every command name the autos use with <code>NamedCommands.register</code>.</li>
+    <li>Copy the <strong>JSON</strong> tab into <code>planner-project.json</code> next to your code. Paste it back into the planner (or load the file) to keep editing later.</li>
+  </ol>
+  <div class="note is-info"><strong>Your work is saved in this browser.</strong> The planner keeps your project between visits on the same device, but save the JSON in your repository so your team has it and it's backed up.</div>
+
+  <h2>Keys and gestures</h2>
+  <ul>
+    <li><kbd>Ctrl</kbd>/<kbd>⌘</kbd> + <kbd>Z</kbd> undoes the last change (also the Undo button).</li>
+    <li>On a phone or tablet, tap to add points and drag with one finger. The field never scrolls the page while you drag.</li>
+    <li><strong>Preview</strong> animates the robot along the selected path or auto at real speed.</li>
+  </ul>

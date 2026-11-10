@@ -9,6 +9,7 @@ import com.robojacks.lib.drive.TurnAutoTune;
 import com.robojacks.lib.hal.GamepadIO;
 import com.robojacks.lib.hal.HAL;
 import com.robojacks.lib.sim.SimHardware;
+import com.robojacks.lib.sim.SimLog;
 import com.robojacks.lib.math.Pose2d;
 import com.robojacks.lib.telemetry.Telemetry;
 import com.robojacks.robot.subsystems.DriveSubsystem;
@@ -21,6 +22,9 @@ import com.robojacks.robot.subsystems.DriveSubsystem;
  *       then teleop: D-pad LEFT (turn to 90), then both sticks forward (tank drive).</li>
  *   <li>{@code ./gradlew :template:simulate --args=tune} — runs the tuning tests and shows how the
  *       auto-tuned gains perform.</li>
+ *   <li>{@code ./gradlew :template:simulate --args=log} — the match, plus {@code sim-telemetry.log}
+ *       (open it in the dashboard to watch the robot drive) and {@code sim-screen.png} (the brain
+ *       screen with the auto selector).</li>
  * </ul>
  */
 public final class SimMain {
@@ -30,7 +34,7 @@ public final class SimMain {
         if (args.length > 0 && args[0].equals("tune")) {
             runTuning();
         } else {
-            runMatch();
+            runMatch(args.length > 0 && args[0].equals("log"));
         }
     }
 
@@ -44,9 +48,13 @@ public final class SimMain {
 
     // ---------------------------------------------------------------------------------
 
-    private static void runMatch() {
+    private static void runMatch(boolean log) {
         SimHardware hw = newHardware();
-        Telemetry.setEnabled(false); // keep sim output readable; SIM lines show the pose
+        if (log) {
+            SimLog.start("sim-telemetry.log", 0.05);
+        } else {
+            Telemetry.setEnabled(false); // keep sim output readable; SIM lines show the pose
+        }
 
         Robot robot = new Robot();
         robot.robotInit();
@@ -67,6 +75,9 @@ public final class SimMain {
             robot.loopFunc();
             t += period;
             hw.clock().sleepUntil(t);
+            if (log && Math.abs(t - 2.0) < period / 2) {
+                saveScreen(hw);
+            }
 
             if (t - lastPrint >= 1.0) {
                 lastPrint = t;
@@ -74,6 +85,18 @@ public final class SimMain {
                 String mode = !hw.competition.enabled ? "disabled" : hw.competition.autonomous ? "auto" : "teleop";
                 System.out.println("SIM t=" + Math.round(t) + "s " + mode + " " + p);
             }
+        }
+        if (log) {
+            SimLog.stop();
+            System.out.println("SIM: wrote sim-telemetry.log and sim-screen.png");
+        }
+    }
+
+    private static void saveScreen(SimHardware hw) {
+        try {
+            hw.screen.save("sim-screen.png");
+        } catch (java.io.IOException e) {
+            System.out.println("SIM: couldn't save the screen: " + e.getMessage());
         }
     }
 
@@ -84,6 +107,8 @@ public final class SimMain {
         int[] right = {DriveConstants.kRightFrontMotorPort, DriveConstants.kRightMiddleMotorPort, DriveConstants.kRightRearMotorPort};
         hw.simulateTankDrive(left, right,
                 DriveConstants.kMetersPerMotorRotation, DriveConstants.kTrackWidthMeters);
+        // The simulated robot starts where the example auto says it does, so a simulated GPS agrees.
+        hw.setTruePose(FieldConstants.StartPoses.LEFT_START);
     }
 
     private static void runTuning() {

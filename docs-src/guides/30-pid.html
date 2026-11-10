@@ -1,0 +1,68 @@
+<!-- page: pid | Control | PID & feedforward | PIDController, SimpleMotorFeedforward, ArmFeedforward and ElevatorFeedforward, and a practical way to tune them. -->
+<p class="lede">Feedforward does most of the work: it calculates the voltage a move <em>should</em> take from physics. PID fixes what's left: it looks at the error and pushes against it. Together they're how every mechanism hits its target.</p>
+
+<h2>Feedforward</h2>
+<p>A feedforward predicts voltage from how you want the mechanism to move. Each gain is a measurable property:</p>
+<div class="table-wrap"><table>
+  <thead><tr><th>Gain</th><th>Meaning</th><th>Unit</th></tr></thead>
+  <tbody>
+    <tr><td><code>kS</code></td><td>Voltage to overcome friction and start moving</td><td>V</td></tr>
+    <tr><td><code>kG</code></td><td>Voltage to hold against gravity</td><td>V</td></tr>
+    <tr><td><code>kV</code></td><td>Voltage per unit of speed</td><td>V per (unit/s)</td></tr>
+    <tr><td><code>kA</code></td><td>Voltage per unit of acceleration</td><td>V per (unit/s²)</td></tr>
+  </tbody>
+</table></div>
+<div class="table-wrap"><table>
+  <thead><tr><th>Class</th><th>For</th><th>Formula</th></tr></thead>
+  <tbody>
+    <tr><td><code>SimpleMotorFeedforward(kS, kV, kA)</code></td><td>Drives, flywheels, rollers</td><td><code>kS·sign(v) + kV·v + kA·a</code></td></tr>
+    <tr><td><code>ArmFeedforward(kS, kG, kV, kA)</code></td><td>Arms (gravity varies with angle)</td><td><code>… + kG·cos(angle)</code></td></tr>
+    <tr><td><code>ElevatorFeedforward(kS, kG, kV, kA)</code></td><td>Lifts (gravity is constant)</td><td><code>… + kG</code></td></tr>
+  </tbody>
+</table></div>
+<p>For an arm, angles are radians from <strong>horizontal</strong>: 0 is sticking straight out (where gravity pulls hardest), π/2 is straight up.</p>
+<p>A V5 motor's <code>kV</code> can be estimated: 12 V divided by the mechanism's free speed. For a flywheel geared 1:1 on a blue cartridge (600 rpm = 10 rot/s), kV ≈ 1.2 V per rot/s. The drive's tuning test measures kS, kV and kA for you (<a href="#tuning">Tuning the drive</a>).</p>
+
+<h2>PID</h2>
+<p><code>PIDController</code> has WPILib's API:</p>
+<pre class="code"><code class="lang-java">private final PIDController m_pid = new PIDController(kP, kI, kD);
+
+m_pid.setTolerance(0.02);                         // "close enough"
+double volts = m_pid.calculate(measurement, setpoint);
+boolean done = m_pid.atSetpoint();</code></pre>
+<div class="table-wrap"><table>
+  <thead><tr><th>Term</th><th>Does</th><th>Too much looks like</th></tr></thead>
+  <tbody>
+    <tr><td><strong>P</strong></td><td>Pushes in proportion to the error</td><td>Overshoot, oscillation</td></tr>
+    <tr><td><strong>I</strong></td><td>Builds up while error persists, to finish the last bit</td><td>Slow wobble, windup. Often not needed with good feedforward.</td></tr>
+    <tr><td><strong>D</strong></td><td>Pushes against the error's rate of change: damping</td><td>Jittery, noisy output</td></tr>
+  </tbody>
+</table></div>
+<p>Useful extras: <code>enableContinuousInput(-Math.PI, Math.PI)</code> for angles that wrap (it takes the short way around), <code>setIZone(range)</code> so the integral only builds near the target, and <code>reset()</code> when a command starts.</p>
+<p>The controller assumes it's called once per 10 ms loop. If you call it from somewhere else, pass the real period as the fourth constructor argument.</p>
+
+<h2>Putting them together</h2>
+<p>A flywheel that spins to a speed and reports when it's ready:</p>
+<pre class="code"><code class="lang-java">private final SimpleMotorFeedforward m_ff = new SimpleMotorFeedforward(0.4, 1.2);   // kS, kV
+private final PIDController m_pid = new PIDController(0.5, 0, 0);
+
+public Command spinUpCommand(double rotationsPerSecond) {
+    return run(() -> m_motor.setVoltage(
+                    m_ff.calculate(rotationsPerSecond)
+                    + m_pid.calculate(m_encoder.getVelocity(), rotationsPerSecond)))
+            .finallyDo(m_motor::stopMotor);
+}
+
+public boolean atSpeed() {
+    return m_pid.atSetpoint();
+}</code></pre>
+
+<h2>Tuning, step by step</h2>
+<ol class="steps">
+  <li><strong>Feedforward first, PID at zero.</strong> Set kS: raise the voltage until the mechanism just starts to move. For an arm or lift, set kG: the voltage that holds it still (for an arm, held level).</li>
+  <li><strong>Set kV.</strong> Command a speed and adjust kV until the measured speed matches without any PID. Graph target and actual on the <a href="#dashboard">dashboard</a>.</li>
+  <li><strong>Add P</strong> until it reaches the target briskly. If it overshoots or oscillates, back off or add a little D.</li>
+  <li><strong>Add I only if</strong> it consistently stops just short, and limit it with <code>setIZone</code>.</li>
+</ol>
+<p>Tune with a charged battery, and re-check if the robot's weight changes a lot. The <a href="#simulator">simulator</a> is good for checking logic and signs, not final numbers: it doesn't model your mechanism's friction exactly.</p>
+<div class="api-links">{{API:com.robojacks.lib.controller.PIDController}} {{API:com.robojacks.lib.controller.SimpleMotorFeedforward}} {{API:com.robojacks.lib.controller.ArmFeedforward}} {{API:com.robojacks.lib.controller.ElevatorFeedforward}}</div>

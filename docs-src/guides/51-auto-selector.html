@@ -1,0 +1,29 @@
+<!-- page: auto-selector | Autonomous | Choosing the auto | AutoSelector: a touch menu on the brain's screen for picking the autonomous routine, VEX's SendableChooser. -->
+<p class="lede">FRC teams pick their auto on the dashboard with a <code>SendableChooser</code>. VEX has no dashboard at the field, so the <code>AutoSelector</code> puts the menu on the brain's touch screen, and optionally on the controller.</p>
+
+<figure>
+  <img src="auto-selector.png" width="480" height="240" alt="The brain screen showing 'Autonomous: Left: grab goal' at the top and four buttons, the selected one green">
+  <figcaption>The selector as the simulator draws it. Tap a button to choose it.</figcaption>
+</figure>
+
+<h2>Setting it up</h2>
+<pre class="code"><code class="lang-java">{{SNIP:examples/docs/src/main/java/com/robojacks/docs/ExampleRobotContainer.java#auto-selector-field}}</code></pre>
+<pre class="code"><code class="lang-java">// In RobotContainer's constructor, after registering named commands:
+{{SNIP:examples/docs/src/main/java/com/robojacks/docs/ExampleRobotContainer.java#auto-selector}}</code></pre>
+<pre class="code"><code class="lang-java">public Command getAutonomousCommand() {
+    {{SNIP:examples/docs/src/main/java/com/robojacks/docs/ExampleRobotContainer.java#auto-selector-get}}
+}</code></pre>
+<p>Same methods as <code>SendableChooser</code>: <code>setDefaultOption(name, command)</code> adds an option and selects it, <code>addOption(name, command)</code> adds more, <code>getSelected()</code> returns the chosen command. The template and the Clawbot already use it.</p>
+
+<h2>How it behaves</h2>
+<ul>
+  <li><strong>Tap to choose.</strong> The chosen auto turns green and shows at the top. Six options fit per page; with more, arrows on the sides flip pages.</li>
+  <li><strong>Locked during autonomous</strong>, so a bump on the screen can't change it mid-run. You can change it while disabled and during driver control (handy for practice).</li>
+  <li><strong>Controller too</strong>: with <code>addControllerBindings(controller)</code>, D-pad left/right cycles the choice while the robot is disabled, and line 0 of the controller's screen shows it. Useful when the brain is hard to reach. Skip it if those buttons already do something while disabled.</li>
+  <li><strong>Draws only when something changes</strong>, since drawing is slow on the brain.</li>
+</ul>
+<p><code>getSelectedName()</code> returns the chosen name (show it on the controller, log it), <code>select(name)</code> picks one in code, and <code>setScreenEnabled(false)</code> hands the screen back if you draw your own display during the match.</p>
+
+<h2>Building autos ahead of time</h2>
+<p>Each option's command is built when you add it, in <code>RobotContainer</code>'s constructor. That's normal (FRC works the same way) and good: the brain does the work at startup, not when autonomous begins. The one rule is to register named commands first, so autos that use them find them.</p>
+<div class="api-links">{{API:com.robojacks.lib.auto.AutoSelector}}</div>

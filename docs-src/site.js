@@ -62,18 +62,89 @@
     views.forEach(function (v) { v.hidden = v !== view; });
     document.body.dataset.view = view.id;
     var guides = document.getElementById('guides-shell');
-    if (guides) guides.hidden = view.id === 'home' || view.id === 'planner';
+    if (guides) guides.hidden = view.id === 'home' || view.id === 'planner' || view.id === 'dashboard';
     navLinks.forEach(function (a) {
       var on = a.getAttribute('href') === '#' + view.id;
       if (on) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
     });
     if (menu) { menu.classList.remove('is-open'); if (menuBtn) menuBtn.setAttribute('aria-expanded', 'false'); }
-    if (target && target !== view) target.scrollIntoView({ block: 'start' });
-    else window.scrollTo(0, 0);
+    // After the browser's own jump-to-anchor, so it can't leave the page scrolled past its title.
+    requestAnimationFrame(function () {
+      if (target && target !== view) target.scrollIntoView({ block: 'start' });
+      else window.scrollTo(0, 0);
+    });
     if (view.id === 'planner' && window.PlannerRedraw) window.PlannerRedraw();
   }
   window.addEventListener('hashchange', show);
   show();
+
+  // ---------------------------------------------------------------- search
+  var input = document.getElementById('search-input');
+  var results = document.getElementById('search-results');
+  var index = window.SEARCH_INDEX || [];
+  var active = -1;
+  function norm(t) { return t.toLowerCase(); }
+  function search(q) {
+    var terms = norm(q).split(/\s+/).filter(Boolean);
+    if (!terms.length) return [];
+    var hits = [];
+    index.forEach(function (e) {
+      var title = norm(e.title), page = norm(e.page), text = norm(e.text);
+      var score = 0;
+      for (var i = 0; i < terms.length; i++) {
+        var t = terms[i];
+        if (title.indexOf(t) >= 0) score += 10;
+        else if (page.indexOf(t) >= 0) score += 3;
+        else if (text.indexOf(t) >= 0) score += 1;
+        else return;
+      }
+      if (e.kind === 'page') score += 2;
+      hits.push({ e: e, score: score });
+    });
+    hits.sort(function (a, b) { return b.score - a.score; });
+    return hits.slice(0, 12).map(function (h) { return h.e; });
+  }
+  function snippet(e, q) {
+    var t = norm(q).split(/\s+/)[0] || '';
+    var i = norm(e.text).indexOf(t);
+    if (i < 0) return e.text.slice(0, 90);
+    var a = Math.max(0, i - 40);
+    return (a ? '…' : '') + e.text.slice(a, a + 110) + '…';
+  }
+  function renderResults() {
+    var q = input.value.trim();
+    if (!q) { results.hidden = true; return; }
+    var hits = search(q);
+    active = -1;
+    results.innerHTML = hits.length ? hits.map(function (e) {
+      return '<li><a href="#' + e.id + '">' + esc(e.title) + (e.kind === 'page' ? '' : ' <small>' + esc(e.page) + '</small>') +
+        '<small>' + esc(snippet(e, q)) + '</small></a></li>';
+    }).join('') : '<li class="empty">No matches</li>';
+    results.hidden = false;
+  }
+  if (input && results) {
+    input.addEventListener('input', renderResults);
+    input.addEventListener('keydown', function (ev) {
+      var links = results.querySelectorAll('a');
+      if (ev.key === 'ArrowDown' || ev.key === 'ArrowUp') {
+        if (!links.length) return;
+        ev.preventDefault();
+        active = (active + (ev.key === 'ArrowDown' ? 1 : -1) + links.length) % links.length;
+        links.forEach(function (a, i) { a.classList.toggle('is-active', i === active); });
+      } else if (ev.key === 'Enter') {
+        var a = links[active >= 0 ? active : 0];
+        if (a) { location.hash = a.getAttribute('href').slice(1); input.value = ''; results.hidden = true; }
+      } else if (ev.key === 'Escape') {
+        input.value = ''; results.hidden = true;
+      }
+    });
+    results.addEventListener('click', function (ev) {
+      if (ev.target.closest('a')) { input.value = ''; results.hidden = true; }
+    });
+    document.addEventListener('click', function (ev) {
+      if (!ev.target.closest('.search')) results.hidden = true;
+    });
+  }
 
   if (menuBtn) {
     menuBtn.addEventListener('click', function () {

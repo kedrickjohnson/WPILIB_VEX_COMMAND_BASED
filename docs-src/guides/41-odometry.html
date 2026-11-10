@@ -1,0 +1,71 @@
+<!-- page: odometry | Driving | Odometry | How the robot tracks its position from wheel travel and heading, and how to use tracking wheels for accuracy. -->
+<p class="lede">Odometry is dead reckoning: add up how far the wheels rolled and which way the robot was facing, and you know where it is. Every auto command and the path follower depend on it.</p>
+
+<h2>How it works</h2>
+<p>Every loop, odometry takes the change in wheel travel since the last loop and the change in heading from the Inertial Sensor, assumes the robot moved along a circular arc in between, and adds that arc to the pose. The heading comes straight from the Inertial Sensor, which doesn't drift much over a match; the position comes from the wheels, which do slip.</p>
+<p>Errors only add up, never cancel, so odometry drifts over time. How fast depends on the wheels you measure with:</p>
+<div class="table-wrap"><table>
+  <thead><tr><th>Setup</th><th>Accuracy</th><th>Cost</th></tr></thead>
+  <tbody>
+    <tr><td>Drive motor encoders + IMU</td><td>Good for a 15 s auto. Drifts when the drive wheels slip (hard acceleration, pushing, being pushed).</td><td>Nothing extra. The template's default.</td></tr>
+    <tr><td>Tracking wheels + IMU</td><td>Much better: unpowered wheels don't slip.</td><td>Two Rotation Sensors and small omni wheels on springs.</td></tr>
+    <tr><td>Either + GPS correction</td><td>Doesn't drift: the GPS keeps pulling it back.</td><td>A GPS Sensor and the field code strip. See <a href="#vision">Vision</a>.</td></tr>
+  </tbody>
+</table></div>
+
+<h2>Drive-encoder odometry</h2>
+<p>The template's drive uses <code>DifferentialDrivePoseEstimator</code> (odometry that also accepts vision measurements) with the left and right leader encoders, which read meters thanks to their conversion factors:</p>
+<pre class="code"><code class="lang-java">m_poseEstimator = new DifferentialDrivePoseEstimator(
+        m_gyro.getRotation2d(), getLeftEncoderDistance(), getRightEncoderDistance(), Pose2d.kZero);
+
+// periodic(), once the Inertial Sensor has finished calibrating:
+m_poseEstimator.update(m_gyro.getRotation2d(), getLeftEncoderDistance(), getRightEncoderDistance());</code></pre>
+<p>If you don't need vision, plain <code>DifferentialDriveOdometry</code> has the same constructor and <code>update</code>.</p>
+
+<h2>Tracking wheels</h2>
+<p>Tracking wheels are small unpowered omni wheels, spring-loaded against the floor, each on a Rotation Sensor. Since nothing drives them, they roll exactly as far as the robot moves. The usual layout is one wheel rolling forward/back and one rolling sideways:</p>
+<figure>
+  <svg viewBox="0 0 300 220" role="img" aria-label="Top view of a robot: forward tracking wheel left of center, sideways tracking wheel behind center" style="width:100%;max-width:380px;height:auto">
+    <rect x="60" y="20" width="180" height="180" rx="10" fill="var(--panel)" stroke="var(--wall)" stroke-width="3"/>
+    <path d="M150 110 L150 40" stroke="var(--accent)" stroke-width="3"/><path d="M144 46 l6 -12 6 12z" fill="var(--accent)"/>
+    <circle cx="150" cy="110" r="5" fill="var(--ink)"/>
+    <rect x="124" y="88" width="10" height="34" rx="3" fill="var(--signal)"/>
+    <rect x="133" y="150" width="34" height="10" rx="3" fill="var(--signal)"/>
+    <path d="M150 110 L129 110" stroke="var(--muted)" stroke-dasharray="3 3"/>
+    <path d="M150 110 L150 155" stroke="var(--muted)" stroke-dasharray="3 3"/>
+    <g font-family="IBM Plex Mono, monospace" font-size="10.5" fill="var(--ink)">
+      <text x="156" y="44">front</text>
+      <text x="66" y="84">forward wheel</text>
+      <text x="66" y="134">left offset</text>
+      <text x="172" y="168">sideways wheel</text>
+      <text x="156" y="138">fwd offset (−)</text>
+      <text x="156" y="122">center</text>
+    </g>
+  </svg>
+  <figcaption>Top view. Offsets are measured from the robot's turning center: the forward wheel's distance to the left, the sideways wheel's distance to the front (negative if behind).</figcaption>
+</figure>
+<p>When the robot spins in place, a wheel that's off-center rolls even though the robot's center didn't move. <code>TrackingWheelOdometry</code> subtracts that using each wheel's offset, so measure them carefully (an error here shows up as the robot appearing to move when it turns).</p>
+<p>A complete drive subsystem with tracking wheels and vision correction:</p>
+<pre class="code"><code class="lang-java">{{SNIP:examples/docs/src/main/java/com/robojacks/docs/ExampleTrackingDrive.java#tracking-constants}}
+
+{{SNIP:examples/docs/src/main/java/com/robojacks/docs/ExampleTrackingDrive.java#tracking-fields}}
+
+// in the constructor:
+{{SNIP:examples/docs/src/main/java/com/robojacks/docs/ExampleTrackingDrive.java#tracking-setup}}
+
+{{SNIP:examples/docs/src/main/java/com/robojacks/docs/ExampleTrackingDrive.java#tracking-periodic}}</code></pre>
+<details class="source">
+  <summary>Full source: <code>ExampleTrackingDrive.java</code></summary>
+<pre class="code"><code class="lang-java">{{SRC:examples/docs/src/main/java/com/robojacks/docs/ExampleTrackingDrive.java}}</code></pre>
+</details>
+<p>Because it implements <code>TankDriveSubsystem</code>, all of the library's auto commands work with it unchanged. Note <code>getAverageEncoderDistance()</code> returns the forward tracking wheel, so distance commands measure without slip too.</p>
+<p>Only one tracking wheel? Use a forward wheel and pass <code>0</code> as the sideways distance every time; the robot is then assumed not to slide sideways, which holds for most tank drives.</p>
+
+<h2>Checking your odometry</h2>
+<ol class="steps">
+  <li><strong>Spin test</strong>: turn in place ten times. The pose's x and y should stay near zero. If they drift in a circle, a tracking-wheel offset (or the track width, for drive-encoder odometry) is off.</li>
+  <li><strong>Distance test</strong>: drive a measured 2 m. If odometry says otherwise, correct the wheel diameter by the ratio. The template's tuning test X does this for the drive wheels.</li>
+  <li><strong>Return test</strong>: drive around the field and back to a marked starting spot. The pose should read close to the start.</li>
+</ol>
+<p>Watch the pose on the <a href="#dashboard">dashboard</a>'s field view while you do these.</p>
+<div class="api-links">{{API:com.robojacks.lib.kinematics.DifferentialDriveOdometry}} {{API:com.robojacks.lib.kinematics.TrackingWheelOdometry}} {{API:com.robojacks.lib.estimator.DifferentialDrivePoseEstimator}} {{API:com.robojacks.lib.estimator.TrackingWheelPoseEstimator}}</div>

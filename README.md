@@ -10,17 +10,34 @@ motors, command factories, triggers, `Pose2d` and odometry.
 | `vexlib/` | The shared library, VexLib ("WPILib-lite"), published as a vendor library. Teams don't edit it. |
 | `template/` | Starting point for your own robot: 6-motor tank drive + example intake. |
 | `examples/clawbot/` | A complete V5 Clawbot: drive, arm, claw, autos. |
+| `examples/docs/` | The code quoted in the documentation, compiled and run in CI. |
 | `docs/` | The website: guides, the path planner, and the API reference. |
 | `tools/` | `release_vexlib.py`: publishes VexLib without Gradle. |
 | `vscode-extension/` | VS Code extension: new projects, Build / Simulate / Upload buttons, class wizards. |
 
-**Website:** guides, a PathPlanner-style path planner, and the full API reference live in `docs/`.
+## What's included
+
+| Area | Classes |
+| --- | --- |
+| Robot and commands | `VexRobot`, `Command`, `Commands`, `SubsystemBase`, `CommandScheduler`, all the WPILib decorators |
+| Controllers and triggers | `VexController` (screen text, rumble, axis triggers), `Trigger` (debounce, rising/falling, toggles), `RobotModeTriggers` |
+| Motors | `VexMotor`, `VexMotorConfig` (REV-style), `VexEncoder`, `VexMotorGroup` |
+| Smart sensors | `VexInertial`, `VexRotationSensor`, `VexDistanceSensor`, `VexOpticalSensor`, `VexGps` |
+| 3-wire and pneumatics | `DigitalInput`, `DigitalOutput`, `Solenoid`, `DoubleSolenoid`, `AnalogInput`, `AnalogPotentiometer`, `AdiEncoder` |
+| Brain | `BrainScreen`, `RobotController` (battery), `Timer` |
+| Control | `PIDController`, `ProfiledPIDController`, `TrapezoidProfile`, `SimpleMotorFeedforward`, `ArmFeedforward`, `ElevatorFeedforward`, `SlewRateLimiter`, `Debouncer`, `LinearFilter`, `MedianFilter` |
+| Position | `DifferentialDriveOdometry`, `TrackingWheelOdometry`, `DifferentialDrivePoseEstimator`, `TrackingWheelPoseEstimator` |
+| Vision (GPS) | `GpsPoseEstimator`, `EstimatedRobotPose`, `EstimateConsumer`: the PhotonVision pattern, with the GPS as the camera |
+| Autonomous | `AutoBuilder`, `NamedCommands`, `AutoSelector` (brain-screen chooser), path following |
+| Tools | Desktop simulator with every device, `Telemetry` + live dashboard, JUnit tests, GitHub Actions |
+
+**Website:** 28 guide pages, a PathPlanner-style path planner, a telemetry dashboard and the full API reference live in `docs/`.
 To publish it, go to the repository's **Settings → Pages**, choose **Deploy from a branch**, and pick
 the `main` branch and the `/docs` folder. Rebuild it after changing the library with
 `python3 docs-src/build.py --javadoc`.
 
-> **Status:** Everything compiles against Hydrozoa's real SDK source and runs in the desktop
-> simulator. It has **not yet been run on a physical brain.** Hydrozoa itself is experimental
+> **Status:** Everything compiles against Hydrozoa's real SDK source, has unit tests, and runs in
+> the desktop simulator. It has **not yet been run on a physical brain.** Hydrozoa itself is experimental
 > (alpha, and its repo was archived in Feb 2026), so expect to find a few rough edges on hardware.
 
 ## What robot code looks like
@@ -90,10 +107,13 @@ defaults to tank, the Clawbot to arcade.
 | `RelativeEncoder` | `VexEncoder` (from `motor.getEncoder()`) |
 | `MotorControllerGroup` | `VexMotorGroup` (or leader + followers) |
 | `Pigeon2`, `AHRS` | `VexInertial` (`getAngle()` CW, `getRotation2d()` CCW) |
-| `DifferentialDrive`, `DifferentialDriveOdometry` | Same names |
+| `DifferentialDrive`, `DifferentialDriveOdometry`, `DifferentialDrivePoseEstimator` | Same names |
+| `PhotonCamera` + `PhotonPoseEstimator` | `VexGps` + `GpsPoseEstimator`, in a `Vision` subsystem |
+| `DigitalInput`, `Solenoid`, `DoubleSolenoid` | Same names, on 3-wire ports `'A'`–`'H'` |
+| `SendableChooser<Command>` | `AutoSelector` (touch menu on the brain screen) |
 | `edu.wpi.first.math.util.Units` | `com.robojacks.lib.math.util.Units` (same methods, plus tiles, mm, mV, mA) |
 | `CommandXboxController` | `VexController` — **stick up is positive** (FRC is negative) |
-| SmartDashboard | `Telemetry`, printed over USB serial |
+| SmartDashboard | `Telemetry` over USB serial, viewed on the docs site's dashboard |
 
 `TankDriveSubsystem` is a small interface: implement it on your drive subsystem and you get the
 library's `TurnToHeading`, `DriveToPoint`, `DriveDistance` and tuning commands for free.
@@ -207,6 +227,13 @@ To release a version: bump `vexlibVersion` in `gradle.properties`, run `./gradle
 Build it with `node scripts/bundle.js` then `npx @vscode/vsce package` (or
 `python3 scripts/package-vsix.py` without npm), and install the `.vsix` with
 **Extensions → … → Install from VSIX**. See `vscode-extension/README.md`.
+
+## Tests and CI
+
+`vexlib/src/test` has JUnit tests that run the library against the simulator (`./gradlew test`).
+`.github/workflows/build.yml` builds everything, runs the tests and all three simulators, tests the
+VS Code extension and checks the docs site on every push; `release.yml` publishes a VexLib release
+when you push a `v*` tag.
 
 ## Running
 

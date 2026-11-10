@@ -1,0 +1,81 @@
+<!-- page: commands | Concepts | Commands | Writing commands as classes and factories, decorators, groups, and how requirements and interruption work. -->
+<p class="lede">A command is one action the robot takes over time: drive to a point, run the intake until a piece arrives, hold the arm up. Commands are scheduled, run every loop, and end; the scheduler makes sure two commands never fight over the same subsystem.</p>
+
+<h2>The lifecycle</h2>
+<div class="table-wrap"><table>
+  <thead><tr><th>Method</th><th>When</th></tr></thead>
+  <tbody>
+    <tr><td><code>initialize()</code></td><td>Once, when the command is scheduled. Reset timers and controllers here.</td></tr>
+    <tr><td><code>execute()</code></td><td>Every loop while it runs.</td></tr>
+    <tr><td><code>isFinished()</code></td><td>Checked after each <code>execute()</code>. Return <code>true</code> to end. <code>false</code> forever means "until interrupted".</td></tr>
+    <tr><td><code>end(boolean interrupted)</code></td><td>Once, at the end. <code>interrupted</code> is true if it was cancelled or another command took its subsystem. Stop motors here.</td></tr>
+  </tbody>
+</table></div>
+
+<h2>Commands as classes</h2>
+<p>For anything with state or more than a few lines, write a class. The template's driver-control command:</p>
+<pre class="code"><code class="lang-java">{{SRC:template/src/main/java/com/robojacks/robot/commands/TankDrive.java}}</code></pre>
+<p><code>addRequirements(subsystem)</code> declares which subsystems the command uses. It's how the scheduler knows that a new drive command must replace the running one.</p>
+<p>In VS Code, right-click a folder and choose <strong>VEX → New Command</strong> to get this skeleton with the subsystem filled in.</p>
+
+<h2>Commands as factories</h2>
+<p>Most commands are short, so FRC style is to build them from the subsystem's helper methods, which add the requirement for you:</p>
+<div class="table-wrap"><table>
+  <thead><tr><th>Factory (on a subsystem)</th><th>Command that…</th></tr></thead>
+  <tbody>
+    <tr><td><code>runOnce(action)</code></td><td>Does one thing and ends.</td></tr>
+    <tr><td><code>run(action)</code></td><td>Does something every loop until interrupted.</td></tr>
+    <tr><td><code>startEnd(start, end)</code></td><td>Does <code>start</code>, waits until interrupted, then <code>end</code>. Perfect with <code>whileTrue</code>.</td></tr>
+    <tr><td><code>runEnd(run, end)</code></td><td><code>run</code> every loop, <code>end</code> when interrupted.</td></tr>
+    <tr><td><code>startRun(start, run)</code></td><td><code>start</code> once, then <code>run</code> every loop.</td></tr>
+    <tr><td><code>defer(supplier)</code></td><td>Builds the real command when scheduled (for commands that depend on the robot's state at that moment).</td></tr>
+    <tr><td><code>idle()</code></td><td>Holds the subsystem and does nothing.</td></tr>
+  </tbody>
+</table></div>
+<p>An intake written this way:</p>
+<pre class="code"><code class="lang-java">{{SNIP:examples/docs/src/main/java/com/robojacks/docs/ExampleIntake.java#intake}}</code></pre>
+<p>The static <code>Commands</code> class has the same factories without a subsystem (pass requirements as extra arguments), plus <code>none()</code>, <code>print(text)</code>, <code>waitSeconds(s)</code>, <code>waitUntil(condition)</code> and <code>either(onTrue, onFalse, condition)</code>.</p>
+
+<h2>Decorators</h2>
+<p>Decorators wrap a command to change how it runs. They return a new command, so chain them:</p>
+<div class="table-wrap"><table>
+  <thead><tr><th>Decorator</th><th>Effect</th></tr></thead>
+  <tbody>
+    <tr><td><code>withTimeout(seconds)</code></td><td>Ends after this long, if it hasn't already.</td></tr>
+    <tr><td><code>until(condition)</code></td><td>Ends when the condition becomes true.</td></tr>
+    <tr><td><code>onlyWhile(condition)</code></td><td>Ends when the condition becomes false.</td></tr>
+    <tr><td><code>unless(condition)</code> / <code>onlyIf(condition)</code></td><td>Skipped entirely if the condition is true / false when scheduled.</td></tr>
+    <tr><td><code>andThen(next...)</code></td><td>Runs the next commands after this one.</td></tr>
+    <tr><td><code>beforeStarting(before)</code></td><td>Runs something first.</td></tr>
+    <tr><td><code>alongWith(others...)</code></td><td>Runs together; ends when all have ended.</td></tr>
+    <tr><td><code>raceWith(others...)</code></td><td>Runs together; ends when any one ends.</td></tr>
+    <tr><td><code>deadlineFor(others...)</code></td><td>Runs together; ends when <em>this</em> one ends (the others are cut off).</td></tr>
+    <tr><td><code>repeatedly()</code></td><td>Starts over every time it finishes.</td></tr>
+    <tr><td><code>finallyDo(action)</code></td><td>Runs an action when it ends, either way.</td></tr>
+    <tr><td><code>handleInterrupt(action)</code></td><td>Runs an action only if it's interrupted.</td></tr>
+    <tr><td><code>ignoringDisable(true)</code></td><td>Keeps running while the robot is disabled.</td></tr>
+    <tr><td><code>withInterruptBehavior(kCancelIncoming)</code></td><td>Refuses to be interrupted by commands that need its subsystems.</td></tr>
+    <tr><td><code>withName(name)</code></td><td>Names it (shows in messages).</td></tr>
+  </tbody>
+</table></div>
+<pre class="code"><code class="lang-java">// Run the intake for at most 2 s while driving to the piece, then back up
+Commands.sequence(
+        AutoBuilder.driveTo(drive, 0.6, 0.6).deadlineFor(intake.intakeCommand()),
+        AutoBuilder.driveDistance(drive, -0.3));</code></pre>
+
+<h2>Groups</h2>
+<div class="table-wrap"><table>
+  <thead><tr><th>Group</th><th>Runs its commands…</th><th>Ends when</th></tr></thead>
+  <tbody>
+    <tr><td><code>Commands.sequence(a, b, c)</code></td><td>One after another</td><td>The last one ends</td></tr>
+    <tr><td><code>Commands.parallel(a, b)</code></td><td>At the same time</td><td>All have ended</td></tr>
+    <tr><td><code>Commands.race(a, b)</code></td><td>At the same time</td><td>Any one ends</td></tr>
+    <tr><td><code>Commands.deadline(main, others...)</code></td><td>At the same time</td><td><code>main</code> ends</td></tr>
+  </tbody>
+</table></div>
+<p>A command can only be in one group, and once it's in a group you schedule the group, not the command. Commands in a parallel group can't share a subsystem.</p>
+
+<h2>Requirements and interruption</h2>
+<p>When a command is scheduled, any running command that uses one of the same subsystems is interrupted (its <code>end(true)</code> runs) and the new one takes over. That's how pressing a button to raise the arm cleanly replaces the command that was holding it down. To make a command refuse to be interrupted instead, use <code>withInterruptBehavior(InterruptionBehavior.kCancelIncoming)</code>.</p>
+<p>When no command is using a subsystem, its <a href="#subsystems-default-commands">default command</a> runs.</p>
+<div class="api-links">{{API:com.robojacks.lib.command.Command}} {{API:com.robojacks.lib.command.Commands}} {{API:com.robojacks.lib.command.CommandScheduler}}</div>

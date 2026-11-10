@@ -1,0 +1,45 @@
+<!-- page: simulator | Tools | Simulator | Run the real robot code on your computer with simulated motors, sensors, 3-wire ports, screen and controller, and script tests. -->
+<p class="lede">The simulator runs your real robot code on your computer, faster than real time, with no brain attached. Use it to check that commands sequence correctly, autos end where they should, and nothing crashes, before the robot touches a tile.</p>
+
+<h2>Running it</h2>
+<pre class="code"><code class="lang-shell">./gradlew simulate                  # a project from the VS Code extension
+./gradlew simulate --args=log       # also writes sim-telemetry.log and sim-screen.png
+./gradlew simulate --args=tune      # the tuning tests, then checks their numbers
+
+./gradlew :template:simulate        # in the library's repository
+./gradlew :examples:clawbot:simulate</code></pre>
+<p>Or click <strong>Simulate</strong> in VS Code. Open <code>sim-telemetry.log</code> on the <a href="#dashboard">dashboard</a> to watch the run: graphs and the robot driving on the field.</p>
+
+<h2>How it works</h2>
+<p>Robot code talks to hardware only through the library's <code>Hardware</code> interface. On the brain that's <code>HydrozoaHardware</code>; in the simulator it's <code>SimHardware</code>, set with <code>HAL.set(...)</code> before the robot is built. The simulator sources live in <code>src/sim/java</code>, a separate source set that never goes to the brain.</p>
+<div class="table-wrap"><table>
+  <thead><tr><th>Device</th><th>In the simulator</th><th>Script access</th></tr></thead>
+  <tbody>
+    <tr><td>Motors</td><td>Speed follows voltage with an 80 ms lag and 0.6 V of static friction; optional hard stops</td><td><code>sim.getMotor(port)</code>, <code>.setHardStops(min, max)</code></td></tr>
+    <tr><td>Drive</td><td><code>simulateTankDrive(...)</code> moves a true robot pose and turns the IMU from the wheel speeds</td><td><code>sim.getTruePose()</code>, <code>setTruePose(pose)</code></td></tr>
+    <tr><td>Inertial Sensor</td><td>Calibrates for 2 s, then follows the drive</td><td><code>sim.getImu()</code></td></tr>
+    <tr><td>Rotation Sensor</td><td>Set by hand, or a tracking wheel on the simulated robot</td><td><code>getRotationSensor(port).position</code>, <code>simulateTrackingWheel(...)</code></td></tr>
+    <tr><td>Distance Sensor</td><td>Whatever you set</td><td><code>getDistanceSensor(port).distanceMeters</code> (NaN = nothing)</td></tr>
+    <tr><td>Optical Sensor</td><td>Whatever you set</td><td><code>getOpticalSensor(port).showColor(hue)</code>, <code>.clear()</code></td></tr>
+    <tr><td>GPS Sensor</td><td>Reads the true pose; optional noise and error</td><td><code>getGps(port).noiseMeters</code>, <code>.errorMeters</code></td></tr>
+    <tr><td>3-wire ports</td><td>Inputs you set, outputs you read</td><td><code>getAdiPort('A').setPressed(true)</code>, <code>getAdiPort('B').isOn()</code></td></tr>
+    <tr><td>Controllers</td><td>Sticks and buttons you set; screen text and rumble recorded</td><td><code>sim.primary.axes[...]</code>, <code>.buttons[...]</code>, <code>.screenLines</code>, <code>.lastRumble</code></td></tr>
+    <tr><td>Brain screen</td><td>Drawn into an image; touches you script</td><td><code>sim.screen.press(x, y)</code>, <code>.release()</code>, <code>.save("screen.png")</code></td></tr>
+    <tr><td>Battery</td><td>12.8 V, 100%</td><td><code>sim.power.volts</code>, <code>.percent</code></td></tr>
+    <tr><td>Field control</td><td>Whatever you set</td><td><code>sim.competition.enabled</code>, <code>.autonomous</code></td></tr>
+  </tbody>
+</table></div>
+
+<h2>Writing a sim script</h2>
+<p>A sim script is a <code>main</code> method: create <code>SimHardware</code>, build your subsystems or the whole <code>Robot</code>, then step time, poking sensors and checking results. This one checks an intake and a clamp:</p>
+<pre class="code"><code class="lang-java">{{SNIP:examples/docs/src/sim/java/com/robojacks/docs/DocsSimExample.java#sim-script}}</code></pre>
+<p>To run a whole match instead, build the <code>Robot</code> and call <code>robot.loopFunc()</code> each step while setting <code>sim.competition</code> and the controller, as the template's <code>SimMain</code> does:</p>
+<details class="source">
+  <summary>Full source: the template's <code>SimMain.java</code></summary>
+<pre class="code"><code class="lang-java">{{SRC:template/src/sim/java/com/robojacks/robot/SimMain.java}}</code></pre>
+</details>
+<p>Sim scripts are also the base for <a href="#testing">unit tests</a>: the same setup inside a JUnit test runs on every push.</p>
+
+<h2>What it doesn't model</h2>
+<p>Wheel slip, backlash, battery sag, game elements, collisions, and VEXos's current sharing between motors. Sensors only read what you set (except the GPS and tracking wheels, which follow the simulated drive). Use it to check logic and sequencing, not final gains.</p>
+<div class="api-links">{{API:com.robojacks.lib.sim.SimHardware}} {{API:com.robojacks.lib.sim.SimLog}}</div>

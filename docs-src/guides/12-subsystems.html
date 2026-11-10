@@ -1,0 +1,40 @@
+<!-- page: subsystems | Concepts | Subsystems | One class per mechanism: owning hardware, periodic, default commands and command factories. -->
+<p class="lede">A subsystem is one mechanism on the robot: the drive, the intake, the arm. It owns that mechanism's motors and sensors, so only one command can drive it at a time, and it offers commands for what the mechanism can do.</p>
+
+<h2>Anatomy</h2>
+<p>Extend <code>SubsystemBase</code>, create hardware as fields, configure it in the constructor, and offer commands:</p>
+<pre class="code"><code class="lang-java">{{SNIP:examples/docs/src/main/java/com/robojacks/docs/ExampleClamp.java#clamp}}</code></pre>
+<p>A few rules that keep subsystems easy to work with:</p>
+<ul>
+  <li><strong>Hardware is private.</strong> Other code asks the subsystem (<code>isGoalPresent()</code>) or schedules its commands; it never reaches in and sets a motor.</li>
+  <li><strong>Commands are factories.</strong> Methods named <code>…Command()</code> return a new command each call, built with <code>runOnce</code>, <code>startEnd</code> and friends (they require the subsystem automatically).</li>
+  <li><strong>Ports and numbers come from <code>Constants</code>.</strong></li>
+</ul>
+<p>VS Code's <strong>VEX → New Subsystem</strong> and <strong>New Subsystem with a Motor</strong> wizards write this layout for you, including the constants.</p>
+
+<h2>periodic()</h2>
+<p>Runs every loop, whether or not a command is using the subsystem. Use it to update odometry, read sensors, and send <a href="#dashboard-guide">telemetry</a>. Don't drive motors from <code>periodic()</code>; that's the commands' job, and doing it here would fight them.</p>
+
+<h2 id="subsystems-default-commands">Default commands</h2>
+<p>A default command runs whenever no other command is using the subsystem. The drive's default is driver control:</p>
+<pre class="code"><code class="lang-java">m_robotDrive.setDefaultCommand(new TankDrive(
+        m_robotDrive,
+        () -> MathUtil.applyDeadband(m_driverController.getLeftY(), kDriveDeadband),
+        () -> MathUtil.applyDeadband(m_driverController.getRightY(), kDriveDeadband)));</code></pre>
+<p>When a button schedules, say, a turn-to-heading command, it interrupts the default; when the turn finishes, the default comes back automatically. Default commands should never end on their own.</p>
+
+<h2>Mechanism patterns</h2>
+<div class="table-wrap"><table>
+  <thead><tr><th>Mechanism</th><th>Typical commands</th><th>See</th></tr></thead>
+  <tbody>
+    <tr><td>Roller / intake</td><td><code>startEnd(in, stop)</code>, ending <code>until</code> a sensor sees a piece</td><td><a href="#commands">Commands</a></td></tr>
+    <tr><td>Arm or lift</td><td>Go to an angle along a profile, then hold</td><td><a href="#motion-profiles">Motion profiles</a></td></tr>
+    <tr><td>Pneumatic clamp</td><td><code>runOnce(set)</code>, toggle</td><td><a href="#three-wire">3-wire &amp; pneumatics</a></td></tr>
+    <tr><td>Flywheel</td><td>Spin to a speed with feedforward + PID, report when ready</td><td><a href="#pid">PID &amp; feedforward</a></td></tr>
+    <tr><td>Drive</td><td>Driver control default, drive/turn/path commands for autos</td><td><a href="#drivetrain">The drivetrain</a></td></tr>
+  </tbody>
+</table></div>
+
+<h2>Sharing state between subsystems</h2>
+<p>Pass what a subsystem needs into its constructor or a command factory, rather than having subsystems find each other. For example, the <code>Vision</code> subsystem receives the drive's <code>addVisionMeasurement</code> method, not the drive itself. Commands that coordinate two mechanisms ("grab: close the claw, then lift") belong in <code>RobotContainer</code> or an <code>Autos</code> class, built from each subsystem's commands.</p>
+<div class="api-links">{{API:com.robojacks.lib.command.SubsystemBase}} {{API:com.robojacks.lib.command.Subsystem}}</div>

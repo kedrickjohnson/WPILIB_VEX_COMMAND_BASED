@@ -1,0 +1,58 @@
+<!-- page: testing | Tools | Unit tests & CI | Test robot code with JUnit and the simulator, and let GitHub Actions build, test and release on every push. -->
+<p class="lede">Because the simulator is just Java, robot code can be unit tested like any other code: build a subsystem on simulated hardware, run the scheduler, check what happened. GitHub Actions then runs those tests, and both simulators, on every push.</p>
+
+<h2>A test</h2>
+<p>Tests go in <code>src/test/java</code> and use JUnit 4. Each test gets a fresh simulated brain and scheduler:</p>
+<pre class="code"><code class="lang-java">public class ClampTest {
+    private SimHardware sim;
+
+    @Before
+    public void setUp() {
+        sim = new SimHardware();
+        HAL.set(sim);
+        CommandScheduler.resetInstance();          // forget subsystems from other tests
+        CommandScheduler.getInstance().setRobotEnabled(true);
+    }
+
+    private void run(double seconds) {
+        for (int i = 0; i &lt; Math.round(seconds / 0.010); i++) {
+            CommandScheduler.getInstance().run();
+            sim.clock().sleepUntil(sim.clock().nowSeconds() + 0.010);
+        }
+    }
+
+    @Test
+    public void clampsWhenTheGoalArrives() {
+        ExampleClamp clamp = new ExampleClamp();
+        clamp.clampWhenGoalArrivesCommand().schedule();
+        run(0.2);
+        assertFalse(sim.getAdiPort('B').isOn());
+        sim.getAdiPort('A').setPressed(true);      // goal hits the switch
+        run(0.1);
+        assertTrue(sim.getAdiPort('B').isOn());
+    }
+}</code></pre>
+<p>Add JUnit to the robot's <code>build.gradle.kts</code> and run <code>./gradlew test</code>:</p>
+<pre class="code"><code class="lang-java">dependencies {
+    testImplementation("junit:junit:4.13.2")
+}
+tasks.test { useJUnit() }</code></pre>
+<p>Good things to test: that an auto ends (and roughly where), that a mechanism stops at its limit switch, that a button binding schedules the right command, that a command handles a sensor reading "nothing". The library's own tests in <code>vexlib/src/test</code> are examples of all of these.</p>
+
+<h2>Continuous integration</h2>
+<p>The repository has two GitHub Actions workflows in <code>.github/workflows</code>:</p>
+<div class="table-wrap"><table>
+  <thead><tr><th>Workflow</th><th>Runs on</th><th>Does</th></tr></thead>
+  <tbody>
+    <tr><td><code>build.yml</code></td><td>Every push to main and every pull request</td><td>Builds everything, runs the library's tests, runs the template, Clawbot and docs simulators (failing if an auto doesn't finish), tests the VS Code extension, and builds the docs site (failing on broken links).</td></tr>
+    <tr><td><code>release.yml</code></td><td>A tag like <code>v0.2.0</code></td><td>Publishes that VexLib version to <code>docs/maven</code>, regenerates the vendordep JSON and API reference, commits them, and attaches the VS Code extension to a GitHub release.</td></tr>
+  </tbody>
+</table></div>
+<p>Copy <code>build.yml</code> into your own robot's repository (changing the Gradle tasks to <code>build</code> and <code>simulate</code>) and you'll know within minutes whether a change broke something.</p>
+
+<h2>Releasing a new VexLib</h2>
+<ol class="steps">
+  <li>Change <code>vexlibVersion</code> in <code>gradle.properties</code> (and the extension's version in <code>vscode-extension/package.json</code>), commit, push.</li>
+  <li>Tag it: <code>git tag v0.2.0 &amp;&amp; git push origin v0.2.0</code>.</li>
+  <li>The release workflow does the rest. Teams see the new version under <strong>VEX: Manage Vendor Libraries → Check for updates</strong>.</li>
+</ol>

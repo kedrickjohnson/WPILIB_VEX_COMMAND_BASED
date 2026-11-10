@@ -11,6 +11,19 @@ val siteUrl = property("vexlibSiteUrl") as String
 dependencies {
     // Only lib/hal/hydrozoa uses this directly; everything else is plain Java.
     api("dev.vexide:hydrozoa:$hydrozoaVersion")
+
+    testImplementation("junit:junit:4.13.2")
+}
+
+tasks.test {
+    useJUnit()
+    testLogging { events("failed"); exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL }
+}
+
+// Used by docs-src/build.py --javadoc: prints the classpath javadoc needs.
+tasks.register("printClasspath") {
+    val cp = configurations.compileClasspath
+    doLast { println(cp.get().asPath) }
 }
 
 java {

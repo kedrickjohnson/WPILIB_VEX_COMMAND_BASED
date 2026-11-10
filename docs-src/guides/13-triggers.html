@@ -1,0 +1,54 @@
+<!-- page: triggers | Concepts | Controllers & triggers | Buttons, sticks, trigger bindings, combinations, debouncing, robot-mode triggers, and the controller's screen and rumble. -->
+<p class="lede">Every button on the V5 controller is a <code>Trigger</code>, and so is anything else that can be true or false: a sensor, a stick past a threshold, the robot's mode. Bind commands to triggers and the scheduler handles the rest.</p>
+
+<h2>Controllers</h2>
+<pre class="code"><code class="lang-java">{{SNIP:examples/docs/src/main/java/com/robojacks/docs/ExampleRobotContainer.java#controllers}}</code></pre>
+<div class="table-wrap"><table>
+  <thead><tr><th>Method</th><th>Gives</th></tr></thead>
+  <tbody>
+    <tr><td><code>a()</code> <code>b()</code> <code>x()</code> <code>y()</code></td><td>Face buttons</td></tr>
+    <tr><td><code>up()</code> <code>down()</code> <code>left()</code> <code>right()</code></td><td>D-pad</td></tr>
+    <tr><td><code>l1()</code> <code>l2()</code> <code>r1()</code> <code>r2()</code></td><td>Shoulder buttons (digital on V5)</td></tr>
+    <tr><td><code>getLeftX()</code> <code>getLeftY()</code> <code>getRightX()</code> <code>getRightY()</code></td><td>Sticks, -1 to 1. <strong>Up and right are positive.</strong></td></tr>
+    <tr><td><code>axisGreaterThan(axis, t)</code>, <code>axisLessThan</code>, <code>axisMagnitudeGreaterThan</code></td><td>Triggers from a stick</td></tr>
+    <tr><td><code>isConnected()</code></td><td>Whether the controller is linked</td></tr>
+  </tbody>
+</table></div>
+
+<h2>Binding commands</h2>
+<div class="table-wrap"><table>
+  <thead><tr><th>Binding</th><th>Behaves like</th></tr></thead>
+  <tbody>
+    <tr><td><code>onTrue(cmd)</code></td><td>Press: start the command. It runs until it ends by itself.</td></tr>
+    <tr><td><code>onFalse(cmd)</code></td><td>Release: start the command.</td></tr>
+    <tr><td><code>whileTrue(cmd)</code></td><td>Hold: runs while held, cancelled on release.</td></tr>
+    <tr><td><code>whileFalse(cmd)</code></td><td>Runs while <em>not</em> held.</td></tr>
+    <tr><td><code>toggleOnTrue(cmd)</code></td><td>Press to start, press again to stop.</td></tr>
+    <tr><td><code>toggleOnFalse(cmd)</code></td><td>Same, on release.</td></tr>
+    <tr><td><code>onChange(cmd)</code></td><td>Start on every press and every release.</td></tr>
+  </tbody>
+</table></div>
+<pre class="code"><code class="lang-java">{{SNIP:examples/docs/src/main/java/com/robojacks/docs/ExampleRobotContainer.java#bindings}}</code></pre>
+<p>Bind once, in <code>RobotContainer</code>'s constructor. Bindings are checked every loop, so a binding created inside <code>periodic()</code> would pile up.</p>
+
+<h2>Triggers from anything</h2>
+<p><code>new Trigger(booleanSupplier)</code> turns any condition into a trigger. Combine them with <code>and</code>, <code>or</code>, <code>negate</code> and <code>xor</code>, smooth them with <code>debounce</code>, and get edges with <code>rising()</code> and <code>falling()</code>:</p>
+<pre class="code"><code class="lang-java">{{SNIP:examples/docs/src/main/java/com/robojacks/docs/ExampleRobotContainer.java#triggers}}</code></pre>
+<p><code>debounce(seconds)</code> only changes after the condition has held that long, so a bouncing switch or a flickering sensor fires once. By default only the press is debounced; <code>debounce(s, DebounceType.kBoth)</code> debounces releases too.</p>
+
+<h2>Robot-mode triggers</h2>
+<p><code>RobotModeTriggers.autonomous()</code>, <code>teleop()</code> (also <code>driverControl()</code>), <code>disabled()</code> and <code>fieldConnected()</code> are true during that mode. Bind them for things that should happen at a phase change, or <code>and</code> them with other triggers to limit when a binding is active. Commands bound to <code>disabled()</code> need <code>.ignoringDisable(true)</code> to actually run.</p>
+
+<h2>The controller's screen</h2>
+<p>The V5 controller has a small screen: 3 lines of 19 characters. Write to it with <code>setText(line, column, text)</code>:</p>
+<pre class="code"><code class="lang-java">{{SNIP:examples/docs/src/main/java/com/robojacks/docs/ExampleRobotContainer.java#controller-screen}}</code></pre>
+<p>VEXos only accepts a controller update about every 50 ms, so the library queues updates and sends the newest text for each line in turn. Writing every loop is fine; only the latest value is sent. <code>clearLine(line)</code> and <code>clearScreen()</code> blank it. The <a href="#auto-selector">AutoSelector</a> can use line 0 to show the chosen auto.</p>
+
+<h2>Rumble</h2>
+<p><code>rumble(pattern)</code> buzzes the controller: <code>.</code> short, <code>-</code> long, space for a pause, up to 8 symbols. <code>rumbleCommand(pattern)</code> wraps it in a command that works even while disabled, ready to bind:</p>
+<pre class="code"><code class="lang-java">m_intake.hasPiece.onTrue(m_driverController.rumbleCommand("."));     // got a piece
+RobotModeTriggers.teleop().onTrue(m_driverController.rumbleCommand("-")); // match started
+// Endgame warning: 15 s left of a 1:45 driver period (m_matchTimer is restarted in teleopInit)
+new Trigger(() -> m_matchTimer.hasElapsed(90)).onTrue(m_driverController.rumbleCommand("..."));</code></pre>
+<p class="note">Field control doesn't send the match time on V5, so time it yourself: restart a <code>Timer</code> in <code>teleopInit()</code> and compare against the period length.</p>
+<div class="api-links">{{API:com.robojacks.lib.input.VexController}} {{API:com.robojacks.lib.command.Trigger}} {{API:com.robojacks.lib.command.RobotModeTriggers}}</div>

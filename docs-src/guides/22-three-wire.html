@@ -1,0 +1,61 @@
+<!-- page: three-wire | Hardware | 3-wire ports & pneumatics | Limit switches, bumpers, solenoids, potentiometers and encoders on the brain's 3-wire ports A-H or a 3-Wire Expander. -->
+<p class="lede">The brain has eight 3-wire ports, A to H, for simple sensors and pneumatic valves. The classes have WPILib's names: <code>DigitalInput</code>, <code>Solenoid</code>, <code>DoubleSolenoid</code>, <code>AnalogPotentiometer</code>.</p>
+
+<div class="table-wrap"><table>
+  <thead><tr><th>Device</th><th>Class</th><th>Port type</th></tr></thead>
+  <tbody>
+    <tr><td>Limit switch, bumper switch</td><td><code>DigitalInput</code></td><td>Digital in</td></tr>
+    <tr><td>Pneumatic solenoid valve</td><td><code>Solenoid</code>, <code>DoubleSolenoid</code></td><td>Digital out</td></tr>
+    <tr><td>LED, relay</td><td><code>DigitalOutput</code></td><td>Digital out</td></tr>
+    <tr><td>Potentiometer</td><td><code>AnalogPotentiometer</code></td><td>Analog in</td></tr>
+    <tr><td>Line tracker, light sensor</td><td><code>AnalogInput</code></td><td>Analog in</td></tr>
+    <tr><td>Optical Shaft Encoder</td><td><code>AdiEncoder</code></td><td>Two ports (A+B, C+D…)</td></tr>
+  </tbody>
+</table></div>
+<p>Ports are written as characters: <code>new DigitalInput('A')</code>. Out of ports? A <strong>3-Wire Expander</strong> in a smart port adds eight more; pass its smart port first: <code>new Solenoid(15, 'A')</code>. Each port can only be used once; a second use throws an error at startup, just like reusing a motor port.</p>
+
+<h2>Pneumatics</h2>
+<p>A VEX pneumatics kit has a tank you pump up before the match (up to 100 psi), tubing, a solenoid valve per cylinder, and cylinders. The valve plugs into a 3-wire port. There's no compressor on the robot, so air is limited: plan your autonomous and driver actuations.</p>
+<pre class="code"><code class="lang-java">{{SNIP:examples/docs/src/main/java/com/robojacks/docs/ExampleClamp.java#clamp}}</code></pre>
+<div class="table-wrap"><table>
+  <thead><tr><th>Solenoid method</th><th>Does</th></tr></thead>
+  <tbody>
+    <tr><td><code>set(true)</code> / <code>set(false)</code></td><td>Extend / retract.</td></tr>
+    <tr><td><code>toggle()</code>, <code>get()</code></td><td>Flip it; read the last state set.</td></tr>
+    <tr><td><code>getActuationCount()</code></td><td>Changes since startup: a rough air-use counter.</td></tr>
+    <tr><td><code>new Solenoid(expander, port, true)</code></td><td>For a valve plumbed so that "off" extends: <code>set(true)</code> still means extended.</td></tr>
+  </tbody>
+</table></div>
+<p>A <strong>double-acting</strong> cylinder driven both ways by two valves uses <code>DoubleSolenoid</code>:</p>
+<pre class="code"><code class="lang-java">private final DoubleSolenoid m_wings = new DoubleSolenoid('C', 'D');
+
+m_wings.set(DoubleSolenoid.Value.kForward);  // out
+m_wings.set(DoubleSolenoid.Value.kReverse);  // in
+m_wings.toggle();</code></pre>
+<div class="note is-tip"><span class="note-title">Air budget</span>
+<p>Count actuations in practice with <code>getActuationCount()</code> sent to telemetry. If you run out late in matches, shorten cylinder strokes, lower the extend pressure with a regulator, or add a tank.</p></div>
+
+<h2>Limit switches and bumpers</h2>
+<p><code>DigitalInput.get()</code> is <strong>true while pressed</strong>. (WPILib's returns the raw signal, which is usually backwards; this library flips it so it reads naturally.) Turn it into a trigger to start commands:</p>
+<pre class="code"><code class="lang-java">private final DigitalInput m_armDownSwitch = new DigitalInput('E');
+
+// Zero the arm's encoder whenever the arm reaches the bottom
+m_armDownSwitch.asTrigger().debounce(0.02).onTrue(m_arm.resetEncoderCommand());</code></pre>
+<p>A switch is the classic way to stop a mechanism at its end of travel: <code>m_lift.downCommand().until(m_bottomSwitch::get)</code>.</p>
+
+<h2>Potentiometers</h2>
+<p>A potentiometer reads an angle as 0 to 4095. <code>AnalogPotentiometer</code> scales it like WPILib's: <code>value = ratio × fullRange + offset</code>.</p>
+<pre class="code"><code class="lang-java">// V2 potentiometer (333° of travel), arm level at a reading of 150°
+private final AnalogPotentiometer m_armAngle = new AnalogPotentiometer('C', 333.0, -150.0);
+double degreesFromLevel = m_armAngle.get();</code></pre>
+<p>Use <code>AnalogPotentiometer.kV2RangeDegrees</code> (333) or <code>kV1RangeDegrees</code> (250) for the range. A Rotation Sensor is more precise and doesn't have a dead zone, but a potentiometer only needs a 3-wire port.</p>
+
+<h2>Optical Shaft Encoder</h2>
+<p>The older 3-wire encoder: 360 counts per turn, two wires. The top wire goes in an odd port (A, C, E, G) and the bottom wire in the next one.</p>
+<pre class="code"><code class="lang-java">AdiEncoder m_trackingWheel = new AdiEncoder('A', 'B', false);
+m_trackingWheel.setDistancePerPulse(Math.PI * Units.inchesToMeters(2.75) / 360.0);
+double meters = m_trackingWheel.getDistance();</code></pre>
+<p>Teams use these for tracking wheels. A V5 Rotation Sensor does the same job with more resolution and one smart port; prefer it on new robots.</p>
+<div class="note"><span class="note-title">Hardware check</span>
+<p>The encoder's port setup follows what PROS does (the top port is configured as an encoder). It hasn't been tested on a real brain yet; if counts read 0, please report it.</p></div>
+<div class="api-links">{{API:com.robojacks.lib.hardware.Solenoid}} {{API:com.robojacks.lib.hardware.DoubleSolenoid}} {{API:com.robojacks.lib.hardware.DigitalInput}} {{API:com.robojacks.lib.hardware.DigitalOutput}} {{API:com.robojacks.lib.hardware.AnalogPotentiometer}} {{API:com.robojacks.lib.hardware.AnalogInput}} {{API:com.robojacks.lib.hardware.AdiEncoder}}</div>

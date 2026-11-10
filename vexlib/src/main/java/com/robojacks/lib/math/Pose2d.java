@@ -72,6 +72,52 @@ public final class Pose2d {
                 rotation.plus(deltaRot));
     }
 
+
+    /**
+     * The twist that takes this pose to {@code end}: the inverse of {@link #exp}. Same math as WPILib.
+     */
+    public Twist2d log(Pose2d end) {
+        Pose2d transform = end.relativeTo(this);
+        double dtheta = transform.getRotation().getRadians();
+        double halfDtheta = dtheta / 2.0;
+        double cosMinusOne = transform.getRotation().getCos() - 1.0;
+        double halfThetaByTanOfHalfDtheta;
+        if (Math.abs(cosMinusOne) < 1e-9) {
+            halfThetaByTanOfHalfDtheta = 1.0 - 1.0 / 12.0 * dtheta * dtheta;
+        } else {
+            halfThetaByTanOfHalfDtheta = -(halfDtheta * transform.getRotation().getSin()) / cosMinusOne;
+        }
+        Translation2d part = transform.getTranslation()
+                .rotateBy(new Rotation2d(halfThetaByTanOfHalfDtheta, -halfDtheta))
+                .times(Math.hypot(halfThetaByTanOfHalfDtheta, halfDtheta));
+        return new Twist2d(part.getX(), part.getY(), dtheta);
+    }
+
+    /** A pose part way to {@code end} along a constant-curvature arc: t = 0 is this pose, 1 is end. */
+    public Pose2d interpolate(Pose2d end, double t) {
+        if (t <= 0) {
+            return this;
+        }
+        if (t >= 1) {
+            return end;
+        }
+        Twist2d twist = log(end);
+        return exp(new Twist2d(twist.dx * t, twist.dy * t, twist.dtheta * t));
+    }
+
+    /** Moves this pose by a transform expressed in this pose's own frame (WPILib {@code transformBy}). */
+    public Pose2d plus(Transform2d transform) {
+        return new Pose2d(
+                getTranslation().plus(transform.getTranslation().rotateBy(getRotation())),
+                getRotation().plus(transform.getRotation()));
+    }
+
+    /** The transform that takes {@code other} to this pose, in other's frame. */
+    public Transform2d minus(Pose2d other) {
+        Pose2d rel = relativeTo(other);
+        return new Transform2d(rel.getTranslation(), rel.getRotation());
+    }
+
     @Override
     public String toString() {
         return "Pose2d(" + Rotation2d.round(getX()) + ", " + Rotation2d.round(getY())

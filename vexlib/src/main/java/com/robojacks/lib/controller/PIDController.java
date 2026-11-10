@@ -2,7 +2,19 @@ package com.robojacks.lib.controller;
 
 import com.robojacks.lib.math.MathUtil;
 
-/** Minimal PID controller with the same API shape as WPILib's. */
+/**
+ * PID controller with the same API as WPILib's: {@code output = kP*error + kI*integral + kD*derivative}.
+ *
+ * <pre>{@code
+ * PIDController m_turnPid = new PIDController(0.8, 0.0, 0.05);
+ * m_turnPid.enableContinuousInput(-Math.PI, Math.PI); // angles wrap
+ * m_turnPid.setTolerance(Units.degreesToRadians(2));
+ * double volts = m_turnPid.calculate(heading.getRadians(), target.getRadians());
+ * }</pre>
+ *
+ * <p>Call {@code calculate} once per loop: the derivative and integral assume the loop period
+ * given to the constructor (10 ms by default, matching {@code VexRobot}).
+ */
 public class PIDController {
     private double kP;
     private double kI;
@@ -73,6 +85,52 @@ public class PIDController {
 
     public double getError() {
         return error;
+    }
+
+    /** WPILib's name for {@link #getError()}. */
+    public double getPositionError() {
+        return error;
+    }
+
+    /** Rate of change of the error, units per second. */
+    public double getVelocityError() {
+        return errorDerivative;
+    }
+
+    public double getP() {
+        return kP;
+    }
+
+    public double getI() {
+        return kI;
+    }
+
+    public double getD() {
+        return kD;
+    }
+
+    public void setP(double p) {
+        kP = p;
+    }
+
+    public void setI(double i) {
+        kI = i;
+    }
+
+    public void setD(double d) {
+        kD = d;
+    }
+
+    public double getPeriod() {
+        return period;
+    }
+
+    public void disableContinuousInput() {
+        continuous = false;
+    }
+
+    public boolean isContinuousInputEnabled() {
+        return continuous;
     }
 
     public boolean atSetpoint() {

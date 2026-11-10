@@ -1,0 +1,62 @@
+<!-- page: autos | Autonomous | Autonomous routines | Build autos from point-to-point moves, curved paths and named commands with AutoBuilder. -->
+<p class="lede">An autonomous routine is just a command, usually a sequence. Build it from moves to field points, curved paths from the path planner, and your mechanisms' commands.</p>
+
+<h2>A first auto</h2>
+<p>Field coordinates make autos readable: each step says where on the field to go, not how many degrees to turn. Every move works from the robot's real position (odometry), so one step that comes up short doesn't throw off the rest.</p>
+<pre class="code"><code class="lang-java">{{SNIP:examples/docs/src/main/java/com/robojacks/docs/ExampleRobotContainer.java#auto}}</code></pre>
+<p>Always start with <code>resetPose</code>: it tells odometry where the robot was placed. Get it from your field drawing or the path planner (meters from the field center, heading counter-clockwise from +X; see <a href="#units-and-field">Units &amp; field coordinates</a>).</p>
+<p>VS Code's <strong>VEX → New Auto</strong> writes a starting auto class like this.</p>
+
+<h2>AutoBuilder</h2>
+  <p>The planner's exported code uses these, and they're just as handy by hand:</p>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Method</th><th>Does</th></tr></thead>
+    <tbody>
+      <tr><td><code>resetPose(drive, path)</code></td><td>Sets odometry to where a path starts. First step of an auto.</td></tr>
+      <tr><td><code>resetPose(drive, x, y, deg)</code></td><td>Sets odometry to a pose.</td></tr>
+      <tr><td><code>followPath(drive, path, markers...)</code></td><td>Follows a trajectory, running markers alongside.</td></tr>
+      <tr><td><code>marker(atSeconds, "name")</code></td><td>Starts a named command partway into a path; it stops when the path ends.</td></tr>
+      <tr><td><code>marker(atSeconds, forSeconds, "name")</code></td><td>Same, but stops after <code>forSeconds</code>.</td></tr>
+      <tr><td><code>turnTo(drive, deg)</code></td><td>Turns in place to a field heading.</td></tr>
+      <tr><td><code>turnToFace(drive, x, y, reversed)</code></td><td>Turns to face a point, worked out from where the robot really is.</td></tr>
+      <tr><td><code>driveTo / backTo(drive, x, y)</code></td><td>Point-to-point moves.</td></tr>
+      <tr><td><code>driveDistance(drive, m)</code></td><td>Straight line from wherever the robot is.</td></tr>
+    </tbody>
+  </table></div>
+<pre class="code"><code class="lang-java">public static Command exampleAuto(TankDriveSubsystem drive) {
+    return Commands.sequence(
+            AutoBuilder.resetPose(drive, PICKUP),
+            AutoBuilder.followPath(drive, PICKUP,
+                    AutoBuilder.marker(0.92, "intake")),
+            Commands.waitSeconds(0.3),
+            AutoBuilder.followPath(drive, SCORE),
+            NamedCommands.get("outtake").withTimeout(0.8)
+    ).withName("exampleAuto");
+}</code></pre>
+  <div class="note"><strong>Markers run beside the drive.</strong> A marker can't use the drivetrain, and two markers on one path can't use the same subsystem. Commands that need the drivetrain go between paths as their own steps.</div>
+
+<h2>Named commands</h2>
+<p>Path markers and planner steps refer to commands by name. Register a <em>factory</em> for each in <code>RobotContainer</code>'s constructor, before building any autos. A factory gives every use a fresh command, since a command can be in only one group:</p>
+<pre class="code"><code class="lang-java">{{SNIP:examples/docs/src/main/java/com/robojacks/docs/ExampleRobotContainer.java#named-commands}}</code></pre>
+<p><code>NamedCommands.get("intake")</code> returns a fresh command from the factory. An unknown name prints a warning and does nothing, so a typo can't crash the robot in the middle of a match.</p>
+
+<h2>Curved paths</h2>
+  <p>The <a href="#planner">path planner</a> turns each curve into a trajectory: where the robot should be, which way it should face, and how fast it should go, every 20 ms. It does this on your computer, so the brain only looks up the next sample. That matters because Hydrozoa's interpreter is slower than native code.</p>
+  <p><code>FollowTrajectory</code> drives the robot along it. Every loop it:</p>
+  <ol class="steps">
+    <li>Samples the trajectory at the current time.</li>
+    <li>Compares that with the robot's odometry pose. A <code>RamseteController</code> (the same math as WPILib's) returns a forward speed and turn rate that pull the robot back onto the path.</li>
+    <li>Splits those into left and right wheel speeds using the track width.</li>
+    <li>Turns each wheel speed into volts: <code>kS + kV·v + kA·a</code>, plus <code>pathKP</code> times the wheel's speed error.</li>
+  </ol>
+  <p>In the simulator, with gains from tuning test A, the template robot tracks the example path within 9 mm and finishes within 1 cm and half a degree of the target.</p>
+
+<h2>Tips</h2>
+<ul>
+  <li><strong>Put timeouts on everything that waits</strong>: <code>intake.intakeCommand().withTimeout(2.0)</code>. If a piece never arrives, the auto moves on instead of sitting there for the rest of the period.</li>
+  <li><strong>Overlap mechanisms with driving</strong>: <code>driveTo(...).alongWith(arm.goToAngleCommand(up))</code> or use <code>deadlineFor</code>. Seconds matter in a 15-second auto.</li>
+  <li><strong>Mirror for the other side</strong>: <code>FieldConstants.mirror(pose)</code>, or <em>Mirror to other side</em> in the planner.</li>
+  <li><strong>Test in the simulator first</strong>, watching it on the <a href="#dashboard">dashboard</a>, then on the field at reduced <code>kMaxAutoVolts</code>.</li>
+  <li><strong>Let the driver choose</strong> the auto with the <a href="#auto-selector">AutoSelector</a>.</li>
+</ul>
+<div class="api-links">{{API:com.robojacks.lib.auto.AutoBuilder}} {{API:com.robojacks.lib.auto.NamedCommands}} {{API:com.robojacks.lib.trajectory.FollowTrajectory}} {{API:com.robojacks.lib.trajectory.RamseteController}}</div>

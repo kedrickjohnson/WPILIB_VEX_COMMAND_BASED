@@ -1,0 +1,45 @@
+<!-- page: robot-program | Concepts | The robot program | How Main, Robot, RobotContainer and the command scheduler fit together, and what happens each loop. -->
+<p class="lede">A robot program is four files and a loop. <code>Main</code> starts it, <code>Robot</code> handles the match phases, <code>RobotContainer</code> wires everything up, and the command scheduler runs the commands every 10 ms.</p>
+
+<h2>Main: starting up</h2>
+<pre class="code"><code class="lang-java">{{SRC:template/src/main/java/com/robojacks/robot/Main.java}}</code></pre>
+<p><code>HydrozoaRuntime.start</code> connects the library to the real brain, creates your <code>Robot</code>, and runs its loop forever. The simulator's <code>SimMain</code> does the same with simulated hardware instead. That swap is the whole trick: robot code only talks to the library, never to Hydrozoa directly, so the same code runs in both places.</p>
+
+<h2>Robot: the match phases</h2>
+<p><code>Robot</code> extends <code>VexRobot</code>, the VEX version of WPILib's <code>TimedRobot</code>. The method names are the same:</p>
+<pre class="code"><code class="lang-java">{{SRC:template/src/main/java/com/robojacks/robot/Robot.java}}</code></pre>
+<div class="table-wrap"><table>
+  <thead><tr><th>Method</th><th>Runs</th></tr></thead>
+  <tbody>
+    <tr><td><code>robotInit()</code></td><td>Once, at startup. Build the <code>RobotContainer</code> here.</td></tr>
+    <tr><td><code>robotPeriodic()</code></td><td>Every loop, in every mode. Runs the scheduler.</td></tr>
+    <tr><td><code>disabledInit()</code> / <code>disabledPeriodic()</code> / <code>disabledExit()</code></td><td>Before the match and between phases.</td></tr>
+    <tr><td><code>autonomousInit()</code> / <code>autonomousPeriodic()</code> / <code>autonomousExit()</code></td><td>The 15-second autonomous (or the skills run). The template schedules the chosen auto in <code>autonomousInit</code>.</td></tr>
+    <tr><td><code>teleopInit()</code> / <code>teleopPeriodic()</code> / <code>teleopExit()</code></td><td>Driver control. The template cancels the auto in <code>teleopInit</code>.</td></tr>
+  </tbody>
+</table></div>
+<p>The mode comes from field control or a competition switch. With neither plugged in, VEXos runs the program straight into driver control, which is how you practice.</p>
+
+<h2>The loop</h2>
+<p>Every 10 ms (<code>VexRobot.kDefaultPeriod</code>), in this order:</p>
+<ol class="steps">
+  <li>If the mode changed, the old mode's <code>…Exit()</code> and the new mode's <code>…Init()</code> run.</li>
+  <li>The current mode's <code>…Periodic()</code> runs.</li>
+  <li><code>robotPeriodic()</code> runs, which calls <code>CommandScheduler.getInstance().run()</code>: every subsystem's <code>periodic()</code>, then every trigger binding is checked, then every scheduled command's <code>execute()</code> (and <code>end()</code> for those that finished).</li>
+  <li>The hardware layer does housekeeping (sending queued controller-screen text).</li>
+</ol>
+<p>If a loop takes longer than 10 ms, the next one starts right away rather than trying to catch up. Keep loops light: <a href="#deploy-performance">Performance</a> has tips.</p>
+
+<h2>RobotContainer: wiring it up</h2>
+<p>Like in FRC, <code>Robot</code> stays short and the setup lives in <code>RobotContainer</code>: subsystems as fields, controller bindings, default commands, and the autos.</p>
+<pre class="code"><code class="lang-java">{{SRC:template/src/main/java/com/robojacks/robot/RobotContainer.java}}</code></pre>
+
+<h2>Constants</h2>
+<p>Every number that describes <em>your</em> robot (ports, motor directions, gear ratios, gains) goes in <code>Constants.java</code>, grouped in nested classes, with FRC's <code>k</code> prefix. Subsystems <code>import static</code> their group so the code reads cleanly:</p>
+<pre class="code"><code class="lang-java">import static com.robojacks.robot.Constants.DriveConstants.*;
+
+private final VexMotor m_leftLeader = new VexMotor(kLeftFrontMotorPort, kCartridge);</code></pre>
+<p>Convert measurements once, here, with <a href="#units-and-field">Units</a>: <code>kWheelDiameterMeters = Units.inchesToMeters(kWheelDiameterInches)</code>.</p>
+
+<h2>Disabled means stopped</h2>
+<p>When the robot is disabled, the scheduler cancels every command that doesn't say it can run while disabled, and motors stop. A command that should run while disabled (updating a display, picking the auto) uses <code>.ignoringDisable(true)</code>.</p>

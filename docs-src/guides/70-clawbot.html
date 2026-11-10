@@ -1,0 +1,47 @@
+<!-- page: clawbot | Examples | Clawbot example | A complete V5 Clawbot: wiring, controls, subsystems and autos. -->
+<p class="lede">A complete program for the V5 Clawbot kit build in <code>examples/clawbot/</code>.</p>
+
+  <h2>Wiring</h2>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Device</th><th>Port</th><th>Cartridge</th></tr></thead>
+    <tbody>
+      <tr><td>Left drive</td><td>1</td><td>Green</td></tr>
+      <tr><td>Right drive (reversed)</td><td>10</td><td>Green</td></tr>
+      <tr><td>Claw</td><td>3</td><td>Green</td></tr>
+      <tr><td>Arm</td><td>8</td><td>Green</td></tr>
+      <tr><td>Inertial Sensor (optional)</td><td>4, with <code>kHasImu = true</code></td><td></td></tr>
+    </tbody>
+  </table></div>
+  <p><strong>Start the program with the arm all the way down.</strong> That position is 0°.</p>
+
+  <h2>Controls</h2>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Input</th><th>Action</th></tr></thead>
+    <tbody>
+      <tr><td>Left stick up/down</td><td>Drive</td></tr>
+      <tr><td>Right stick left/right</td><td>Turn</td></tr>
+      <tr><td><kbd>L1</kbd> / <kbd>L2</kbd> held</td><td>Arm up / down, with soft limits; holds position when released</td></tr>
+      <tr><td><kbd>R1</kbd> / <kbd>R2</kbd></td><td>Open / close the claw (runs until it stalls, then keeps a light grip)</td></tr>
+      <tr><td>D-pad up / right / down</td><td>Arm presets: high / carry / down</td></tr>
+      <tr><td><kbd>A</kbd></td><td>Grab: close the claw, lift to carry</td></tr>
+      <tr><td><kbd>B</kbd></td><td>Place: lower the arm, open the claw</td></tr>
+      <tr><td><kbd>Y</kbd> held</td><td>Half speed</td></tr>
+    </tbody>
+  </table></div>
+
+  <h2>Subsystems</h2>
+  <ul>
+    <li><strong>DriveSubsystem:</strong> two motors in brake mode, encoders in meters, heading from the wheels (or the Inertial Sensor if you add one).</li>
+    <li><strong>Arm:</strong> the encoder reads arm degrees through a conversion factor; presets use the motor's built-in position PID, and idle mode <code>kHold</code> keeps the arm from sagging.</li>
+    <li><strong>Claw:</strong> current-limited to 1.2 A because it stalls on objects on purpose; open and close finish when the motor stops moving.</li>
+  </ul>
+
+  <h2>Autos</h2>
+  <p><code>pickUpAndMove</code> grabs an object in front of the claw, carries it forward and to the left, sets it down and backs away. <code>square</code> drives a 0.5 m square to check turns and tracking. The Clawbot registers <code>openClaw</code>, <code>closeClaw</code>, <code>armDown</code>, <code>armCarry</code>, <code>armHigh</code>, <code>grab</code> and <code>place</code> as named commands for the path planner.</p>
+
+  <h2>Check on your Clawbot</h2>
+  <ul>
+    <li><strong>Track width</strong> (<code>kTrackWidthInches</code>): without an Inertial Sensor, turns depend on it.</li>
+    <li><strong>Arm gear ratio</strong> (<code>kGearRatio</code>): count the teeth. The example uses 12:84.</li>
+    <li><strong>Claw direction</strong>: if <kbd>R1</kbd> closes it, flip <code>ClawConstants.kReversed</code>.</li>
+  </ul>

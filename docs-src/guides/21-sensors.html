@@ -1,0 +1,93 @@
+<!-- page: sensors | Hardware | Smart sensors | The Inertial, Rotation, Distance, Optical and GPS sensors: what each measures, how to read it, and when to use it. -->
+<p class="lede">V5 smart sensors plug into smart ports like motors. Each has a class named after it; create it with its port in a subsystem, like a motor.</p>
+
+<div class="table-wrap"><table>
+  <thead><tr><th>Sensor</th><th>Class</th><th>Measures</th><th>Typical use</th></tr></thead>
+  <tbody>
+    <tr><td>Inertial Sensor</td><td><code>VexInertial</code></td><td>Heading (and tilt)</td><td>Drive heading for turning and odometry</td></tr>
+    <tr><td>Rotation Sensor</td><td><code>VexRotationSensor</code></td><td>Angle and speed of a shaft, absolute</td><td>Arm angle, tracking wheels</td></tr>
+    <tr><td>Distance Sensor</td><td><code>VexDistanceSensor</code></td><td>Distance to an object, up to about 2 m</td><td>Detecting game pieces, measuring to a wall</td></tr>
+    <tr><td>Optical Sensor</td><td><code>VexOpticalSensor</code></td><td>Color, brightness, proximity at a few cm</td><td>Sorting pieces by color</td></tr>
+    <tr><td>GPS Sensor</td><td><code>VexGps</code></td><td>Position on the field</td><td>Correcting odometry: see <a href="#vision">Vision</a></td></tr>
+  </tbody>
+</table></div>
+<p>Every sensor has <code>isConnected()</code>. If one is unplugged, reads return a safe value (0, NaN, or the last good reading) and a one-time warning is printed over USB, so the program keeps running.</p>
+
+<h2>Inertial Sensor</h2>
+<p>Used like an FRC gyro (Pigeon2, NavX). Calibration starts when it's created and takes about 2 seconds: keep the robot still until it's done. The drive subsystems wait for it before starting odometry.</p>
+<pre class="code"><code class="lang-java">private final VexInertial m_gyro = new VexInertial(kImuPort);
+
+Rotation2d heading = m_gyro.getRotation2d();   // counter-clockwise positive, for odometry
+double cw = m_gyro.getAngle();                 // clockwise positive, WPILib Gyro convention
+boolean ready = !m_gyro.isCalibrating();</code></pre>
+<div class="table-wrap"><table>
+  <thead><tr><th>Method</th><th>Returns</th></tr></thead>
+  <tbody>
+    <tr><td><code>getRotation2d()</code></td><td>Unbounded heading, <strong>counter-clockwise</strong> positive. Use this for odometry.</td></tr>
+    <tr><td><code>getAngle()</code></td><td>Unbounded degrees, <strong>clockwise</strong> positive.</td></tr>
+    <tr><td><code>isCalibrating()</code>, <code>calibrate()</code>, <code>reset()</code></td><td>Status and control. Calibration follows PROS: wait up to 1 s for it to start, 3 s to finish.</td></tr>
+  </tbody>
+</table></div>
+<p>Mount it flat, near the robot's center, away from motors. A sensor that's knocked or jostled during calibration drifts all match.</p>
+
+<h2>Rotation Sensor</h2>
+<p>An absolute encoder, like a CANcoder or a REV Through Bore. It knows its angle within one turn even after power-off, and counts turns while running.</p>
+<pre class="code"><code class="lang-java">private final VexRotationSensor m_armAngle = new VexRotationSensor(kArmSensorPort);
+
+m_armAngle.setPositionConversionFactor(360.0);  // degrees of the shaft it's on
+double degrees = m_armAngle.getPosition();      // keeps counting past 360
+double absolute = m_armAngle.getAbsolutePosition(); // 0 to 1 turn, survives power cycles</code></pre>
+<div class="table-wrap"><table>
+  <thead><tr><th>Method</th><th>Returns</th></tr></thead>
+  <tbody>
+    <tr><td><code>getPosition()</code> / <code>getVelocity()</code></td><td>In your units (rotations until you set a conversion factor), per second for velocity.</td></tr>
+    <tr><td><code>setPosition(value)</code>, <code>reset()</code></td><td>Sets the counted position.</td></tr>
+    <tr><td><code>getAbsolutePosition()</code></td><td>0 to 1 rotation, ignoring conversion factors.</td></tr>
+    <tr><td><code>setInverted(true)</code> or <code>new VexRotationSensor(port, true)</code></td><td>Counts the other way.</td></tr>
+  </tbody>
+</table></div>
+<p>On an arm, put it on the arm's axle (not the motor's) so backlash doesn't hide in the reading. On a tracking wheel, use a conversion factor of the wheel's circumference to read meters: see <a href="#odometry">Odometry</a>.</p>
+
+<h2>Distance Sensor</h2>
+<p>A laser time-of-flight sensor. It reads from about 2 cm to 2 m.</p>
+<pre class="code"><code class="lang-java">private final VexDistanceSensor m_pieceSensor = new VexDistanceSensor(kDistancePort);
+
+boolean hasPiece = m_pieceSensor.isWithin(Units.inchesToMeters(2));
+double toWall = m_pieceSensor.getDistanceMeters(); // NaN when nothing is in range</code></pre>
+<div class="table-wrap"><table>
+  <thead><tr><th>Method</th><th>Returns</th></tr></thead>
+  <tbody>
+    <tr><td><code>getDistanceMeters()</code></td><td>Meters, or <code>Double.NaN</code> when nothing is in range. Check with <code>hasTarget()</code>.</td></tr>
+    <tr><td><code>isWithin(meters)</code></td><td>True if something is closer than that. False when nothing's there.</td></tr>
+    <tr><td><code>getConfidence()</code></td><td>0 to 63. Above about 30 is trustworthy beyond 20 cm.</td></tr>
+    <tr><td><code>getObjectSize()</code>, <code>getObjectVelocity()</code></td><td>Rough size (0–400) and speed (m/s).</td></tr>
+  </tbody>
+</table></div>
+<p>Readings flicker at the edge of a piece; wrap the condition in a trigger with <code>.debounce(0.05)</code> or use a <a href="#filters">MedianFilter</a>.</p>
+
+<h2>Optical Sensor</h2>
+<p>Reads color and brightness of something a few centimeters away. Turn its LED on for readings that don't change with the field's lighting.</p>
+<pre class="code"><code class="lang-java">private final VexOpticalSensor m_color = new VexOpticalSensor(kOpticalPort);
+
+m_color.setLedPower(1.0);
+boolean red = m_color.isColor(VexOpticalSensor.kRedHue, 25);   // hue within ±25°
+boolean blue = m_color.isColor(VexOpticalSensor.kBlueHue, 25);</code></pre>
+<div class="table-wrap"><table>
+  <thead><tr><th>Method</th><th>Returns</th></tr></thead>
+  <tbody>
+    <tr><td><code>getHue()</code></td><td>Degrees, 0–360: red near 0/360, green 120, blue 240.</td></tr>
+    <tr><td><code>getSaturation()</code>, <code>getBrightness()</code></td><td>0 to 1. Low saturation means grey or white.</td></tr>
+    <tr><td><code>getProximity()</code>, <code>isObjectNear()</code></td><td>0 (far) to 255 (touching).</td></tr>
+    <tr><td><code>isColor(hue, tolerance)</code></td><td>Near, saturated, and the hue within tolerance (wraps around 0/360).</td></tr>
+  </tbody>
+</table></div>
+<p>The <code>kRedHue</code> and <code>kBlueHue</code> constants are starting points. Hold each game piece to the sensor, read <code>getHue()</code> from <a href="#dashboard-guide">telemetry</a>, and use your numbers.</p>
+<p>A complete subsystem using the Distance and Optical sensors:</p>
+<pre class="code"><code class="lang-java">{{SNIP:examples/docs/src/main/java/com/robojacks/docs/ExampleIntake.java#intake}}</code></pre>
+
+<h2>GPS Sensor</h2>
+<p>The GPS Sensor reads the code strip around the field perimeter with a camera and reports where the robot is. It works best as a correction for odometry rather than on its own, exactly like a PhotonVision camera in FRC. The <a href="#vision">Vision</a> page covers it.</p>
+<pre class="code"><code class="lang-java">VexGps gps = new VexGps(kGpsPort, 0.0, -0.10); // 10 cm behind the robot's center
+Pose2d where = gps.getPose();                    // library frame: meters, CCW heading
+boolean trustworthy = gps.isReliable();          // reported error under 5 cm</code></pre>
+<div class="api-links">{{API:com.robojacks.lib.hardware.VexInertial}} {{API:com.robojacks.lib.hardware.VexRotationSensor}} {{API:com.robojacks.lib.hardware.VexDistanceSensor}} {{API:com.robojacks.lib.hardware.VexOpticalSensor}} {{API:com.robojacks.lib.hardware.VexGps}}</div>

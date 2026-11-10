@@ -2,7 +2,7 @@
   "name": "vex-command-based",
   "displayName": "VEX Command-Based (Java)",
   "description": "Create, build, simulate and upload FRC-style command-based Java robots for VEX V5, with vendor libraries and wizards for subsystems, commands and autos.",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "publisher": "kedrickjohnson",
   "license": "MIT",
   "icon": "images/icon.png",

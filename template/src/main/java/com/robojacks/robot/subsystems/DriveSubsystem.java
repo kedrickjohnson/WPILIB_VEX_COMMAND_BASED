@@ -13,7 +13,8 @@ import com.robojacks.lib.hardware.VexInertial;
 import com.robojacks.lib.hardware.VexMotor;
 import com.robojacks.lib.hardware.VexMotorConfig;
 import com.robojacks.lib.hardware.VexMotorConfig.IdleMode;
-import com.robojacks.lib.kinematics.DifferentialDriveOdometry;
+import com.robojacks.lib.estimator.DifferentialDrivePoseEstimator;
+import com.robojacks.lib.math.Vector3;
 import com.robojacks.lib.math.Pose2d;
 import com.robojacks.lib.math.Rotation2d;
 import com.robojacks.lib.math.Translation2d;
@@ -23,7 +24,8 @@ import static com.robojacks.robot.Constants.DriveConstants.*;
 
 /**
  * Contains all methods for control of the drivetrain: a 6-motor tank drive with an
- * Inertial Sensor and odometry. Motors are set up REV-style: one leader per side with two
+ * Inertial Sensor and odometry. Vision (the GPS) corrects odometry through
+ * {@link #addVisionMeasurement}. Motors are set up REV-style: one leader per side with two
  * followers, configured through VexMotorConfig.
  *
  * @see com.robojacks.robot.commands.TankDrive
@@ -50,8 +52,9 @@ public class DriveSubsystem extends SubsystemBase implements TankDriveSubsystem 
     // The Inertial Sensor (gyro)
     private final VexInertial m_gyro = new VexInertial(kImuPort);
 
-    // Odometry for tracking the robot's position on the field
-    private final DifferentialDriveOdometry m_odometry;
+    // Tracks the robot's position on the field: odometry, corrected by vision (the GPS) when
+    // the Vision subsystem sends measurements
+    private final DifferentialDrivePoseEstimator m_poseEstimator;
 
     // Gains used by the library's auto commands (TurnToHeading, DriveToPoint, ...)
     private DriveGains m_gains = new DriveGains(
@@ -97,8 +100,8 @@ public class DriveSubsystem extends SubsystemBase implements TankDriveSubsystem 
         m_rightFollower2.configure(rightFollower2Config);
 
         resetEncoders();
-        m_odometry = new DifferentialDriveOdometry(
-                m_gyro.getRotation2d(), getLeftEncoderDistance(), getRightEncoderDistance());
+        m_poseEstimator = new DifferentialDrivePoseEstimator(
+                m_gyro.getRotation2d(), getLeftEncoderDistance(), getRightEncoderDistance(), Pose2d.kZero);
     }
 
     @Override
@@ -110,12 +113,12 @@ public class DriveSubsystem extends SubsystemBase implements TankDriveSubsystem 
             m_odometryStarted = true;
             resetOdometry(m_startPose);
         }
-        m_odometry.update(m_gyro.getRotation2d(), getLeftEncoderDistance(), getRightEncoderDistance());
+        m_poseEstimator.update(m_gyro.getRotation2d(), getLeftEncoderDistance(), getRightEncoderDistance());
 
         Pose2d pose = getPose();
-        Telemetry.put("drive/x", pose.getX());
-        Telemetry.put("drive/y", pose.getY());
-        Telemetry.put("drive/deg", pose.getRotation().getDegrees());
+        Telemetry.putPose("drive/pose", pose);
+        Telemetry.put("drive/leftMps", getLeftEncoderRate());
+        Telemetry.put("drive/rightMps", getRightEncoderRate());
     }
 
     // =====================================================================
@@ -208,7 +211,7 @@ public class DriveSubsystem extends SubsystemBase implements TankDriveSubsystem 
     /** The robot's position on the field (meters, field-centered). */
     @Override
     public Pose2d getPose() {
-        return m_odometry.getPoseMeters();
+        return m_poseEstimator.getEstimatedPosition();
     }
 
     /** Tells odometry where the robot is. */
@@ -218,7 +221,22 @@ public class DriveSubsystem extends SubsystemBase implements TankDriveSubsystem 
             m_startPose = pose; // applied once the Inertial Sensor finishes calibrating
             return;
         }
-        m_odometry.resetPosition(m_gyro.getRotation2d(), getLeftEncoderDistance(), getRightEncoderDistance(), pose);
+        m_poseEstimator.resetPosition(m_gyro.getRotation2d(), getLeftEncoderDistance(), getRightEncoderDistance(), pose);
+
+    }
+
+    /**
+     * Adds a vision measurement (from the Vision subsystem's GPS) to the pose estimate, the way
+     * FRC drive subsystems take PhotonVision estimates.
+     *
+     * @param visionPose       where vision says the robot was
+     * @param timestampSeconds when ({@code Timer.getFPGATimestamp()} time)
+     * @param stdDevs          how much to trust it: x, y (m), heading (rad)
+     */
+    public void addVisionMeasurement(Pose2d visionPose, double timestampSeconds, Vector3 stdDevs) {
+        if (m_odometryStarted) {
+            m_poseEstimator.addVisionMeasurement(visionPose, timestampSeconds, stdDevs);
+        }
     }
 
     /** Makes the direction the robot is facing now read as 0 degrees. */
