@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.3.1
+
+- Fixes builds on a real machine: new projects use VexLib 0.1.1, which brings the Hydrozoa build it
+  needs (Hydrozoa's main branch, installed offline with VexLib). 0.1.0 pulled in the old Hydrozoa
+  release from Maven Central and failed in `generateWasm`
+- Build files work with the hydrozoa Gradle plugin that's actually on the plugin portal (no
+  `name`/`icon`/`ProgramIcon`); `hydrozoaUpload` is now a task in the build file that passes the
+  program name, slot and icon to the hydrozoa CLI
+- Projects include `gradle/gradle-daemon-jvm.properties`, so Gradle runs on Java 21 even when
+  `JAVA_HOME` points at an older Java
+- Links point to the WPILIB_VEX_COMMAND_BASED repository
+
 ## 0.3.0
 
 - New projects include the latest VexLib: smart sensors, 3-wire and pneumatics, GPS vision,

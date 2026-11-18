@@ -49,7 +49,7 @@ there. **VEX: Manage Vendor Libraries** (also on right-click of `build.gradle.kt
 | Option | Does |
 | --- | --- |
 | Install VexLib | Installs the copy that comes with the extension (shown when it's missing or newer) |
-| Install new library (online) | Paste a vendordep JSON URL, such as `https://kedrickjohnson.github.io/vex-command-template/vendordeps/VexLib.json` |
+| Install new library (online) | Paste a vendordep JSON URL, such as `https://kedrickjohnson.github.io/WPILIB_VEX_COMMAND_BASED/vendordeps/VexLib.json` |
 | Install new library (from file) | A vendordep `.json` on your computer |
 | Check for updates (online) | Downloads each library's `jsonUrl` and offers newer versions |
 | Remove installed libraries | Deletes their JSON files |

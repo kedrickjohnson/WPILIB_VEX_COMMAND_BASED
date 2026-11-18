@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>io.github.kedrickjohnson</groupId>
+  <artifactId>vexlib</artifactId>
+  <version>0.1.1</version>
+  <name>VexLib</name>
+  <description>FRC-style command-based programming for VEX V5 in Java (Hydrozoa).</description>
+  <url>https://kedrickjohnson.github.io/WPILIB_VEX_COMMAND_BASED</url>
+  <licenses>
+    <license>
+      <name>MIT License</name>
+      <url>https://opensource.org/licenses/MIT</url>
+    </license>
+  </licenses>
+  <dependencies>
+    <dependency>
+      <groupId>io.github.kedrickjohnson.hydrozoa</groupId>
+      <artifactId>hydrozoa</artifactId>
+      <version>0.1.0-main.492a69e</version>
+      <scope>compile</scope>
+    </dependency>
+  </dependencies>
+</project>

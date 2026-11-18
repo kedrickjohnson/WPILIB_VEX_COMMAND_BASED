@@ -6,13 +6,13 @@
 <pre class="code"><code class="lang-json">{
   "fileName": "VexLib.json",
   "name": "VexLib",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "uuid": "d6eb81fc-0c7e-4aa7-8b70-7d890ccc2d6e",
-  "hydrozoaVersion": "0.1.0-alpha.1",
-  "mavenUrls": ["https://kedrickjohnson.github.io/vex-command-template/maven"],
-  "jsonUrl": "https://kedrickjohnson.github.io/vex-command-template/vendordeps/VexLib.json",
+  "hydrozoaVersion": "0.1.0-main.492a69e",
+  "mavenUrls": ["https://kedrickjohnson.github.io/WPILIB_VEX_COMMAND_BASED/maven"],
+  "jsonUrl": "https://kedrickjohnson.github.io/WPILIB_VEX_COMMAND_BASED/vendordeps/VexLib.json",
   "javaDependencies": [
-    { "groupId": "io.github.kedrickjohnson", "artifactId": "vexlib", "version": "0.1.0" }
+    { "groupId": "io.github.kedrickjohnson", "artifactId": "vexlib", "version": "0.1.1" }
   ]
 }</code></pre>
   <p>The format is WPILib's, trimmed to what a Java-only VEX robot needs: no native libraries and no FRC year. <code>uuid</code> stays the same across versions so an update replaces the old file, and <code>jsonUrl</code> is where updates are checked.</p>
@@ -25,7 +25,7 @@
       <tr><td>By hand</td><td>Download the JSON into <code>vendordeps/</code> and build.</td></tr>
     </tbody>
   </table></div>
-  <p>VexLib's URL: <code>https://kedrickjohnson.github.io/vex-command-template/vendordeps/VexLib.json</code></p>
+  <p>VexLib's URL: <code>https://kedrickjohnson.github.io/WPILIB_VEX_COMMAND_BASED/vendordeps/VexLib.json</code></p>
   <p>The extension copies its bundled VexLib into <code>~/.vex-command/maven</code>, a local repository every project checks first. That's what lets a new project build at a competition with no internet, the same idea as WPILib's offline vendordep folder.</p>
 
   <h2>The build code</h2>

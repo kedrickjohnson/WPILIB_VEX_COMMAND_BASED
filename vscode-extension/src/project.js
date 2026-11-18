@@ -49,7 +49,12 @@ function readHydrozoaBlock(text) {
   const block = clean.slice(start, end);
   const str = (key) => { const m = block.match(new RegExp('\\b' + key + '\\s*=\\s*"([^"]*)"')); return m ? m[1] : null; };
   const num = (key) => { const m = block.match(new RegExp('\\b' + key + '\\s*=\\s*(\\d+)')); return m ? Number(m[1]) : null; };
-  return { entrypoint: str('entrypoint'), name: str('name'), slot: num('slot') };
+  // Name and slot are `val programName` / `val programSlot` at the top of the file (0.3.1+), or
+  // `name =` / `slot =` inside the block (older build files).
+  const top = (re) => { const m = clean.match(re); return m ? m[1] : null; };
+  const name = top(/\bval\s+programName\s*=\s*"([^"]*)"/) ?? str('name');
+  const slotVal = top(/\bval\s+programSlot\s*=\s*(\d+)/);
+  return { entrypoint: str('entrypoint'), name: name, slot: slotVal != null ? Number(slotVal) : num('slot') };
 }
 
 /**

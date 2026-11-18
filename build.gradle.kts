@@ -7,6 +7,8 @@ subprojects {
     apply(plugin = "java")
 
     repositories {
+        // Hydrozoa (built from its main branch) and VexLib releases, published in this repo.
+        maven { url = uri(rootProject.layout.projectDirectory.dir("docs/maven")) }
         mavenCentral()
     }
 

@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 """Publishes VexLib as a vendor library without Gradle.
 
-    python3 tools/release_vexlib.py --classpath <hydrozoa classes or jar>
+    python3 tools/release_vexlib.py
+
+Compiles against the Hydrozoa jars in docs/maven (tools/build_hydrozoa.py puts them there).
 
 Does what `./gradlew :vexlib:publish` does, for machines where Gradle can't download its
 plugins: compiles vexlib, then writes a Maven repository to docs/maven/ (jar, sources jar,
@@ -43,7 +45,7 @@ def write_jar(path, base, files, manifest):
     with zipfile.ZipFile(path, "w", zipfile.ZIP_DEFLATED) as z:
         z.writestr(zipfile.ZipInfo("META-INF/", stamp), "")
         z.writestr(zipfile.ZipInfo("META-INF/MANIFEST.MF", stamp), manifest, zipfile.ZIP_DEFLATED)
-        dirs = set()
+        dirs = {"META-INF/"}
         for f in sorted(files):
             rel = f.relative_to(base).as_posix()
             parts = rel.split("/")[:-1]
@@ -80,7 +82,7 @@ def pom(p):
   </licenses>
   <dependencies>
     <dependency>
-      <groupId>dev.vexide</groupId>
+      <groupId>{p['hydrozoaGroup']}</groupId>
       <artifactId>hydrozoa</artifactId>
       <version>{p['hydrozoaVersion']}</version>
       <scope>compile</scope>
@@ -115,6 +117,7 @@ def vendordep(p):
         "version": p["vexlibVersion"],
         "uuid": p["vexlibUuid"],
         "hydrozoaVersion": p["hydrozoaVersion"],
+        "hydrozoaPluginVersion": p["hydrozoaPluginVersion"],
         "mavenUrls": [p["vexlibSiteUrl"] + "/maven"],
         "jsonUrl": p["vexlibSiteUrl"] + "/vendordeps/VexLib.json",
         "javaDependencies": [
@@ -129,11 +132,18 @@ def version_key(v):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--classpath", required=True, help="Hydrozoa SDK classes (folder or jar)")
+    ap.add_argument("--classpath", help="Hydrozoa classes or jars (default: the build in docs/maven)")
     ap.add_argument("--out", default=str(ROOT / "docs"), help="site folder (default docs/)")
     args = ap.parse_args()
     p = props()
     group, version = p["vexlibGroup"], p["vexlibVersion"]
+    if not args.classpath:
+        hz = ROOT / "docs" / "maven" / pathlib.Path(*p["hydrozoaGroup"].split("."))
+        jars = [hz / a / p["hydrozoaVersion"] / f"{a}-{p['hydrozoaVersion']}.jar" for a in ("hydrozoa", "vex-sdk")]
+        missing = [str(j) for j in jars if not j.exists()]
+        if missing:
+            sys.exit("Hydrozoa isn't in docs/maven yet; run tools/build_hydrozoa.py first. Missing: " + ", ".join(missing))
+        args.classpath = ":".join(str(j) for j in jars)
     out = pathlib.Path(args.out)
     art_dir = out / "maven" / pathlib.Path(*group.split(".")) / "vexlib"
     ver_dir = art_dir / version

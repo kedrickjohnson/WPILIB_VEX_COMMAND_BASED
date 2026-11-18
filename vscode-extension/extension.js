@@ -387,7 +387,7 @@ const COMMANDS = {
   'vexCommandBased.newAuto': (ctx, uri) => newAuto(uri),
   'vexCommandBased.manageVendorLibs': (ctx) => vendorUi.manage({ context: ctx, pickRobot, loadBundle, runAction }),
   'vexCommandBased.openDocs': () => vscode.env.openExternal(vscode.Uri.parse(
-    vscode.workspace.getConfiguration('vexCommandBased').get('docsUrl', 'https://kedrickjohnson.github.io/vex-command-template/')))
+    vscode.workspace.getConfiguration('vexCommandBased').get('docsUrl', 'https://kedrickjohnson.github.io/WPILIB_VEX_COMMAND_BASED/')))
 };
 
 function activate(context) {

@@ -107,9 +107,8 @@ function addVendordepSupport(buildText) {
 }
 
 function robotBuildGradle(opts) {
-  return `import dev.vexide.hydrozoa.gradle.ProgramIcon
-
-plugins {
+  const icon = String(opts.icon).toLowerCase().replace(/_/g, '-');
+  return `plugins {
     java
     id("dev.vexide.hydrozoa") version "0.1.0-alpha.1"
 }
@@ -120,11 +119,27 @@ java {
     }
 }
 
-${VENDORDEP_BLOCK}hydrozoa {
+${VENDORDEP_BLOCK}val programName = "${opts.programName}"   // shown on the brain's screen
+val programSlot = ${opts.slot}            // program slot on the brain, 1-8
+val programIcon = "${icon}"     // hydrozoa CLI icon: robot, clawbot, cool-x, alien, alien-in-ufo, pizza...
+
+hydrozoa {
     entrypoint = "${opts.pkg}.Main"
-    name = "${opts.programName}"   // shown on the brain's screen
-    slot = ${opts.slot}               // program slot on the brain, 1-8
-    icon = ProgramIcon.${opts.icon}
+    slot = programSlot
+}
+
+// Builds, then uploads to the brain with the hydrozoa CLI (USB or controller radio). This is used
+// instead of the plugin's own "upload" task, which doesn't pass the program name the CLI needs.
+// --hash keeps this runtime separate from other Hydrozoa programs' runtimes on the brain.
+tasks.register<Exec>("hydrozoaUpload") {
+    group = "vex"
+    description = "Builds the program and uploads it to the brain."
+    dependsOn("assemble")
+    val wasm = layout.buildDirectory.file("generated/teavm/wasm/robot.wasm")
+    val runtimeBin = layout.projectDirectory.file("hydrozoa.bin")
+    commandLine("hydrozoa", "upload", wasm.get().asFile.path,
+        "--name", programName, "--slot", programSlot.toString(), "--icon", programIcon,
+        "--hash", "--runtime", runtimeBin.asFile.path)
 }
 
 // Desktop simulator: same robot code, fake hardware. Never uploaded to the brain.

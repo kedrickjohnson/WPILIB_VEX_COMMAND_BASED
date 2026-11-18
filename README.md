@@ -36,8 +36,9 @@ To publish it, go to the repository's **Settings → Pages**, choose **Deploy fr
 the `main` branch and the `/docs` folder. Rebuild it after changing the library with
 `python3 docs-src/build.py --javadoc`.
 
-> **Status:** Everything compiles against Hydrozoa's real SDK source, has unit tests, and runs in
-> the desktop simulator. It has **not yet been run on a physical brain.** Hydrozoa itself is experimental
+> **Status:** Everything has unit tests and runs in the desktop simulator, and a generated project
+> compiles all the way to the brain's WebAssembly (`generateWasm`) on Windows. It has **not yet been
+> run on a physical brain.** Hydrozoa itself is experimental
 > (alpha, and its repo was archived in Feb 2026), so expect to find a few rough edges on hardware.
 
 ## What robot code looks like
@@ -200,9 +201,9 @@ few degrees short.
 Teams use VexLib the way FRC teams use REVLib: a vendordep JSON in their project's `vendordeps/`
 folder, resolved from a Maven repository. This repository hosts both on GitHub Pages:
 
-- JSON: `https://kedrickjohnson.github.io/vex-command-template/vendordeps/VexLib.json`
-- Maven: `https://kedrickjohnson.github.io/vex-command-template/maven`
-  (`io.github.kedrickjohnson:vexlib:0.1.0`, with sources and javadoc jars)
+- JSON: `https://kedrickjohnson.github.io/WPILIB_VEX_COMMAND_BASED/vendordeps/VexLib.json`
+- Maven: `https://kedrickjohnson.github.io/WPILIB_VEX_COMMAND_BASED/maven`
+  (`io.github.kedrickjohnson:vexlib:0.1.1`, with sources and javadoc jars)
 
 The robot build reads every `vendordeps/*.json` and adds its repositories and dependencies; the
 VS Code extension writes that build code into new projects and has a **Manage Vendor Libraries**
@@ -210,8 +211,13 @@ command. The `template/` and `examples/clawbot/` projects in this repository sti
 library from source (`project(":vexlib")`), so library changes can be tested before release.
 
 To release a version: bump `vexlibVersion` in `gradle.properties`, run `./gradlew :vexlib:publish`
-(writes `docs/maven/` and `docs/vendordeps/VexLib.json`; `python3 tools/release_vexlib.py
---classpath <hydrozoa jar>` does the same without Gradle), commit, and push. Old versions stay in
+(writes `docs/maven/` and `docs/vendordeps/VexLib.json`; `python3 tools/release_vexlib.py` does
+the same without Gradle), commit, and push.
+
+VexLib depends on a build of Hydrozoa's main branch (`io.github.kedrickjohnson.hydrozoa:hydrozoa`,
+in `docs/maven/`), because the releases on Maven Central don't have the sensor and 3-wire APIs yet.
+`hydrozoaCommit` in `gradle.properties` says which commit; `tools/build_hydrozoa.py` rebuilds it.
+`hydrozoa.bin` must come from the same commit. Old versions stay in
 `docs/maven/` so teams that haven't updated keep building.
 
 ## VS Code extension

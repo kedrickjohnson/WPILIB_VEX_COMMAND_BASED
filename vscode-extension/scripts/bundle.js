@@ -52,11 +52,18 @@ function main() {
   const artifactDir = path.join(REPO, 'docs', 'maven', ...dep.groupId.split('.'), dep.artifactId);
   const versionDir = path.join(artifactDir, dep.version);
   if (!fs.existsSync(versionDir)) throw new Error('VexLib ' + dep.version + ' isn\'t published in docs/maven yet.');
-  const mavenPrefix = [...dep.groupId.split('.'), dep.artifactId].join('/') + '/';
   const maven = {};
-  for (const f of fs.readdirSync(versionDir)) {
-    maven[mavenPrefix + dep.version + '/' + f] = { base64: fs.readFileSync(path.join(versionDir, f)).toString('base64') };
-  }
+  const addArtifact = (groupId, artifactId, version) => {
+    const dir = path.join(REPO, 'docs', 'maven', ...groupId.split('.'), artifactId, version);
+    if (!fs.existsSync(dir)) throw new Error(groupId + ':' + artifactId + ':' + version + ' isn\'t published in docs/maven yet.');
+    const prefix = [...groupId.split('.'), artifactId, version].join('/') + '/';
+    for (const f of fs.readdirSync(dir)) maven[prefix + f] = { base64: fs.readFileSync(path.join(dir, f)).toString('base64') };
+  };
+  addArtifact(dep.groupId, dep.artifactId, dep.version);
+  // VexLib's Hydrozoa (a build of its main branch, not on Maven Central): see tools/build_hydrozoa.py.
+  const props = Object.fromEntries(fs.readFileSync(path.join(REPO, 'gradle.properties'), 'utf8').split(/\r?\n/)
+    .filter((l) => /^[A-Za-z]/.test(l) && l.includes('=')).map((l) => [l.slice(0, l.indexOf('=')).trim(), l.slice(l.indexOf('=') + 1).trim()]));
+  for (const a of ['hydrozoa', 'vex-sdk']) addArtifact(props.hydrozoaGroup, a, props.hydrozoaVersion);
   // The javadoc jar is large and only for IDE hovers; Gradle fetches it online when the IDE asks.
   for (const k of Object.keys(maven)) if (/-javadoc\.jar/.test(k)) delete maven[k];
   const vexlib = { vendordep: vendordep, maven: maven };
@@ -74,6 +81,7 @@ function main() {
     'gradlew.bat': read(path.join(REPO, 'gradlew.bat')),
     'gradle/wrapper/gradle-wrapper.jar': read(path.join(REPO, 'gradle', 'wrapper', 'gradle-wrapper.jar')),
     'gradle/wrapper/gradle-wrapper.properties': read(path.join(REPO, 'gradle', 'wrapper', 'gradle-wrapper.properties')),
+    'gradle/gradle-daemon-jvm.properties': read(path.join(REPO, 'gradle', 'gradle-daemon-jvm.properties')),
     'hydrozoa.bin': read(path.join(REPO, 'hydrozoa.bin'))
   };
 

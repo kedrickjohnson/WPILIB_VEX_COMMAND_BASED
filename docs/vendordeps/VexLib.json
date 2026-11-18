@@ -1,18 +1,19 @@
 {
   "fileName": "VexLib.json",
   "name": "VexLib",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "uuid": "d6eb81fc-0c7e-4aa7-8b70-7d890ccc2d6e",
-  "hydrozoaVersion": "0.1.0-alpha.1",
+  "hydrozoaVersion": "0.1.0-main.492a69e",
+  "hydrozoaPluginVersion": "0.1.0-alpha.1",
   "mavenUrls": [
-    "https://kedrickjohnson.github.io/vex-command-template/maven"
+    "https://kedrickjohnson.github.io/WPILIB_VEX_COMMAND_BASED/maven"
   ],
-  "jsonUrl": "https://kedrickjohnson.github.io/vex-command-template/vendordeps/VexLib.json",
+  "jsonUrl": "https://kedrickjohnson.github.io/WPILIB_VEX_COMMAND_BASED/vendordeps/VexLib.json",
   "javaDependencies": [
     {
       "groupId": "io.github.kedrickjohnson",
       "artifactId": "vexlib",
-      "version": "0.1.0"
+      "version": "0.1.1"
     }
   ]
 }

@@ -5,12 +5,15 @@ plugins {
 
 group = property("vexlibGroup") as String
 version = property("vexlibVersion") as String
+val hydrozoaGroup = property("hydrozoaGroup") as String
 val hydrozoaVersion = property("hydrozoaVersion") as String
 val siteUrl = property("vexlibSiteUrl") as String
 
 dependencies {
     // Only lib/hal/hydrozoa uses this directly; everything else is plain Java.
-    api("dev.vexide:hydrozoa:$hydrozoaVersion")
+    // A build of Hydrozoa's main branch, from docs/maven (see tools/build_hydrozoa.py): the
+    // releases on Maven Central don't have the sensor and 3-wire APIs yet.
+    api("$hydrozoaGroup:hydrozoa:$hydrozoaVersion")
 
     testImplementation("junit:junit:4.13.2")
 }
@@ -77,6 +80,7 @@ val vendordepJson by tasks.registering {
               "version": "$version",
               "uuid": "${property("vexlibUuid")}",
               "hydrozoaVersion": "$hydrozoaVersion",
+              "hydrozoaPluginVersion": "${property("hydrozoaPluginVersion")}",
               "mavenUrls": ["$siteUrl/maven"],
               "jsonUrl": "$siteUrl/vendordeps/VexLib.json",
               "javaDependencies": [

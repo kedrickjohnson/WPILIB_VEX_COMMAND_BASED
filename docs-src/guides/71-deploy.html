@@ -5,7 +5,9 @@
 <pre class="code"><code class="lang-shell">./gradlew hydrozoaUpload                     # a project from the VS Code extension
 ./gradlew :template:hydrozoaUpload           # in the library's repository (slot 1)
 ./gradlew :examples:clawbot:hydrozoaUpload   # slot 2</code></pre>
-<p>Each robot's <code>build.gradle.kts</code> sets the program's name, slot (1–8) and icon in its <code>hydrozoa { }</code> block. <code>hydrozoa.bin</code> is the Hydrozoa runtime, uploaded with your program (from vexide/Hydrozoa-Java, MIT license). Upload over USB to the brain, or to a controller tethered or radio-linked to it.</p>
+<p>Each robot's <code>build.gradle.kts</code> sets the program's name, slot (1–8) and icon in <code>programName</code>, <code>programSlot</code> and <code>programIcon</code> near the top. <code>hydrozoaUpload</code> builds, then runs <code>hydrozoa upload</code> with them. <code>hydrozoa.bin</code> is the Hydrozoa runtime, uploaded with your program (from vexide/Hydrozoa-Java, MIT license). Upload over USB to the brain, or to a controller tethered or radio-linked to it.</p>
+<h3>Which Hydrozoa</h3>
+<p>VexLib needs Hydrozoa's sensor, 3-wire and error-handling code, which is on Hydrozoa's main branch but in no release on Maven Central. So VexLib depends on a build of one main-branch commit, <code>io.github.kedrickjohnson.hydrozoa:hydrozoa</code>, published next to VexLib (and installed offline by the VS Code extension). <code>hydrozoa.bin</code> comes from the same commit; the two must match. Don't add <code>dev.vexide:hydrozoa</code> to a robot project: its classes would clash with VexLib's.</p>
 
 <h2>Reading output</h2>
 <p><code>System.out.println</code> and <code>Telemetry</code> go to the brain's USB serial port. Watch them on the <a href="#dashboard">dashboard</a> (Chrome or Edge), or with any serial terminal. An uncaught exception prints over serial and shows on the brain's screen.</p>
@@ -24,6 +26,10 @@
     <tr><td><code>[NamedCommands] no command registered as '…'</code></td><td>An auto used a name you didn't register (or registered after building the auto). That step does nothing.</td></tr>
     <tr><td><code>HAL.set(...) must be called before creating the robot</code></td><td>Something created hardware before <code>Main</code> or <code>SimMain</code> set up the hardware layer; e.g. a <code>static</code> field holding a motor. Make it an instance field.</td></tr>
     <tr><td>Uploading: <code>hydrozoa: command not found</code></td><td>Install the Hydrozoa CLI (<code>cargo install --git https://github.com/vexide/hydrozoa-cli.git</code>) and make sure <code>~/.cargo/bin</code> is on your PATH. The VS Code extension finds it there automatically.</td></tr>
+    <tr><td>Build: <code>Dependency requires at least JVM runtime version 21</code></td><td>Gradle is running on an older Java. Install JDK 21 (Temurin). Projects include <code>gradle/gradle-daemon-jvm.properties</code>, so Gradle picks an installed JDK 21 even when <code>JAVA_HOME</code> points elsewhere; if it can't find one, set <code>JAVA_HOME</code> to the JDK 21 folder.</td></tr>
+    <tr><td>Build: <code>Unresolved reference: ProgramIcon</code>, <code>Val cannot be reassigned</code> (name)</td><td>A build file from extension 0.3.0 or older. The Gradle plugin on the plugin portal has no <code>name</code> or <code>icon</code>: create a fresh project with extension 0.3.1+ and copy your <code>src/</code> over, or copy its <code>build.gradle.kts</code>.</td></tr>
+    <tr><td><code>generateWasm</code>: <code>Method dev.vexide.hydrozoa… was not found</code> / <code>Class … VexSdk… was not found</code></td><td>An older Hydrozoa is on the classpath. Use VexLib 0.1.1 or newer (it brings the right Hydrozoa) and remove any <code>dev.vexide:hydrozoa</code> dependency.</td></tr>
+    <tr><td>Uploading: <code>No V5 devices found</code></td><td>Plug the brain (or a controller linked to it) in over USB and turn it on. Close VEXcode or other programs holding the serial port.</td></tr>
     <tr><td>Build: <code>Could not resolve io.github.kedrickjohnson:vexlib</code></td><td>Gradle can't reach the library's site and has no offline copy. Open the project once in VS Code with the extension installed (it installs the offline copy), or connect to the internet.</td></tr>
   </tbody>
 </table></div>
